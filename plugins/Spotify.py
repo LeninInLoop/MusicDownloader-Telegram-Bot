@@ -90,14 +90,14 @@ class Spotify_Downloader():
     @staticmethod       
     def extract_yt_video_info(spotify_link_info) -> tuple:
 
-        query = f""""{spotify_link_info['track_name']}" "{spotify_link_info["album_name"]}" "{spotify_link_info["release_year"]}" """
+        query = f""" 'music.youtube.com' {spotify_link_info['track_name']} {spotify_link_info['artist_name']} {spotify_link_info['album_name']} {spotify_link_info['release_year']}"""
         
         ydl_opts = {
         'quiet': True,
         'no_warnings': True,
         'ignoreerrors': True,
         'ytsearch': query,
-        'skip_download': True,
+        'skip_download': True
         }
         
         with YoutubeDL(ydl_opts) as ydl:
@@ -220,20 +220,20 @@ Track id: {link_info["track_id"]}
 
             if os.path.isfile(file_path):
 
-                audio = FLAC(file_path)
+                PreProcessAudio = FLAC(file_path)
 
                 # Set the standard FLAC metadata fields
-                audio['TITLE'] = spotify_link_info["track_name"]
-                audio['ARTIST'] = spotify_link_info["artist_name"]
-                audio['ALBUM'] = spotify_link_info["album_name"]
-                audio['DATE'] = spotify_link_info['release_year']
-                audio['ORIGINALYEAR'] = spotify_link_info['release_year']
-                audio['YEAR_OF_RELEASE'] = spotify_link_info['release_year']
-                audio['ISRC'] = spotify_link_info['isrc']
-                audio.save()
+                PreProcessAudio['TITLE'] = spotify_link_info["track_name"]
+                PreProcessAudio['ARTIST'] = spotify_link_info["artist_name"]
+                PreProcessAudio['ALBUM'] = spotify_link_info["album_name"]
+                PreProcessAudio['DATE'] = spotify_link_info['release_year']
+                PreProcessAudio['ORIGINALYEAR'] = spotify_link_info['release_year']
+                PreProcessAudio['YEAR_OF_RELEASE'] = spotify_link_info['release_year']
+                PreProcessAudio['ISRC'] = spotify_link_info['isrc']
+                PreProcessAudio.save()
                 
                 
-                audi = File(file_path)
+                audio = File(file_path)
                 
                 image = Picture()
                 with open(icon_path, 'rb') as image_file:
@@ -245,9 +245,9 @@ Track id: {link_info["track_id"]}
                 image.height = 500  # Replace with your image's height
                 image.depth = 24  # Color depth, change if necessary
 
-                audi.clear_pictures()
-                audi.add_picture(image)
-                audi.save()
+                audio.clear_pictures()
+                audio.add_picture(image)
+                audio.save()
                 
                 async with client.action(event.chat_id, 'document'):
                     await client.send_file(

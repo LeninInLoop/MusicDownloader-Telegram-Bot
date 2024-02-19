@@ -1,4 +1,4 @@
-import os, telethon
+import os
 from dotenv import load_dotenv
 from telethon import TelegramClient, events
 from telethon.tl.custom import Button
@@ -54,6 +54,7 @@ main_menu_buttons = [
 
 back_button = [Button.inline("<< Back", b"back")]
 
+cancel_button = [Button.inline("", b"CANCEL")]
 #------------------------------------------------------------------------------------------------
 
 with TelegramClient('bot', API_ID, API_HASH).start(bot_token=BOT_TOKEN) as client:
@@ -76,13 +77,13 @@ with TelegramClient('bot', API_ID, API_HASH).start(bot_token=BOT_TOKEN) as clien
             await client.edit_message(messages[str(event.chat_id)],f"""Hey {sender_name}!👋\n {start_message}""",buttons=main_menu_buttons)
         
         else: 
-            track_name, artist= event.data.decode('utf-8').split('%')
             spotify_link_to_download = None
             
-            for details in song_dict.values():
-                if details['track_name'] == track_name and details['artist'] == artist:
-                    spotify_link_to_download = details['spotify_link']
-                    
+            # The callback_data_str is just the index, so convert it to an integer
+            song_index = int(event.data.decode('utf-8'))
+
+            spotify_link_to_download = song_dict[song_index]['spotify_link']
+            
             if spotify_link_to_download != None:
                 
                 waiting_message = await event.respond('⏳')
@@ -102,6 +103,7 @@ with TelegramClient('bot', API_ID, API_HASH).start(bot_token=BOT_TOKEN) as clien
                     
             if search_result != "None":
                 await search_result.delete()
+                search_result = "None"
         
     @client.on(events.NewMessage)
     async def handle_message(event):
@@ -124,9 +126,14 @@ with TelegramClient('bot', API_ID, API_HASH).start(bot_token=BOT_TOKEN) as clien
             await waiting_message.delete()
         
         else:
+            
+            # Ignore messages that match the /start pattern
+            if event.message.text.startswith('/start'):
+                return
           
             if search_result != "None":
                 await search_result.delete()
+                search_result = "None"
                 
             waiting_message = await event.respond('⏳')
 
@@ -136,7 +143,7 @@ with TelegramClient('bot', API_ID, API_HASH).start(bot_token=BOT_TOKEN) as clien
             # Create a list of buttons for each song
             for idx, details in song_dict.items():
                 button_text = f"{details['track_name']} - {details['artist']} ({details['release_year']})"
-                callback_query = f"{details['track_name']}%{details['artist']}"
+                callback_query = f"{str(idx)}"
                 button_list.append([Button.inline(button_text,data=callback_query)])
                 
             try:
