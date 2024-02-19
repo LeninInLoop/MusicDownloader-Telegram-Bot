@@ -1,8 +1,9 @@
-import os
+import os, telethon
 from dotenv import load_dotenv
 from telethon import TelegramClient, events
 from telethon.tl.custom import Button
 from plugins.Spotify import Spotify_Downloader
+import asyncio
 
 try:
     load_dotenv('config.env')
@@ -13,7 +14,15 @@ except:
     print("Failed to Load .env variables")
 
 #------------------------------------------------------------------------------------------
+#Call the initialize method to set up the Spotify Downloader
+
+Spotify_Downloader.initialize()
+
+#------------------------------------------------------------------------------------------
+
 messages = {} # Dictionary to store message IDs
+search_result = "None"
+song_dict = None
 
 #------------------------------------------------------------------------------------------
 #### Start Messages:
@@ -34,6 +43,8 @@ instruction_message = """To get started, simply follow these steps:
 contact_creator_message = """Feel free to reach out to me anytime you have questions or feedback! 🌐
 >> @AdibNikjou"""
 
+search_result_message ="""🎵 Here are the top 10 search results that match your search query:
+"""
 #------------------------------------------------------------------------------------------
 #### Buttons:
 main_menu_buttons = [
@@ -46,7 +57,7 @@ back_button = [Button.inline("<< Back", b"back")]
 #------------------------------------------------------------------------------------------------
 
 with TelegramClient('bot', API_ID, API_HASH).start(bot_token=BOT_TOKEN) as client:
-    
+
     @client.on(events.NewMessage(pattern='/start'))
     async def start(event):
         sender_name = event.sender.first_name
@@ -64,8 +75,38 @@ with TelegramClient('bot', API_ID, API_HASH).start(bot_token=BOT_TOKEN) as clien
             sender_name = event.sender.first_name
             await client.edit_message(messages[str(event.chat_id)],f"""Hey {sender_name}!👋\n {start_message}""",buttons=main_menu_buttons)
         
+        else: 
+            track_name, artist= event.data.decode('utf-8').split('%')
+            spotify_link_to_download = None
+            
+            for details in song_dict.values():
+                if details['track_name'] == track_name and details['artist'] == artist:
+                    spotify_link_to_download = details['spotify_link']
+                    
+            if spotify_link_to_download != None:
+                
+                waiting_message = await event.respond('⏳')
+                
+                spotify_link_info = Spotify_Downloader.extract_data_from_spotify_link(spotify_link_to_download)            
+                info_tuple = await Spotify_Downloader.download_and_send_spotify_info(client,event,spotify_link_info)
+                
+                if not info_tuple[0]: #if getting info of the link failed
+                    return await event.respond("Sorry, There was a problem processing your link, try again later.")
+
+                send_file_result = await Spotify_Downloader.download_spotify_file_and_send(client,event,info_tuple,spotify_link_info)
+                
+                if not send_file_result:
+                    await event.respond(f"Sorry, there was an error downloading the song")
+                
+                await waiting_message.delete() 
+                    
+            if search_result != "None":
+                await search_result.delete()
+        
     @client.on(events.NewMessage)
     async def handle_message(event):
+        global search_result, song_dict
+        
         # Check if the message is a Spotify URL
         if 'open.spotify.com' in event.message.text: 
             
@@ -81,9 +122,34 @@ with TelegramClient('bot', API_ID, API_HASH).start(bot_token=BOT_TOKEN) as clien
             if not send_file_result:
                 await event.respond(f"Sorry, there was an error downloading the song")
             await waiting_message.delete()
+        
+        else:
+          
+            if search_result != "None":
+                await search_result.delete()
+                
+            waiting_message = await event.respond('⏳')
+
+            button_list = []
+            song_dict = Spotify_Downloader.search_spotify_based_on_user_input(event.message.text)
             
+            # Create a list of buttons for each song
+            for idx, details in song_dict.items():
+                button_text = f"{details['track_name']} - {details['artist']} ({details['release_year']})"
+                callback_query = f"{details['track_name']}%{details['artist']}"
+                button_list.append([Button.inline(button_text,data=callback_query)])
+                
+            try:
+                # Send the search result message with the buttons
+                search_result = await event.respond(search_result_message, buttons=button_list)
+                
+            except Exception as Err:
+                await event.respond(f"Sorry There Was an Error Processing Your Request: {str(Err)}")
+                
+            await asyncio.sleep(2)
+            await waiting_message.delete()
+
     client.run_until_disconnected()
-                    
                     
 #### Needs Optiization
 # 1. in is_Local -> use rust or C , or a better algoritm

@@ -1,32 +1,41 @@
 from dotenv import load_dotenv
-import os, subprocess, io
+import os, spotipy, requests
 from spotipy.oauth2 import SpotifyClientCredentials
-import spotipy
-import requests
 from PIL import Image
 from io import BytesIO
 from yt_dlp import YoutubeDL
-from mutagen.flac import FLAC 
+from mutagen.flac import FLAC ,Picture
+from mutagen.id3 import PictureType
+from mutagen import File
 
 class Spotify_Downloader():
 
-    try:
-        load_dotenv('config.env')
-        SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
-        SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
-        YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
-    except:
-        print("Failed to Load .env variables")
-    
-    # Create Spotify to get track info
-    spotify_account = spotipy.Spotify(client_credentials_manager=
-            SpotifyClientCredentials(client_id=SPOTIFY_CLIENT_ID, client_secret=SPOTIFY_CLIENT_SECRET))
-
-    # Create a directory for the download
-    download_directory = "spotify_downloads"
-    if not os.path.isdir(download_directory):
-        os.makedirs(download_directory, exist_ok=True)
+    @classmethod
+    def _load_dotenv_and_create_folders(cls):
+        try:
+            load_dotenv('config.env')
+            cls.SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
+            cls.SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
+            cls.YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
+        except FileNotFoundError:
+            print("Failed to Load .env variables")
         
+        # Create a directory for the download
+        cls.download_directory = "music_repository"
+        if not os.path.isdir(cls.download_directory):
+            os.makedirs(cls.download_directory, exist_ok=True)
+            
+        cls.download_icon_directory = "icon_repository"
+        if not os.path.isdir(cls.download_icon_directory):
+            os.makedirs(cls.download_icon_directory, exist_ok=True)
+
+    @classmethod
+    def initialize(cls):
+        cls._load_dotenv_and_create_folders()
+        cls.spotify_account = spotipy.Spotify(client_credentials_manager=
+                SpotifyClientCredentials(client_id=cls.SPOTIFY_CLIENT_ID,
+                                         client_secret=cls.SPOTIFY_CLIENT_SECRET))
+             
     @staticmethod
     def identify_spotify_link_type(spotify_url) -> str:
         # Try to get the resource using the ID
@@ -53,6 +62,8 @@ class Spotify_Downloader():
             return 'playlist'
         except Exception as e:
             pass
+        
+        return 'none'
 
     @staticmethod
     def extract_data_from_spotify_link(spotify_url) -> dict:
@@ -78,51 +89,54 @@ class Spotify_Downloader():
     
     @staticmethod       
     def extract_yt_video_info(spotify_link_info) -> tuple:
-        
-            search_query = f"{spotify_link_info['track_name']} {spotify_link_info['album_name']} {spotify_link_info['release_year']}"
-            search_url = f"https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=1&q={search_query}&key={Spotify_Downloader.YOUTUBE_API_KEY}"
-            response = requests.get(search_url).json()
-            
-            # Extract the video ID of the first search result
-            video_id = response['items'][0]['id']['videoId']
 
-            # Replace with your actual video URL
-            video_url = f'https://www.youtube.com/watch?v={video_id}'
+        query = f""""{spotify_link_info['track_name']}" "{spotify_link_info["album_name"]}" "{spotify_link_info["release_year"]}" """
+        
+        ydl_opts = {
+        'quiet': True,
+        'no_warnings': True,
+        'ignoreerrors': True,
+        'ytsearch': query,
+        'skip_download': True,
+        }
+        
+        with YoutubeDL(ydl_opts) as ydl:
+            try:
+                search_results = ydl.extract_info(f'ytsearch:{query}', download=False)
+                video_title = search_results['entries'][0]['title']
+                video_ext = search_results['entries'][0]['ext']
+                video_url = search_results['entries'][0]['webpage_url']
+                video_id = search_results['entries'][0]['id']
+            except:
+                video_title = None
+                video_ext = None
+                video_url = None
+                video_id = None
             
-            ytb_opts = {"quiet": True}
-            
-            with YoutubeDL(ytb_opts) as ydl:
-                info_dict = ydl.extract_info(video_url, download=False)
-                # filename = ydl.prepare_filename(info_dict)
-                video_title = info_dict.get('title', None)
-                video_ext = info_dict.get('ext', None)
-                
-            filename = f"{spotify_link_info['track_name']} - {spotify_link_info['artist_name']}"
-            
-            return video_id,video_url,video_title,video_ext,filename
+        filename = f"{spotify_link_info['track_name']} - {spotify_link_info['artist_name']}"
+        
+        return video_id,video_url,video_title,video_ext,filename
         
         
     @staticmethod  
     async def download_and_send_spotify_info(client,event,link_info:dict) -> tuple :
-        download_icon_directory = "icon_repository"
-        
+         
         if link_info["type"] == "track":
             video_id,video_url,video_title,video_ext,filename = Spotify_Downloader.extract_yt_video_info(link_info)
             is_local = os.path.isfile(f"{Spotify_Downloader.download_directory}/{filename}.flac")
         else:
             pass
         
-        if not os.path.isdir(download_icon_directory):
-            os.makedirs(download_icon_directory, exist_ok=True)
-            
-        if not os.path.isfile(os.path.join(download_icon_directory, f"{video_id}.jpg")):
+        icon_name = f"{link_info['track_name']} - {link_info['artist_name']}.jpeg"
+        icon_path = os.path.join(Spotify_Downloader.download_icon_directory, icon_name) 
+        
+        if not os.path.isfile(icon_path):
             response = requests.get(link_info["image_url"])
             img = Image.open(BytesIO(response.content))
-            img.save(os.path.join(download_icon_directory, f"{video_id}.jpg"))
+            img.save(icon_path)
         
         try :    
-            await client.send_file(event.chat_id,
-            os.path.join(download_icon_directory, f"{video_id}.jpg"),
+            await client.send_file(event.chat_id,icon_path,
             caption = f"""
 🎧  Title : [{link_info["track_name"]}]({link_info["track_url"]})
 🎤  Artist : [{link_info["artist_name"]}]({link_info["artist_url"]})
@@ -133,7 +147,7 @@ class Spotify_Downloader():
 
 Image URL: [Click here]({link_info["image_url"]})
 Track id: {link_info["track_id"]}
-""",parse_mode='Markdown')
+""")
             return True, is_local,video_id, video_url, video_title, video_ext, filename
         except:
             return False, False, video_id, video_url, video_title, video_ext, filename
@@ -149,21 +163,30 @@ Track id: {link_info["track_id"]}
         video_ext = info_tuple[5]
         filename = info_tuple[6]
         
+        icon_name = f"{spotify_link_info['track_name']} - {spotify_link_info['artist_name']}.jpeg"
+        icon_path = os.path.join(Spotify_Downloader.download_icon_directory, icon_name)
+        
+        file_path = f"{Spotify_Downloader.download_directory}/{filename}.flac"
+        
         # Check if the file already exists
         if is_local:
 
             is_local_message = await event.respond(f"Found in DataBase. Result in Sending Faster :)")
             
-            file_path = f"{Spotify_Downloader.download_directory}/{filename}.flac"
-            
             async with client.action(event.chat_id, 'document'):
-                await client.send_file(event.chat_id, file_path,   
-                        caption = f"""
+                    await client.send_file(
+                        event.chat_id,
+                        file_path,
+                        caption=f"""
 💽 {spotify_link_info["track_name"]} - {spotify_link_info["artist_name"]}
 
 -->[Listen On Spotify]({spotify_link_info["track_url"]})
 -->[Listen On Youtube Music]({video_url})
-        """,force_document=False,voice_note=True)
+                """,
+                        supports_streaming=True,  # This flag enables streaming for compatible formats
+                        force_document=False,  # This flag sends the file as a document or not
+                        thumb=icon_path
+                    )
             
             await is_local_message.delete()
             return True
@@ -195,32 +218,70 @@ Track id: {link_info["track_id"]}
                 await event.respond(f"Something Went Wrong,{str(ERR)}")
                 return False
 
-            file_path = f"{Spotify_Downloader.download_directory}/{filename}.flac"
-            
             if os.path.isfile(file_path):
-                
+
                 audio = FLAC(file_path)
-                audio["TITLE"] = spotify_link_info["track_name"]
-                audio["ORIGINALYEAR"] = spotify_link_info['release_year']
-                audio["YEAR_OF_RELEASE"] = spotify_link_info['release_year']
-                audio["WEBSITE"] = "https://t.me/spotify_yt_downloader_bot"
-                audio["GEEK_SCORE"] = "9"
-                audio["ARTIST"] = spotify_link_info["artist_name"]                                                                    
-                audio["ALBUM"] = spotify_link_info["album_name"]
-                audio["DATE"] = spotify_link_info['release_year']
-                audio["ISRC"] = spotify_link_info['isrc']
+
+                # Set the standard FLAC metadata fields
+                audio['TITLE'] = spotify_link_info["track_name"]
+                audio['ARTIST'] = spotify_link_info["artist_name"]
+                audio['ALBUM'] = spotify_link_info["album_name"]
+                audio['DATE'] = spotify_link_info['release_year']
+                audio['ORIGINALYEAR'] = spotify_link_info['release_year']
+                audio['YEAR_OF_RELEASE'] = spotify_link_info['release_year']
+                audio['ISRC'] = spotify_link_info['isrc']
                 audio.save()
                 
+                
+                audi = File(file_path)
+                
+                image = Picture()
+                with open(icon_path, 'rb') as image_file:
+                    image.data = image_file.read()
+                    
+                image.type = 3
+                image.mime = 'image/png'  # Or 'image/png' depending on your image type
+                image.width = 500  # Replace with your image's width
+                image.height = 500  # Replace with your image's height
+                image.depth = 24  # Color depth, change if necessary
+
+                audi.clear_pictures()
+                audi.add_picture(image)
+                audi.save()
+                
                 async with client.action(event.chat_id, 'document'):
-                    await client.send_file(event.chat_id, file_path,
-                        caption = f"""
+                    await client.send_file(
+                        event.chat_id,
+                        file_path,
+                        caption=f"""
 💽 {spotify_link_info["track_name"]} - {spotify_link_info["artist_name"]}
 
 -->[Listen On Spotify]({spotify_link_info["track_url"]})
 -->[Listen On Youtube Music]({video_url})
-        """,force_document=False,voice_note=True)
+                """,
+                        supports_streaming=True,  # This flag enables streaming for compatible formats
+                        force_document=False,  # This flag sends the file as a document or not
+                        thumb=icon_path
+                    )
                     
                 return True
             else:
                 return False
 
+    @staticmethod
+    def search_spotify_based_on_user_input(query, limit=10):
+        
+        results = Spotify_Downloader.spotify_account.search(q=query, limit=limit)
+        song_dict = {}
+        
+        for i, t in enumerate(results['tracks']['items']):
+            artists = ', '.join([a['name'] for a in t['artists']])
+            # Extract the Spotify URL from the external_urls field
+            spotify_link = t['external_urls']['spotify']
+            song_dict[i] = {
+                'track_name': t['name'],  
+                'artist': artists,
+                'release_year': t['album']['release_date'][:4],
+                'spotify_link': spotify_link  # Include the Spotify link in the dictionary
+            }
+        return song_dict
