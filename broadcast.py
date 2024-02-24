@@ -1,17 +1,16 @@
-import asyncio
 from database import db
 
 class BroadcastManager:
 
     @staticmethod
-    async def broadcast_message_to_sub_members(client, message):
+    async def broadcast_message_to_sub_members(client, message, button = None):
         """
         Sends a message to all users in the broadcast list.
         """
         user_ids = db.get_subscribed_user_ids()
         for user_id in user_ids:
             try:
-                await client.send_message(user_id, message)
+                await client.send_message(user_id, message, buttons = button)
             except Exception as e:
                 print(f"Failed to send message to user {user_id}: {e}")
                 # Optionally, retry sending the message or log the failure for later review

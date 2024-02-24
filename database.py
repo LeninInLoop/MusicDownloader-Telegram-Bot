@@ -155,3 +155,8 @@ class db:
     @staticmethod
     def get_temporary_subscribed_user_ids():
         return [row[0] for row in db.fetch_all('SELECT user_id FROM subscriptions WHERE temporary =  1')]
+
+    @staticmethod
+    def is_user_subscribed(user_id):
+        result = db.fetch_one('SELECT subscribed FROM subscriptions WHERE user_id = ?', (user_id,))
+        return result is not None and result[0] ==  1

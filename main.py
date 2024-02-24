@@ -23,11 +23,12 @@ db.initialize_database()
 
 #------------------------------------------------------------------------------------------
 global spotify_link_info, search_result, song_dict, waiting_message
-global admin_broadcast, admin_message_to_send, cancel_broadcast
+global admin_broadcast, admin_message_to_send, cancel_broadcast, send_to_specified_flag
 
 admin_message_to_send = None
 admin_broadcast = False
 cancel_broadcast = False
+send_to_specified_flag = False
 
 messages = {} # Dictionary to store message IDs
 
@@ -97,6 +98,7 @@ back_button = Button.inline("<< Back To Main Menu", b"back")
 setting_button = [
     [Button.inline("Core", b"setting/core")],
     [Button.inline("Quality", b"setting/quality")],
+    [Button.inline("Subscription", b"setting/subscription")],
     [back_button]
     ]
 
@@ -114,10 +116,47 @@ core_setting_buttons = [
     [Button.inline("SpotDL", b"setting/core/spotdl")],
     [back_button, back_button_to_setting],
 ]
+
+subscription_setting_buttons = [
+    [Button.inline("Subscribe",data=b"setting/subscription/add")],
+    [Button.inline("Cancel Subscription",data=b"setting/subscription/cancel")],
+    [back_button, back_button_to_setting]
+]
+
+cancel_broadcast_button = [Button.inline("Cancel BroadCast",data=b"admin/cancel_broadcast")]
+
+admins_buttons  =  [
+            [Button.inline("Broadcast", b"admin/broadcast")],
+            [Button.inline("Stats", b"admin/stats")],
+            [Button.inline("Cancel",b"CANCEL")]
+]
+
+broadcast_options_buttons = [
+    [Button.inline("Broadcast To All Members", b"admin/broadcast/all")],
+    [Button.inline("Broadcast To Subscribers Only", b"admin/broadcast/subs")],
+    [Button.inline("Broadcast To Specified Users Only", b"admin/broadcast/specified")],
+    [Button.inline("Cancel",b"CANCEL")]
+]
 #------------------------------------------------------------------------------------------------
 # Helper function to edit the message
-async def edit_message(chat_id, message_text, buttons):
-    await client.edit_message(messages[str(chat_id)], message_text, buttons=buttons)
+
+async def send_message_and_store_id(chat_id, text, buttons=None):
+    # Send the message and get the message ID
+    message = await client.send_message(chat_id, text, buttons=buttons)
+    message_id = message.id
+    
+    # Store the message ID with the chat_id as the key
+    messages[str(chat_id)] = message_id
+    
+async def edit_message(chat_id, message_text, buttons=None):
+    # Check if the chat_id exists in the messages dictionary
+    if str(chat_id) in messages:
+        message_id = messages[str(chat_id)]
+        # Edit the message
+        await client.edit_message(chat_id, message_id, message_text, buttons=buttons)
+    else:
+        # If the chat_id is not in the messages dictionary, send a new message
+        await send_message_and_store_id(chat_id, message_text, buttons=buttons)
 
 # Helper function to change music quality
 async def change_music_quality(chat_id, format, quality):
@@ -134,6 +173,114 @@ async def change_downloading_core(chat_id, core):
     downloading_core = user_settings[1]
     await edit_message(chat_id, f"Core successfully changed. \nCore: {downloading_core}", buttons=core_setting_buttons)
 
+async def cancel_subscription(event,quite:bool = False):
+    if db.is_user_subscribed(event.sender_id):
+        db.remove_subscribed_user(event.sender_id)
+        if not quite:
+            await edit_message(event.chat_id, "You have successfully unsubscribed.", buttons=subscription_setting_buttons)
+        else:
+            await event.respond("You have successfully unsubscribed. You Can Subscribe Any Time in Settings. :)")
+        
+async def add_subscription(event):
+    if not db.is_user_subscribed(event.sender_id):
+        db.add_subscribed_user(event.sender_id)
+        await edit_message(event.chat_id, "You have successfully subscribed.", buttons=subscription_setting_buttons)
+
+async def set_cancel_broadcast(event):
+    setattr(event, 'cancel_broadcast', True)
+
+async def set_admin_broadcast(cancel_broadcast_var):
+    global cancel_broadcast
+    cancel_broadcast = not cancel_broadcast_var
+   
+async def handle_broadcast(e,send_to_all:bool = False, send_to_subs:bool = False, send_to_specified:bool = False):
+        global admin_broadcast, admin_message_to_send, cancel_broadcast, send_to_specified_flag
+        
+        if e.sender_id not in ADMIN_USER_IDS:
+            return
+        
+        if send_to_specified:
+            send_to_specified_flag = True
+            
+        cancel_broadcast = False
+        admin_broadcast = True
+        if send_to_all:
+            await BroadcastManager.add_all_users_to_temp()
+            
+        elif send_to_specified:
+            await BroadcastManager.remove_all_users_from_temp()
+            time = 60 
+            time_to_send = await e.respond("Please enter the user_ids (comma-separated) within the next 60 seconds.",buttons=cancel_broadcast_button)
+
+            for remaining_time in range(time-1, 0, -1):
+                # Edit the message to show the new time
+                await time_to_send.edit(f"You've Got {remaining_time} seconds to send the user ids:")
+                if cancel_broadcast:
+                    await time_to_send.edit("BroadCast Cancelled by User.", buttons = None)
+                    send_to_specified_flag = False
+                    admin_message_to_send = None
+                    cancel_broadcast = False
+                    admin_broadcast = False
+                    return
+                elif admin_message_to_send != None:
+                    break
+                await asyncio.sleep(1)
+            send_to_specified_flag = False  
+            try:
+                parts = admin_message_to_send.message.replace(" ","").split(",")
+                user_ids = [int(part) for part in parts] 
+                for user_id in user_ids:
+                    await BroadcastManager.add_user_to_temp(user_id)
+            except:
+                await time_to_send.edit("Invalid command format. Use user_id1,user_id2,...")
+                admin_message_to_send = None
+                cancel_broadcast = False
+                admin_broadcast = False
+                return
+            admin_message_to_send = None
+            
+        time = 60 
+        time_to_send = await e.respond(f"You've Got {time} seconds to send your message",buttons=cancel_broadcast_button)
+
+        for remaining_time in range(time-1, 0, -1):
+            # Edit the message to show the new time
+            await time_to_send.edit(f"You've Got {remaining_time} seconds to send your message")
+            if cancel_broadcast:
+                await time_to_send.edit("BroadCast Cancelled by User.", buttons = None)
+                break
+            elif admin_message_to_send != None:
+                break
+            await asyncio.sleep(1)
+            
+        
+        if admin_message_to_send == None and cancel_broadcast != True:
+            await e.respond("There is nothing to send")
+            admin_broadcast = False
+            admin_message_to_send = None
+            await BroadcastManager.remove_all_users_from_temp()
+            return
+        
+        cancel_subscription_button = Button.inline("Cancel Subscription", b"setting/subscription/cancel/quite")
+        try:
+            if not cancel_broadcast and send_to_specified:
+                await BroadcastManager.broadcast_message_to_temp_members(client, admin_message_to_send)
+                await e.respond("Broadcast initiated.")
+            elif not cancel_broadcast and send_to_subs:
+                await BroadcastManager.broadcast_message_to_sub_members(client, admin_message_to_send,cancel_subscription_button)
+                await e.respond("Broadcast initiated.")
+            elif not cancel_broadcast and send_to_all:
+                await BroadcastManager.broadcast_message_to_temp_members(client, admin_message_to_send)
+                await e.respond("Broadcast initiated.")
+        except Exception as e:
+            await e.respond(f"Broadcast Failed: {str(e)}")
+            admin_broadcast = False
+            admin_message_to_send = None
+            await BroadcastManager.remove_all_users_from_temp()
+                
+        await BroadcastManager.remove_all_users_from_temp()
+        admin_broadcast = False
+        admin_message_to_send = None 
+        
 # Mapping button actions to functions
 button_actions = {
     b"instructions": lambda e: edit_message(e.chat_id, instruction_message, buttons=back_button),
@@ -142,17 +289,26 @@ button_actions = {
     b"setting": lambda e: edit_message(e.chat_id, "Settings :", buttons=setting_button),
     b"setting/back": lambda e: edit_message(e.chat_id, "Settings :", buttons=setting_button),
     b"setting/quality": lambda e: edit_message(e.chat_id, f"Your Quality Setting:\nFormat: {db.get_user_settings(e.sender_id)[0]['format']}\nQuality: {db.get_user_settings(e.sender_id)[0]['quality']}\n\nQualities Available :", buttons=quality_setting_buttons),
-    b"setting/quality/mp3/320": lambda e: change_music_quality(e.chat_id, "mp3",  320),
-    b"setting/quality/mp3/128": lambda e: change_music_quality(e.chat_id, "mp3",  128),
-    b"setting/quality/flac": lambda e: change_music_quality(e.chat_id, "flac",  693),
+    b"setting/quality/mp3/320": lambda e: change_music_quality(e.chat_id, "mp3",   320),
+    b"setting/quality/mp3/128": lambda e: change_music_quality(e.chat_id, "mp3",   128),
+    b"setting/quality/flac": lambda e: change_music_quality(e.chat_id, "flac",   693),
     b"setting/core": lambda e: edit_message(e.chat_id, core_selection_message+f"\nCore: {db.get_user_settings(e.sender_id)[1]}", buttons=core_setting_buttons),
     b"setting/core/spotdl": lambda e: change_downloading_core(e.chat_id, "SpotDL"),
     b"setting/core/youtubedl": lambda e: change_downloading_core(e.chat_id, "YoutubeDL"),
+    b"setting/subscription": lambda e: edit_message(e.chat_id,f"Join our community and stay updated with the latest news and features of our bot. Be the first to experience new enhancements and improvements!\nYour Subscription Status: {db.is_user_subscribed(e.sender_id)}",buttons=subscription_setting_buttons),
+    b"setting/subscription/cancel": lambda e: asyncio.create_task(cancel_subscription(e)),
+    b"setting/subscription/cancel/quite": lambda e: asyncio.create_task(cancel_subscription(e,quite=True)),
+    b"setting/subscription/add": lambda e: asyncio.create_task(add_subscription(e)),
     b"CANCEL": lambda e: e.delete(),
-    b"admin/cancel_broadcast": lambda e: setattr(e, 'cancel_broadcast', True),
+    b"admin/cancel_broadcast": lambda e: set_admin_broadcast(False),
+    b"admin/stats": lambda e: e.respond(f"Number of Users: {db.count_all_user_ids()}"),
+    b"admin/broadcast": lambda e: edit_message(e.chat_id, "BroadCast Options: ", buttons=broadcast_options_buttons),
+    b"admin/broadcast/all": lambda e: handle_broadcast(e,send_to_all=True),
+    b"admin/broadcast/subs": lambda e: handle_broadcast(e,send_to_subs=True),
+    b"admin/broadcast/specified": lambda e: handle_broadcast(e,send_to_specified=True),
     # Add other actions here
 }
-
+        
 #------------------------------------------------------------------------------------------------
 with TelegramClient('bot', API_ID, API_HASH).start(bot_token=BOT_TOKEN) as client:
 
@@ -197,8 +353,6 @@ with TelegramClient('bot', API_ID, API_HASH).start(bot_token=BOT_TOKEN) as clien
                 specified_user_ids = [int(user_id) for user_id in user_ids_str.split(',')]
                 for user_id in specified_user_ids:
                     await BroadcastManager.add_user_to_temp(user_id)
-
-        cancel_broadcast_button = [Button.inline("Cancel BroadCast",data=b"admin/cancel_broadcast")]
         
         time = 60 
         time_to_send = await event.respond(f"You've Got {time} seconds to send your message",buttons=cancel_broadcast_button)
@@ -206,9 +360,10 @@ with TelegramClient('bot', API_ID, API_HASH).start(bot_token=BOT_TOKEN) as clien
         for remaining_time in range(time-1, 0, -1):
             # Edit the message to show the new time
             await time_to_send.edit(f"You've Got {remaining_time} seconds to send your message")
-            if admin_message_to_send != None:
-                if cancel_broadcast:
-                    await time_to_send.edit("BroadCast Cancelled by User.", buttons = None)
+            if cancel_broadcast:
+                await time_to_send.edit("BroadCast Cancelled by User.", buttons = None)
+                break
+            elif admin_message_to_send != None:
                 break
             await asyncio.sleep(1)
         
@@ -220,12 +375,13 @@ with TelegramClient('bot', API_ID, API_HASH).start(bot_token=BOT_TOKEN) as clien
             await BroadcastManager.remove_all_users_from_temp()
             return
         
+        cancel_subscription_button = Button.inline("Cancel Subscription", b"setting/subscription/cancel/quite")
         try:
             if not cancel_broadcast and len(command_parts) != 1:
                 await BroadcastManager.broadcast_message_to_temp_members(client, admin_message_to_send)
                 await event.respond("Broadcast initiated.")
             elif not cancel_broadcast and len(command_parts) == 1:
-                await BroadcastManager.broadcast_message_to_sub_members(client, admin_message_to_send)
+                await BroadcastManager.broadcast_message_to_sub_members(client, admin_message_to_send,cancel_subscription_button)
                 await event.respond("Broadcast initiated.")
         except:
             try:
@@ -242,22 +398,48 @@ with TelegramClient('bot', API_ID, API_HASH).start(bot_token=BOT_TOKEN) as clien
         admin_broadcast = False
         admin_message_to_send = None
 
+    @client.on(events.NewMessage(pattern='/settings'))
+    async def handle_settings_command(event):
+        await send_message_and_store_id(event.chat_id,"Settings :", buttons=setting_button)
+    
+    @client.on(events.NewMessage(pattern='/subscription'))
+    async def handle_subscription_command(event):
+        await send_message_and_store_id(event.chat_id,f"Join our community and stay updated with the latest news and features of our bot. Be the first to experience new enhancements and improvements!\nYour Subscription Status: {db.is_user_subscribed(event.sender_id)}",buttons=subscription_setting_buttons)
+
+    @client.on(events.NewMessage(pattern='/help'))
+    async def handle_help_command(event):
+        await send_message_and_store_id(instruction_message, buttons=main_menu_buttons)
+
+    @client.on(events.NewMessage(pattern='/quality'))
+    async def handle_quality_command(event):
+        await send_message_and_store_id(event.chat_id, f"Your Quality Setting:\nFormat: {db.get_user_settings(event.sender_id)[0]['format']}\nQuality: {db.get_user_settings(event.sender_id)[0]['quality']}\n\nQualities Available :", buttons=quality_setting_buttons)
+
+    @client.on(events.NewMessage(pattern='/core'))
+    async def handle_core_command(event):
+        await send_message_and_store_id(event.chat_id, core_selection_message+f"\nCore: {db.get_user_settings(event.sender_id)[1]}", buttons=core_setting_buttons)
+
+    @client.on(events.NewMessage(pattern='/admin'))
+    async def handle_admin_command(event):
+        if event.sender_id not in ADMIN_USER_IDS:
+            return
+        await send_message_and_store_id(event.chat_id,"Admin commands:", buttons=admins_buttons)
+    
     @client.on(events.NewMessage(pattern='/stats'))
     async def handle_stats_command(event):
         if event.sender_id not in ADMIN_USER_IDS:
             return
-        
+    
         number_of_users = db.count_all_user_ids()
         await event.respond(f"Number of Users: {number_of_users}")
-        
+    
     @client.on(events.CallbackQuery)
     async def callback_query_handler(event):
-        global waiting_message, spotify_link_info, cancel_broadcast, search_result
+        global waiting_message, spotify_link_info, search_result, cancel_broadcast
         
         action = button_actions.get(event.data)
-        if action:
-            await action(event)
-            
+        if action:  # Check if action is not None
+            await action(event) 
+          
         elif event.data.startswith(b"@music"):
             send_file_result = await Spotify_Downloader.download_spotify_file_and_send(client,event,spotify_link_info)
             if not send_file_result:
@@ -288,7 +470,7 @@ with TelegramClient('bot', API_ID, API_HASH).start(bot_token=BOT_TOKEN) as clien
     @client.on(events.NewMessage)
     async def handle_message(event):
         global search_result, song_dict, spotify_link_info, waiting_message, admin_broadcast
-        global admin_message_to_send
+        global admin_message_to_send, send_to_specified_flag
         
         # Check if the message is a Spotify URL
         if Spotify_Downloader.is_spotify_link(event.message.text): 
@@ -319,10 +501,13 @@ with TelegramClient('bot', API_ID, API_HASH).start(bot_token=BOT_TOKEN) as clien
             if event.message.text.startswith('/'):
                 return
 
-            if admin_broadcast:
+            if admin_broadcast and send_to_specified_flag:
                 admin_message_to_send = event.message
                 return
-
+            elif admin_broadcast:
+                admin_message_to_send = event.message
+                return
+            
             if search_result != None:
                 await search_result.delete()
                 search_result = None
