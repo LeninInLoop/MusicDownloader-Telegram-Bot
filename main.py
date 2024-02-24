@@ -1,39 +1,49 @@
-import os
+import os,asyncio
 from dotenv import load_dotenv
 from telethon import TelegramClient, events
 from telethon.tl.custom import Button
 from plugins.Spotify import Spotify_Downloader
-import asyncio
+from database import db
+from broadcast import BroadcastManager
 
 try:
     load_dotenv('config.env')
     BOT_TOKEN = os.getenv('BOT_TOKEN')
     API_ID = os.getenv("API_ID")
     API_HASH = os.getenv("API_HASH")
+    ADMIN_USER_IDS = [int(id) for id in os.getenv('ADMIN_USER_IDS').split(',')]
 except:
     print("Failed to Load .env variables")
 
 #------------------------------------------------------------------------------------------
-#Call the initialize method to set up the Spotify Downloader
+#Call the initialize method to set up
 
 Spotify_Downloader.initialize()
+db.initialize_database()
 
 #------------------------------------------------------------------------------------------
-global spotify_link_info, info_tuple, search_result, song_dict, waiting_message
-global music_quality
+global spotify_link_info, search_result, song_dict, waiting_message
+global admin_broadcast, admin_message_to_send, cancel_broadcast
+
+admin_message_to_send = None
+admin_broadcast = False
+cancel_broadcast = False
 
 messages = {} # Dictionary to store message IDs
 
-search_result = "None"
+search_result = None
 
 song_dict = None
 waiting_message = None
 spotify_link_info = None
 
-music_quality = {"format": "mp3",
-                "quality": 320
-                }
+default_music_quality = {"format": "flac",
+                        "quality":  693
+                        }
 
+default_downloading_core = "YoutubeDL"
+
+db.set_defualt_values(default_downloading_core,default_music_quality)
 #------------------------------------------------------------------------------------------
 #### Start Messages:
 start_message = """
@@ -62,6 +72,19 @@ contact_creator_message = """Should you have any inquiries or require feedback, 
 
 search_result_message = """🎵 The following are the top 10 search results that correspond to your query:
 """
+
+core_selection_message = """You Can Select the bots Core:
+
+SpotDL: 
+- More accurate but takes a little more time to process.
+- Has more quality as flac Quality
+- Doesnt have mp3-320
+
+YoutubeDL: 
+- Less accurate but Faster.
+- Has mp3-320 Quality
+
+"""
 #------------------------------------------------------------------------------------------
 #### Buttons:
 main_menu_buttons = [
@@ -72,6 +95,7 @@ main_menu_buttons = [
 back_button = Button.inline("<< Back To Main Menu", b"back")
 
 setting_button = [
+    [Button.inline("Core", b"setting/core")],
     [Button.inline("Quality", b"setting/quality")],
     [back_button]
     ]
@@ -84,92 +108,169 @@ quality_setting_buttons = [
     [Button.inline("mp3-128", b"setting/quality/mp3/128")],
     [back_button, back_button_to_setting],
 ]
-#------------------------------------------------------------------------------------------------
 
+core_setting_buttons = [
+    [Button.inline("YoutubeDL", b"setting/core/youtubedl")],
+    [Button.inline("SpotDL", b"setting/core/spotdl")],
+    [back_button, back_button_to_setting],
+]
+#------------------------------------------------------------------------------------------------
+# Helper function to edit the message
+async def edit_message(chat_id, message_text, buttons):
+    await client.edit_message(messages[str(chat_id)], message_text, buttons=buttons)
+
+# Helper function to change music quality
+async def change_music_quality(chat_id, format, quality):
+    music_quality = {'format': format, 'quality': quality}
+    db.change_music_quality(chat_id, music_quality)
+    user_settings = db.get_user_settings(chat_id)
+    music_quality = user_settings[0]
+    await edit_message(chat_id, f"Quality successfully changed. \nFormat: {music_quality['format']}\nQuality: {music_quality['quality']}", buttons=quality_setting_buttons)
+
+# Helper function to change downloading core
+async def change_downloading_core(chat_id, core):
+    db.change_downloading_core(chat_id, core)
+    user_settings = db.get_user_settings(chat_id)
+    downloading_core = user_settings[1]
+    await edit_message(chat_id, f"Core successfully changed. \nCore: {downloading_core}", buttons=core_setting_buttons)
+
+# Mapping button actions to functions
+button_actions = {
+    b"instructions": lambda e: edit_message(e.chat_id, instruction_message, buttons=back_button),
+    b"contact_creator": lambda e: edit_message(e.chat_id, contact_creator_message, buttons=back_button),
+    b"back": lambda e: edit_message(e.chat_id, f"Hey {e.sender.first_name}!👋\n {start_message}", buttons=main_menu_buttons),
+    b"setting": lambda e: edit_message(e.chat_id, "Settings :", buttons=setting_button),
+    b"setting/back": lambda e: edit_message(e.chat_id, "Settings :", buttons=setting_button),
+    b"setting/quality": lambda e: edit_message(e.chat_id, f"Your Quality Setting:\nFormat: {db.get_user_settings(e.sender_id)[0]['format']}\nQuality: {db.get_user_settings(e.sender_id)[0]['quality']}\n\nQualities Available :", buttons=quality_setting_buttons),
+    b"setting/quality/mp3/320": lambda e: change_music_quality(e.chat_id, "mp3",  320),
+    b"setting/quality/mp3/128": lambda e: change_music_quality(e.chat_id, "mp3",  128),
+    b"setting/quality/flac": lambda e: change_music_quality(e.chat_id, "flac",  693),
+    b"setting/core": lambda e: edit_message(e.chat_id, core_selection_message+f"\nCore: {db.get_user_settings(e.sender_id)[1]}", buttons=core_setting_buttons),
+    b"setting/core/spotdl": lambda e: change_downloading_core(e.chat_id, "SpotDL"),
+    b"setting/core/youtubedl": lambda e: change_downloading_core(e.chat_id, "YoutubeDL"),
+    b"CANCEL": lambda e: e.delete(),
+    b"admin/cancel_broadcast": lambda e: setattr(e, 'cancel_broadcast', True),
+    # Add other actions here
+}
+
+#------------------------------------------------------------------------------------------------
 with TelegramClient('bot', API_ID, API_HASH).start(bot_token=BOT_TOKEN) as client:
 
     @client.on(events.NewMessage(pattern='/start'))
     async def start(event):
         sender_name = event.sender.first_name
+        user_id = event.sender_id
         
+        user_settings = db.get_user_settings(user_id)
+        if user_settings[0] == None and user_settings[1] == None:
+            db.save_user_settings(user_id, db.default_music_quality, db.default_downloading_core)
+
         message = await event.respond(f"""Hey {sender_name}!👋 \n{start_message}""", buttons=main_menu_buttons)
         messages[str(event.chat_id)] = message # Store the message ID
+        
+    @client.on(events.NewMessage(pattern='/broadcast'))
+    async def handle_broadcast_command(event):
+        global admin_broadcast, admin_message_to_send, cancel_broadcast
+        
+        if event.sender_id not in ADMIN_USER_IDS:
+            return
+        
+        cancel_broadcast = False
+        admin_broadcast = True
+        if event.message.text.startswith('/broadcast_to_all'):
+            await BroadcastManager.add_all_users_to_temp()
+            
+        elif event.message.text.startswith('/broadcast'):
+            command_parts = event.message.text.split(' ',  1)
 
+            if len(command_parts) == 1:
+                pass
+            elif len(command_parts) <  2 or not command_parts[1].startswith('(') or not command_parts[1].endswith(')'):
+                await event.respond("Invalid command format. Use /broadcast (user_id1,user_id2,...)")
+                admin_broadcast = False
+                admin_message_to_send = None
+                return
+
+            if len(command_parts) != 1:
+                await BroadcastManager.remove_all_users_from_temp()
+                user_ids_str = command_parts[1][1:-1]  # Remove the parentheses
+                specified_user_ids = [int(user_id) for user_id in user_ids_str.split(',')]
+                for user_id in specified_user_ids:
+                    await BroadcastManager.add_user_to_temp(user_id)
+
+        cancel_broadcast_button = [Button.inline("Cancel BroadCast",data=b"admin/cancel_broadcast")]
+        
+        time = 60 
+        time_to_send = await event.respond(f"You've Got {time} seconds to send your message",buttons=cancel_broadcast_button)
+
+        for remaining_time in range(time-1, 0, -1):
+            # Edit the message to show the new time
+            await time_to_send.edit(f"You've Got {remaining_time} seconds to send your message")
+            if admin_message_to_send != None:
+                if cancel_broadcast:
+                    await time_to_send.edit("BroadCast Cancelled by User.", buttons = None)
+                break
+            await asyncio.sleep(1)
+        
+        # Check if the message is "/broadcast_to_all"
+        if admin_message_to_send == None and cancel_broadcast != True:
+            await event.respond("There is nothing to send")
+            admin_broadcast = False
+            admin_message_to_send = None
+            await BroadcastManager.remove_all_users_from_temp()
+            return
+        
+        try:
+            if not cancel_broadcast and len(command_parts) != 1:
+                await BroadcastManager.broadcast_message_to_temp_members(client, admin_message_to_send)
+                await event.respond("Broadcast initiated.")
+            elif not cancel_broadcast and len(command_parts) == 1:
+                await BroadcastManager.broadcast_message_to_sub_members(client, admin_message_to_send)
+                await event.respond("Broadcast initiated.")
+        except:
+            try:
+                if not cancel_broadcast:
+                    await BroadcastManager.broadcast_message_to_temp_members(client, admin_message_to_send)
+                    await event.respond("Broadcast initiated.")
+            except Exception as e:
+                await event.respond(f"Broadcast Failed: {str(e)}")
+                admin_broadcast = False
+                admin_message_to_send = None
+                await BroadcastManager.remove_all_users_from_temp()
+                
+        await BroadcastManager.remove_all_users_from_temp()
+        admin_broadcast = False
+        admin_message_to_send = None
+
+    @client.on(events.NewMessage(pattern='/stats'))
+    async def handle_stats_command(event):
+        if event.sender_id not in ADMIN_USER_IDS:
+            return
+        
+        number_of_users = db.count_all_user_ids()
+        await event.respond(f"Number of Users: {number_of_users}")
+        
     @client.on(events.CallbackQuery)
     async def callback_query_handler(event):
-        global waiting_message, spotify_link_info, info_tuple, music_quality
+        global waiting_message, spotify_link_info, cancel_broadcast, search_result
         
-        if event.data == b"instructions":
-            await client.edit_message(messages[str(event.chat_id)], instruction_message, buttons=back_button)
-        elif event.data == b"contact_creator":
-            await client.edit_message(messages[str(event.chat_id)], contact_creator_message, buttons=back_button )
-        elif event.data == b"back":
-            sender_name = event.sender.first_name
-            await client.edit_message(messages[str(event.chat_id)],f"""Hey {sender_name}!👋\n {start_message}""",buttons=main_menu_buttons)
+        action = button_actions.get(event.data)
+        if action:
+            await action(event)
             
-        elif event.data == b"setting" or event.data == b"setting/back":
-            await client.edit_message(messages[str(event.chat_id)], "Settings :", buttons=setting_button)
-            
-        elif event.data == b"setting/quality":
-            await client.edit_message(messages[str(event.chat_id)],
-                    f"Your Quality Setting:\nFormat: {music_quality['format']}\nQuality: {music_quality['quality']}\n\nQualities Available :",
-                    buttons=quality_setting_buttons)
-            
-        elif event.data == b"setting/quality/mp3/320":
-            music_quality['format'] = "mp3"
-            music_quality['quality'] = 320
-            await client.edit_message(messages[str(event.chat_id)],
-                    f"Quality successfuly changed. \nFormat: {music_quality['format']}\nQuality: {music_quality['quality']}",
-                    buttons=quality_setting_buttons)
-
-        elif event.data == b"setting/quality/mp3/128":
-            music_quality['format'] = "mp3"
-            music_quality['quality'] = 128
-            await client.edit_message(messages[str(event.chat_id)],
-                    f"Quality successfuly changed. \nFormat: {music_quality['format']}\nQuality: {music_quality['quality']}",
-                    buttons=quality_setting_buttons)
-
-        elif event.data == b"setting/quality/flac":
-            music_quality["format"] = "flac"
-            music_quality['quality'] = 693
-            await client.edit_message(messages[str(event.chat_id)],
-                    f"Quality successfuly changed. \nFormat: {music_quality['format']}\nQuality: {music_quality['quality']}",
-                    buttons=quality_setting_buttons)
-
-        elif event.data == b"CANCEL":
-            await event.delete()
-           
-        elif event.data == b"@music_info_preview":
-            pass
-        
         elif event.data.startswith(b"@music"):
-            send_file_result = await Spotify_Downloader.download_spotify_file_and_send(client,event,music_quality,spotify_link_info)
-            
+            send_file_result = await Spotify_Downloader.download_spotify_file_and_send(client,event,spotify_link_info)
             if not send_file_result:
                 await event.respond(f"Sorry, there was an error downloading the song")
-                
-            await waiting_message.delete()
-            
-            try:        
-                if search_result != "None":
-                    await search_result.delete()
-                    search_result = "None"
-            except:
-                pass
-            
-        elif event.data == b"@music_info":
-            pass
-        elif event.data == b"@artist_info":
-            pass
-        elif event.data == b"@music_info_spotify":
-            pass
-        elif event.data == b"@music_info_youtube":
-            pass 
-            
+            await waiting_message.delete() if waiting_message != None else None
+       
+            # if search_result != None: // Removes the search list after sending the track
+            #     await search_result.delete()
+            #     search_result = None
+
         elif event.data.isdigit():
-            spotify_link_to_download = None
             
-            # The callback_data_str is just the index, so convert it to an integer
+            spotify_link_to_download = None
             song_index = int(event.data.decode('utf-8'))
 
             spotify_link_to_download = song_dict[song_index]['spotify_link']
@@ -179,60 +280,80 @@ with TelegramClient('bot', API_ID, API_HASH).start(bot_token=BOT_TOKEN) as clien
                 waiting_message = await event.respond('⏳')
                 
                 spotify_link_info = Spotify_Downloader.extract_data_from_spotify_link(spotify_link_to_download)            
-                send_info_result = await Spotify_Downloader.download_and_send_spotify_info(client,event,music_quality,spotify_link_info)
+                send_info_result = await Spotify_Downloader.download_and_send_spotify_info(client,event,spotify_link_info)
                 
                 if not send_info_result: #if getting info of the link failed
                     return await event.respond("Sorry, There was a problem processing your link, try again later.")
 
     @client.on(events.NewMessage)
     async def handle_message(event):
-        global search_result, song_dict, info_tuple, spotify_link_info, waiting_message, music_quality
+        global search_result, song_dict, spotify_link_info, waiting_message, admin_broadcast
+        global admin_message_to_send
         
         # Check if the message is a Spotify URL
-        if 'open.spotify.com' in event.message.text: 
+        if Spotify_Downloader.is_spotify_link(event.message.text): 
             
+            user_id = event.sender_id 
+            music_quality, downloading_core = db.get_user_settings(user_id)
+            if music_quality == None or downloading_core == None :
+                await event.respond("We Have Updated The Bot, Please start Over using the /start command.")
+                return
+           
             waiting_message = await event.respond('⏳')
                 
             spotify_link_info = Spotify_Downloader.extract_data_from_spotify_link(str(event.message.text))            
-            info_tuple = await Spotify_Downloader.download_and_send_spotify_info(client,event,music_quality,spotify_link_info)
+            info_tuple = await Spotify_Downloader.download_and_send_spotify_info(client,event,spotify_link_info)
             
-            if not info_tuple[0]: #if getting info of the link failed
-                return await event.respond("Sorry, There was a problem processing your request.")
-            if not all(info_tuple):
+            if not info_tuple: #if getting info of the link failed
                 await waiting_message.delete()
+                return await event.respond("Sorry, There was a problem processing your request.")
 
         else:
             
-            # Ignore messages that match the /start pattern
-            if event.message.text.startswith('/start'):
+            user_id = event.sender_id 
+            music_quality, downloading_core = db.get_user_settings(user_id)
+            if music_quality == None or downloading_core == None :
+                await event.respond("We Have Updated The Bot, Please start Over using the /start command.")
                 return
-          
-            if search_result != "None":
+            
+            if event.message.text.startswith('/'):
+                return
+
+            if admin_broadcast:
+                admin_message_to_send = event.message
+                return
+
+            if search_result != None:
                 await search_result.delete()
-                search_result = "None"
+                search_result = None
                 
             waiting_message_search = await event.respond('⏳')
 
-            button_list = []
-            song_dict = Spotify_Downloader.search_spotify_based_on_user_input(event.message.text)
+            sanitized_query = Spotify_Downloader.sanitize_query(event.message.text)
+            if not sanitized_query:
+                await event.respond("Your input was not valid. Please try again with a valid search term.")
+                return
+
+            song_dict = Spotify_Downloader.search_spotify_based_on_user_input(sanitized_query)
+
+            if all(not value for value in song_dict.values()):
+                await waiting_message_search.delete()
+                await event.respond("Sorry,I couldnt Find any music that matches your Search query.")
+                return
             
-            # Create a list of buttons for each song
-            for idx, details in song_dict.items():
-                button_text = f"🎧 {details['track_name']} - {details['artist']} 🎧 ({details['release_year']})"
-                callback_query = f"{str(idx)}"
-                button_list.append([Button.inline(button_text,data=callback_query)])
-            
+            button_list = [
+                [Button.inline(f"🎧 {details['track_name']} - {details['artist']} 🎧 ({details['release_year']})", data=str(idx))]
+                for idx, details in song_dict.items()
+            ]
+
+            button_list.append([Button.inline("Cancel", b"CANCEL")])
+
             try:
-                cancel_button = [Button.inline("Cancel", b"CANCEL")]
-                button_list.append(cancel_button)
-                
-                # Send the search result message with the buttons
                 search_result = await event.respond(search_result_message, buttons=button_list)
-                
             except Exception as Err:
                 await event.respond(f"Sorry There Was an Error Processing Your Request: {str(Err)}")
-                
-            await asyncio.sleep(2)
+
+            await asyncio.sleep(1.5)
             await waiting_message_search.delete()
 
     client.run_until_disconnected()
