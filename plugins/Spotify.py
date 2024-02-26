@@ -1,5 +1,6 @@
 from dotenv import load_dotenv
-import os, spotipy, requests, asyncio, re
+import os, spotipy, requests, asyncio, re, logging
+from itertools import combinations
 from spotipy.oauth2 import SpotifyClientCredentials
 from PIL import Image
 from io import BytesIO
@@ -95,7 +96,7 @@ class Spotify_Downloader():
                 'track_name': track_info['name'],
                 'artist_name': ', '.join([artist['name'] for artist in track_info['artists']]),
                 'artist_url': track_info['artists'][0]['external_urls']['spotify'],
-                'album_name': track_info['album']['name'],
+                'album_name': track_info['album']['name'].replace("(","").replace(")","").replace("[","").replace("]",""),
                 'album_url': track_info['album']['external_urls']['spotify'],
                 'release_year': track_info['album']['release_date'].split('-')[0],
                 'image_url': track_info['album']['images'][0]['url'],
@@ -168,14 +169,34 @@ class Spotify_Downloader():
             await event.respond("The Provided Link is not a track.")
             return False
              
-        filename = f"{link_info['artist_name']} - {link_info['track_name']}".replace("/","")
-        filename = filename + f"-{music_quality['quality']}" if spotdl == False else filename
+        artist_names = link_info['artist_name'].split(', ')
+          
+        # Generate all possible combinations of artist names
+        for r in range(1, len(artist_names) +  1):
+            for combination in combinations(artist_names, r):
+
+                filename = f"{', '.join(combination)} - {link_info['track_name']}".replace("/", "")
+                filename = filename + f"-{music_quality['quality']}" if spotdl == False else filename
+
+                dir = f"{Spotify_Downloader.download_directory}/{filename}"
+                file_path = f"{dir}.{music_quality['format']}"
+                is_local = os.path.isfile(file_path)
+
+                if is_local == True:
+                    break
+            if is_local == True:
+                break
         
         icon_name = f"{link_info['track_name']} - {link_info['artist_name']}.jpeg".replace("/"," ")
         icon_path = os.path.join(Spotify_Downloader.download_icon_directory, icon_name)
         
-        is_local = os.path.isfile(f"{Spotify_Downloader.download_directory}/{filename}.{music_quality['format']}")
- 
+        if not is_local:
+            filename = f"{link_info['artist_name']} - {link_info['track_name']}".replace("/","")
+            filename = filename + f"-{music_quality['quality']}" if spotdl == False else filename
+            
+            dir = f"{Spotify_Downloader.download_directory}/{filename}"
+            file_path = f"{dir}.{music_quality['format']}"
+            
         if not os.path.isfile(icon_path):
             response = requests.get(link_info["image_url"])
             img = Image.open(BytesIO(response.content))
@@ -234,11 +255,10 @@ Track id: {link_info["track_id"]}
             """,
                         supports_streaming=True,  # This flag enables streaming for compatible formats
                         force_document=False,  # This flag sends the file as a document or not
-                        thumb=icon_path,
-                        allow_cache=True
+                        thumb=icon_path
                     )
-        except:
-            await event.respond("SomeThing Went Wrong. Try Using YoutubeDL.")
+        except Exception as e:
+            await event.respond(f"Failed To Upload.\nReason:{str(e)}")
             
         await is_local_message.delete() if was_Local else None
         await upload_message.delete()
@@ -246,51 +266,66 @@ Track id: {link_info["track_id"]}
         Spotify_Downloader.is_file_processing = False
         return True
     
-    
     @staticmethod
-    async def download_SpotDL(event,music_quality,spotify_link_info) -> bool:
+    async def download_SpotDL(event, music_quality, spotify_link_info, initial_message=None, audio_option: str = "piped") -> bool:
+        command = f'python3 -m spotdl --format {music_quality["format"]} --audio {audio_option} --output "{Spotify_Downloader.download_directory}" "{spotify_link_info["track_url"]}"'
 
-            command = f'python3 -m spotdl --format {music_quality["format"]} --audio piped --output "{Spotify_Downloader.download_directory}" "{spotify_link_info["track_url"]}"'
+        try:
+            # Start the subprocess
+            process = await asyncio.create_subprocess_shell(
+                command,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                stdin=asyncio.subprocess.DEVNULL
+            )
+        except Exception as e:
+            Spotify_Downloader.logger.error(f"Failed to start subprocess. Error: {e}")
+            await event.respond(f"Failed to download. Error: {e}")
+            Spotify_Downloader.is_file_processing = False
+            return False
 
-            try:
-                # Start the subprocess
-                process = await asyncio.create_subprocess_shell(
-                    command,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                    stdin=asyncio.subprocess.DEVNULL
-                )
-            except Exception as e:
-                await event.respond(f"Failed to download. Error: {e}")
-                Spotify_Downloader.is_file_processing = False
-                return False
-            
+        if initial_message is None:
             # Send an initial message to the user with a progress bar
-            initial_message = await event.reply("Downloading...\n")
-            
-            # Function to send updates to the user
-            async def send_updates(process, message):
+            initial_message = await event.reply("SpotDL: Downloading...\nApproach: Piped")
+
+        # Function to send updates to the user
+        async def send_updates(process, message):
+            while True:
+                # Read a line from stdout
+                line = await process.stdout.readline()
                 
-                while True:
-                    # Read a line from stdout
-                    line = await process.stdout.readline()
+                line = line.decode().strip()
+
+                if audio_option != "youtube":
+                    await message.edit(f"SpotDL: Downloading...\nApproach: Piped\n\n{line}")
+                else:
+                    await message.edit(f"SpotDL: Downloading...\nApproach: Piped Failed, Using Another Approach.\n\n{line}")
                     
-                    if not line:
-                        await message.delete()
-                        break
-                    line = line.decode().strip()
-                    
-                    # Check if the line is not empty before editing
-                    if line:
-                        await message.edit(f"Downloading...\n{line}")
-            
-            # Start sending updates and wait for it to complete
-            await send_updates(process, initial_message)
-            
-            # Wait for the process to finish
-            await process.wait()
-            
+                # Check for errors
+                if "LookupError" in line or "FFmpegError" in line or "JSONDecodeError" in line:
+                    if audio_option != "youtube":
+                        await message.edit(f"SpotDL: Downloading...\nApproach: Piped Failed, Using Another Approach.\n\n{line}")
+                        return False  # Indicate that an error occurred
+                    else:
+                        await message.edit(f"SpotDL: Downloading...\nApproach: Both Failed.\n\n{line}")
+                        return False
+                elif not line:
+                    await asyncio.sleep(1)
+                    await message.delete()
+                    return True
+
+        success = await send_updates(process, initial_message)
+        if not success and audio_option != "youtube":
+            await initial_message.edit(f"SpotDL: Downloading...\nApproach: Piped Failed, Using Another Approach.")
+            await Spotify_Downloader.download_SpotDL(event, music_quality, spotify_link_info, initial_message, audio_option="youtube")            
+        elif success:
             return True
+        else:
+            return False
+        
+        # Wait for the process to finish
+        await process.wait()
+
     
     @staticmethod
     async def download_YoutubeDL(event,file_info,music_quality):
@@ -458,17 +493,35 @@ Track id: {link_info["track_id"]}
         if video_url == None:
             Spotify_Downloader.is_file_processing = False
             return True
-             
-        filename = f"{spotify_link_info['artist_name']} - {spotify_link_info['track_name']}".replace("/","")
-        filename = filename + f"-{music_quality['quality']}" if spotdl == False else filename
+        
+        artist_names = spotify_link_info['artist_name'].split(', ')
+          
+        # Generate all possible combinations of artist names
+        for r in range(1, len(artist_names) +  1):
+            for combination in combinations(artist_names, r):
+
+                filename = f"{', '.join(combination)} - {spotify_link_info['track_name']}".replace("/", "")
+                filename = filename + f"-{music_quality['quality']}" if spotdl == False else filename
+
+                dir = f"{Spotify_Downloader.download_directory}/{filename}"
+                file_path = f"{dir}.{music_quality['format']}"
+                is_local = os.path.isfile(file_path)
+
+                if is_local == True:
+                    break
+            if is_local == True:
+                break
         
         icon_name = f"{spotify_link_info['track_name']} - {spotify_link_info['artist_name']}.jpeg".replace("/"," ")
         icon_path = os.path.join(Spotify_Downloader.download_icon_directory, icon_name)
         
-        dir = f"{Spotify_Downloader.download_directory}/{filename}"
-        file_path = f"{dir}.{music_quality['format']}"
-        is_local = os.path.isfile(f"{file_path}")
-
+        if not is_local:
+            filename = f"{spotify_link_info['artist_name']} - {spotify_link_info['track_name']}".replace("/","")
+            filename = filename + f"-{music_quality['quality']}" if spotdl == False else filename
+            
+            dir = f"{Spotify_Downloader.download_directory}/{filename}"
+            file_path = f"{dir}.{music_quality['format']}"
+        
         file_info = {
             "file_name": filename,
             "file_path": file_path,
@@ -512,6 +565,7 @@ Track id: {link_info["track_id"]}
             
         elif is_local == False and spotdl == True:         
             result = await Spotify_Downloader.download_SpotDL(event,music_quality,spotify_link_info)
+            print(result)
             return await Spotify_Downloader.send_localfile(client,event,file_info,spotify_link_info) if result else False
             
     @staticmethod
