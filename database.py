@@ -17,9 +17,10 @@ class db:
             conn.commit()
         # Set up the trigger to automatically add new users to the subscriptions table
         db.create_trigger()
+        db.set_defualt_values()
 
     @classmethod
-    def set_defualt_values(cls,default_downloading_core,default_music_quality):
+    def set_defualt_values(cls,default_downloading_core:str = "YoutubeDL",default_music_quality:str = "693"):
         cls.default_downloading_core = default_downloading_core
         cls.default_music_quality = default_music_quality
         
@@ -74,7 +75,7 @@ class db:
         AFTER INSERT ON user_settings
         BEGIN
             INSERT INTO subscriptions (user_id, subscribed, temporary)
-            VALUES (NEW.user_id,   1,   0);
+            VALUES (NEW.user_id, 1, 0);
         END;
         '''
         db.execute_query(trigger_sql)
@@ -122,39 +123,39 @@ class db:
 
     @staticmethod
     def add_user_to_temp(user_id):
-        db.execute_query('''UPDATE subscriptions SET temporary =  1 WHERE user_id = ?''', (user_id,))
+        db.execute_query('''UPDATE subscriptions SET temporary = 1 WHERE user_id = ?''', (user_id,))
 
     @staticmethod
     def remove_user_from_temp(user_id):
-        db.execute_query('''UPDATE subscriptions SET temporary =  0 WHERE user_id = ?''', (user_id,))
+        db.execute_query('''UPDATE subscriptions SET temporary = 0 WHERE user_id = ?''', (user_id,))
 
     @staticmethod
     def add_subscribed_user(user_id):
-        db.execute_query('''UPDATE subscriptions SET subscribed =  1 WHERE user_id = ?''', (user_id,))
+        db.execute_query('''UPDATE subscriptions SET subscribed = 1 WHERE user_id = ?''', (user_id,))
 
     @staticmethod
     def remove_subscribed_user(user_id):
-        db.execute_query('''UPDATE subscriptions SET subscribed =  0 WHERE user_id = ?''', (user_id,))
+        db.execute_query('''UPDATE subscriptions SET subscribed = 0 WHERE user_id = ?''', (user_id,))
 
     @staticmethod
     def get_subscribed_user_ids():
-        return [row[0] for row in db.fetch_all('SELECT user_id FROM subscriptions WHERE subscribed =  1')]
+        return [row[0] for row in db.fetch_all('SELECT user_id FROM subscriptions WHERE subscribed = 1')]
 
     @staticmethod
     def clear_subscribed_users():
-        db.execute_query('''UPDATE subscriptions SET subscribed =  0''')
+        db.execute_query('''UPDATE subscriptions SET subscribed = 0''')
 
     @staticmethod
     def mark_temporary_subscriptions():
-        db.execute_query('''UPDATE subscriptions SET temporary =  1''')
+        db.execute_query('''UPDATE subscriptions SET temporary = 1''')
 
     @staticmethod
     def mark_temporary_unsubscriptions():
-        db.execute_query('''UPDATE subscriptions SET temporary =  0''')
+        db.execute_query('''UPDATE subscriptions SET temporary = 0''')
 
     @staticmethod
     def get_temporary_subscribed_user_ids():
-        return [row[0] for row in db.fetch_all('SELECT user_id FROM subscriptions WHERE temporary =  1')]
+        return [row[0] for row in db.fetch_all('SELECT user_id FROM subscriptions WHERE temporary = 1')]
 
     @staticmethod
     def is_user_subscribed(user_id):
