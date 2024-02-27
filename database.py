@@ -10,7 +10,9 @@ class db:
             c = conn.cursor()
             # Create user_settings table if it doesn't exist
             c.execute('''CREATE TABLE IF NOT EXISTS user_settings
-                        (user_id INTEGER PRIMARY KEY, music_quality TEXT, downloading_core TEXT)''')
+                        (user_id INTEGER PRIMARY KEY, music_quality TEXT, downloading_core TEXT,
+                         is_admin BOOLEAN DEFAULT 0, spotify_link_info TEXT, song_dict TEXT,
+                         is_user_updated BOOLEAN DEFAULT 1, search_result TEXT, admin_broadcast BOOLEAN DEFAULT 0)''')
             # Create subscriptions table if it doesn't exist, including a temporary flag
             c.execute('''CREATE TABLE IF NOT EXISTS subscriptions
                         (user_id INTEGER PRIMARY KEY, subscribed BOOLEAN DEFAULT   1, temporary BOOLEAN DEFAULT   0)''')
@@ -20,7 +22,7 @@ class db:
         db.set_defualt_values()
 
     @classmethod
-    def set_defualt_values(cls,default_downloading_core:str = "YoutubeDL",default_music_quality:str = "693"):
+    def set_defualt_values(cls,default_downloading_core:str = "YoutubeDL",default_music_quality:dict = {'format': 'flac', 'quality': '693'}):
         cls.default_downloading_core = default_downloading_core
         cls.default_music_quality = default_music_quality
         
@@ -161,3 +163,106 @@ class db:
     def is_user_subscribed(user_id):
         result = db.fetch_one('SELECT subscribed FROM subscriptions WHERE user_id = ?', (user_id,))
         return result is not None and result[0] ==  1
+
+    def serialize_dict(data):
+        """
+        Serializes a dictionary into a JSON string.
+        """
+        return json.dumps(data)
+
+    def deserialize_dict(data):
+        """
+        Deserializes a JSON string back into a dictionary.
+        """
+        return json.loads(data)
+
+    @staticmethod
+    def update_user_spotify_link_info(user_id, spotify_link_info):
+        """
+        Updates a user's spotify_link_info.
+        """
+        serialized_info = db.serialize_dict(spotify_link_info)
+        db.execute_query('UPDATE user_settings SET spotify_link_info = ? WHERE user_id = ?', (serialized_info, user_id))
+
+    @staticmethod
+    def update_user_song_dict(user_id, song_dict):
+        """
+        Updates a user's song_dict.
+        """
+        serialized_dict = db.serialize_dict(song_dict)
+        db.execute_query('UPDATE user_settings SET song_dict = ? WHERE user_id = ?', (serialized_dict, user_id))
+
+    @staticmethod
+    def update_user_is_admin(user_id, is_admin):
+        db.execute_query('UPDATE user_settings SET is_admin = ? WHERE user_id = ?', (is_admin, user_id))
+
+    @staticmethod
+    def get_user_song_dict(user_id):
+        result = db.fetch_one('SELECT song_dict FROM user_settings WHERE user_id = ?', (user_id,))
+        if result:
+            return db.deserialize_dict(result[0])
+        return {}
+    
+    @staticmethod
+    def is_user_admin(user_id):
+        result = db.fetch_one('SELECT is_admin FROM user_settings WHERE user_id = ?', (user_id,))
+        return result is not None and result[0] ==  1
+    
+    @staticmethod
+    def get_user_spotify_link_info(user_id):
+        result = db.fetch_one('SELECT spotify_link_info FROM user_settings WHERE user_id = ?', (user_id,))
+        if result:
+            return db.deserialize_dict(result[0])
+        return {}
+
+    @staticmethod
+    def set_user_updated(user_id, is_user_updated):
+        """
+        Sets the is_user_updated flag for a user.
+        """
+        db.execute_query('UPDATE user_settings SET is_user_updated = ? WHERE user_id = ?', (is_user_updated, user_id))
+
+    @staticmethod
+    def get_user_updated(user_id):
+        """
+        Retrieves the is_user_updated flag for a user.
+        """
+        result = db.fetch_one('SELECT is_user_updated FROM user_settings WHERE user_id = ?', (user_id,))
+        if result:
+            return result[0]
+        return False  # Default to False if the user is not found or the flag is not set
+
+    @staticmethod
+    def set_user_search_result(user_id, search_result):
+        """
+        Sets the search_result for a user.
+        """
+        serialized_result = serialize_dict(search_result)
+        db.execute_query('UPDATE user_settings SET search_result = ? WHERE user_id = ?', (serialized_result, user_id))
+
+    @staticmethod
+    def get_user_search_result(user_id):
+        """
+        Retrieves the search_result for a user.
+        """
+        result = db.fetch_one('SELECT search_result FROM user_settings WHERE user_id = ?', (user_id,))
+        if result:
+            return deserialize_dict(result[0])
+        return {}  # Default to an empty dictionary if the user is not found or the search_result is not set
+        
+    @staticmethod
+    def set_admin_broadcast(user_id, admin_broadcast):
+        """
+        Sets the admin_broadcast flag for a user.
+        """
+        db.execute_query('UPDATE user_settings SET admin_broadcast = ? WHERE user_id = ?', (admin_broadcast, user_id))
+
+    @staticmethod
+    def get_admin_broadcast(user_id):
+        """
+        Retrieves the admin_broadcast flag for a user.
+        """
+        result = db.fetch_one('SELECT admin_broadcast FROM user_settings WHERE user_id = ?', (user_id,))
+        if result:
+            return result[0]
+        return False  # Default to False if the user is not found or the flag is not set
