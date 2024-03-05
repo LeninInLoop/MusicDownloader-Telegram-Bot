@@ -127,18 +127,16 @@ class Spotify_Downloader():
     def extract_yt_video_info(event) -> tuple:
         
         user_id = event.sender_id
-        
+        video_url = None
         spotify_link_info = db.get_user_spotify_link_info(user_id)
         if spotify_link_info == None:
             return None
         
         # If a YouTube link is found, extract the video ID and other details
-        try:
-            if spotify_link_info["youtube_link"]:
-                video_url = spotify_link_info["youtube_link"]
-        except:
-            pass
-        
+
+        if spotify_link_info['youtube_link']:
+            video_url = spotify_link_info['youtube_link']
+
         else:
             query = f""""{spotify_link_info['track_name']}" + "{spotify_link_info['artist_name']}" lyrics {spotify_link_info['release_year']}"""
             
@@ -169,7 +167,7 @@ class Spotify_Downloader():
             Spotify_Downloader.Spotify_info[user_id] = None
         
         link_info = db.get_user_spotify_link_info(user_id)
-        
+        print(link_info)
         if Spotify_Downloader.Spotify_info[user_id] != None:
             await Spotify_Downloader.Spotify_info[user_id].edit(buttons=None)
             

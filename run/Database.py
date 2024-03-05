@@ -87,10 +87,16 @@ class db:
         
     @staticmethod
     def save_user_settings(user_id, music_quality, downloading_core):
-        music_quality_json = json.dumps(music_quality)
+        music_quality_json = db.serialize_dict(music_quality)
+        is_file_processing = db.get_file_processing_flag(user_id)
+        song_dict = db.get_user_song_dict(user_id) 
+        song_dict = db.serialize_dict(song_dict) if song_dict else None
+        spotify_link_info = db.get_user_spotify_link_info(user_id)
+        spotify_link_info = db.serialize_dict(spotify_link_info) if spotify_link_info else None
+        is_user_updated = db.get_user_updated_flag(user_id)
         db.execute_query('''INSERT OR REPLACE INTO user_settings
-                          (user_id, music_quality, downloading_core) VALUES (?, ?, ?)''',
-                         (user_id, music_quality_json, downloading_core))
+                          (user_id, music_quality, downloading_core, spotify_link_info, song_dict, is_file_processing, is_user_updated) VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                         (user_id, music_quality_json, downloading_core, spotify_link_info, song_dict, is_file_processing, is_user_updated))
 
     @staticmethod
     def get_user_settings(user_id):
@@ -203,7 +209,7 @@ class db:
     def get_user_song_dict(user_id):
         result = db.fetch_one('SELECT song_dict FROM user_settings WHERE user_id = ?', (user_id,))
         if result:
-            return db.deserialize_dict(result[0])
+            return db.deserialize_dict(result[0]) if result[0] else {}
         return {}
     
     @staticmethod
@@ -300,8 +306,8 @@ class db:
         - A dictionary containing the Spotify link information, or an empty dictionary if not found.
         """
         result = db.fetch_one('SELECT spotify_link_info FROM user_settings WHERE user_id = ?', (user_id,))
-        if result[0] != None:
-            return json.loads(result[0])
+        if result != None:
+            return json.loads(result[0]) if result[0] else {}
         return {} # Return an empty dictionary if the user is not found or the Spotify link info is not set
     
     @staticmethod
@@ -333,7 +339,7 @@ class db:
         result = db.fetch_one('SELECT is_file_processing FROM user_settings WHERE user_id = ?', (user_id,))
         if result:
             # Convert the integer value to a boolean (1 for True, 0 for False)
-            return bool(result[0])
+            return bool(result[0]) if result[0] else False
         return False # Return False if the file is not found or the flag is not set
     
     @staticmethod
