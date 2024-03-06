@@ -10,6 +10,7 @@ from mutagen.id3 import ID3, TIT2, TPE1, TALB, TDRC, TORY, TYER, TXXX, APIC
 from mutagen import File
 from telethon.tl.custom import Button
 from run.Database import db
+import lyricsgenius
 
 class Spotify_Downloader():
 
@@ -19,6 +20,7 @@ class Spotify_Downloader():
             load_dotenv('config.env')
             cls.SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
             cls.SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
+            cls.GENIUS_ACCESS_TOKEN = os.getenv("GENIUS_ACCESS_TOKEN")
         except FileNotFoundError:
             print("Failed to Load .env variables")
         
@@ -39,6 +41,7 @@ class Spotify_Downloader():
         cls.spotify_account = spotipy.Spotify(client_credentials_manager=
                 SpotifyClientCredentials(client_id=cls.SPOTIFY_CLIENT_ID,
                                          client_secret=cls.SPOTIFY_CLIENT_SECRET))
+        cls.genius = lyricsgenius.Genius(Spotify_Downloader.GENIUS_ACCESS_TOKEN)
              
     @staticmethod
     def is_spotify_link(url):
@@ -83,8 +86,9 @@ class Spotify_Downloader():
         return 'none'
 
     @staticmethod
-    def extract_data_from_spotify_link(spotify_url) -> dict:
+    def extract_data_from_spotify_link(event,spotify_url):
         
+        user_id = event.sender_id
         link_info = {}
         if Spotify_Downloader.identify_spotify_link_type(spotify_url) == "track":
             
@@ -94,6 +98,7 @@ class Spotify_Downloader():
                 'type': "track",
                 'track_name': track_info['name'],
                 'artist_name': ', '.join([artist['name'] for artist in track_info['artists']]),
+                'artist_ids': [artist['id'] for artist in track_info['artists']],
                 'artist_url': track_info['artists'][0]['external_urls']['spotify'],
                 'album_name': track_info['album']['name'].replace("(","").replace(")","").replace("[","").replace("]",""),
                 'album_url': track_info['album']['external_urls']['spotify'],
@@ -102,14 +107,17 @@ class Spotify_Downloader():
                 'track_id': track_info['id'],
                 'isrc': track_info['external_ids']['isrc'],
                 'track_url': spotify_url,
-                'youtube_link': track_info.get('external_urls', {}).get('youtube', None)
+                'youtube_link': track_info.get('external_urls', {}).get('youtube', None),
+                'preview_url': track_info.get('preview_url', None) # Add preview URL
             }
-            
+            if link_info['youtube_link'] == None:
+                link_info['youtube_link'] = Spotify_Downloader.extract_yt_video_info(event)
         else:
             link_info = {
                 'type': None,
                 'track_name': None,
                 'artist_name': None,
+                'artist_ids': None,
                 'artist_url': None,
                 'album_name': None,
                 'album_url': None,
@@ -118,10 +126,12 @@ class Spotify_Downloader():
                 'track_id': None,
                 'isrc': None,
                 'track_url': None,
-                'youtube_link': None
+                'youtube_link': None,
+                'preview_url': None
             }
-            
-        return link_info
+        
+
+        db.set_user_spotify_link_info(user_id,link_info)
         
     @staticmethod       
     def extract_yt_video_info(event) -> tuple:
@@ -134,7 +144,7 @@ class Spotify_Downloader():
         
         # If a YouTube link is found, extract the video ID and other details
 
-        if spotify_link_info['youtube_link']:
+        if spotify_link_info['youtube_link'] != None:
             video_url = spotify_link_info['youtube_link']
 
         else:
@@ -167,7 +177,6 @@ class Spotify_Downloader():
             Spotify_Downloader.Spotify_info[user_id] = None
         
         link_info = db.get_user_spotify_link_info(user_id)
-        print(link_info)
         if Spotify_Downloader.Spotify_info[user_id] != None:
             await Spotify_Downloader.Spotify_info[user_id].edit(buttons=None)
             
@@ -219,10 +228,11 @@ class Spotify_Downloader():
         SpotifyInfoButtons = [
             [Button.inline("Download 30s Preview", data=b"@music_info_preview")],
             [Button.inline("Download Track", data=b"@music")],
-            [Button.inline("Music Info", data=b"@music_info")],
-            [Button.inline("Artist Info", data=b"@artist_info")],
-            [Button.inline("Listen On Spotify", data=b"@music_info_spotify"),
-             Button.inline("Listen On Youtube", data=b"@music_info_youtube")],
+            [Button.inline("Download Icon", data=b"@music_icon")],
+            [Button.inline("Artist Info", data=b"@music_artist_info")],
+            [Button.inline("Lyrics", data=b"@music_lyrics")],
+            [Button.url("Listen On Spotify", url=link_info["track_url"]),
+             Button.url("Listen On Youtube", url=link_info['youtube_link'])],
             [Button.inline("Cancel", data=b"cancel")]
         ]
 
@@ -537,10 +547,8 @@ class Spotify_Downloader():
         spotify_link_info = db.get_user_spotify_link_info(user_id)
         
         db.set_file_processing_flag(user_id,1)
-    
-        video_url = Spotify_Downloader.extract_yt_video_info(event)
         
-        if video_url == None:
+        if spotify_link_info['youtube_link'] == None:
             db.set_file_processing_flag(user_id,0)
             return True
         
@@ -581,7 +589,7 @@ class Spotify_Downloader():
             "file_path": file_path,
             "icon_path": icon_path,
             "is_local": is_local,
-            "video_url": video_url
+            "video_url": spotify_link_info['youtube_link']
         }  
         
         # Check if the file already exists
@@ -642,3 +650,149 @@ class Spotify_Downloader():
                 'spotify_link': spotify_link  # Include the Spotify link in the dictionary
             }
         db.set_user_song_dict(event.sender_id,song_dict)
+          
+    @staticmethod
+    async def send_30s_preview(client,event):
+        user_id = event.sender_id
+        spotify_link_info = db.get_user_spotify_link_info(user_id)
+        if spotify_link_info['type'] == "track":
+            try:
+                preview_url = spotify_link_info['preview_url']
+                if preview_url:
+                    await client.send_file(event.chat_id, preview_url, voice=True)
+                else:
+                    await event.respond("Sorry, the preview URL for this track is not available.")
+            except Exception:
+                await event.respond("An error occurred while sending the preview.")
+        else:
+            await event.respond("Sorry, I can only send previews for tracks, not albums or artists.")
+    
+    @staticmethod
+    async def send_artists_info(event):
+        user_id = event.sender_id
+        artist_details = []
+        spotify_link_info = db.get_user_spotify_link_info(user_id)
+
+        def format_number(number):
+            if number >= 1000000000:
+                return f"{number // 1000000000}.{(number % 1000000000) // 100000000}B"
+            elif number >= 1000000:
+                return f"{number // 1000000}.{(number % 1000000) // 100000}M"
+            elif number >= 1000:
+                return f"{number // 1000}.{(number % 1000) // 100}K"
+            else:
+                return str(number)
+        
+        for artist_id in spotify_link_info['artist_ids']:
+            artist = Spotify_Downloader.spotify_account.artist(artist_id)
+            artist_details.append({
+                'name': artist['name'],
+                'followers': format_number(artist['followers']['total']),
+                'genres': artist['genres'],
+                'popularity': artist['popularity'],
+                'image_url': artist['images'][0]['url'] if artist['images'] else None,
+                'external_url': artist['external_urls']['spotify']
+            })
+
+        # Create a professional artist info message with more details and formatting
+        message = "🎤 <b>Artists Information</b> :\n\n"
+        for artist in artist_details:
+            message += f"🌟 <b>Artist Name:</b> {artist['name']}\n"
+            message += f"👥 <b>Followers:</b> {artist['followers']}\n"
+            message += f"🎵 <b>Genres:</b> {', '.join(artist['genres'])}\n"
+            message += f"📈 <b>Popularity:</b> {artist['popularity']}\n"
+            if artist['image_url']:
+                message += f"\n🖼️ <b>Image:</b> <a href='{artist['image_url']}'>Image Url</a>\n"
+            message += f"🔗 <b>Spotify URL:</b> <a href='{artist['external_url']}'>Spotify Link</a>\n\n"
+            message += "───────────────────────\n\n"
+
+        # Create buttons with URLs
+        artist_buttons = [
+            [Button.url(f"🎧 {artist['name']}", artist['external_url'])]
+            for artist in artist_details
+        ]
+        artist_buttons.append([Button.inline("Remove",data='cancel')])
+        
+        await event.respond(message, parse_mode='html', buttons=artist_buttons)
+
+    @staticmethod
+    async def send_music_lyrics(event):
+        MAX_MESSAGE_LENGTH = 4096  # Telegram's maximum message length
+        SECTION_HEADER_PATTERN = r'\[.+?\]'  # Pattern to match section headers
+        
+        user_id = event.sender_id
+        spotify_link_info = db.get_user_spotify_link_info(user_id)
+        waiting_message = await event.respond("Searching For Lyrics in Genius ....")
+        song = Spotify_Downloader.genius.search_song(f"{spotify_link_info['track_name']} {spotify_link_info['artist_name']}")
+        if song:
+            await waiting_message.delete()
+            lyrics = song.lyrics
+            
+            # Remove 'Embed' and the first line of the lyrics
+            lyrics = song.lyrics.strip().split('\n', 1)[-1]
+            lyrics = lyrics.replace('Embed', '').strip()
+        
+            metadata = f"**Song:** {spotify_link_info['track_name']}\n**Artist:** {spotify_link_info['artist_name']}\n\n"
+
+            # Split the lyrics into multiple messages if necessary
+            lyrics_chunks = []
+            current_chunk = ""
+            section_lines = []
+            for line in lyrics.split('\n'):
+                if re.match(SECTION_HEADER_PATTERN, line) or not section_lines:
+                    if section_lines:
+                        section_text = '\n'.join(section_lines)
+                        if len(current_chunk) + len(section_text) + 2 <= MAX_MESSAGE_LENGTH:
+                            current_chunk += section_text + "\n"
+                        else:
+                            lyrics_chunks.append(f"```{current_chunk.strip()}```")
+                            current_chunk = section_text + "\n"
+                    section_lines = [line]
+                else:
+                    section_lines.append(line)
+            
+            # Add the last section to the chunks
+            if section_lines:
+                section_text = '\n'.join(section_lines)
+                if len(current_chunk) + len(section_text) + 2 <= MAX_MESSAGE_LENGTH:
+                    current_chunk += section_text + "\n"
+                else:
+                    lyrics_chunks.append(f"```{current_chunk.strip()}```")
+                    current_chunk = section_text + "\n"
+            if current_chunk:
+                lyrics_chunks.append(f"```{current_chunk.strip()}```")
+
+            for i, chunk in enumerate(lyrics_chunks, start=1):
+                page_header = f"Page {i}/{len(lyrics_chunks)}\n"
+                message = metadata + chunk + page_header
+                await event.respond(message,buttons=[Button.inline("Remove",data='cancel')])
+        else:
+            error_message = "Sorry, I couldn't find the lyrics for this track. Please make sure the Spotify track URL is correct, or try searching for another song."
+            await event.respond(error_message)
+        
+    @staticmethod
+    async def send_music_icon(client, event):
+        try:
+            user_id = event.sender_id
+            spotify_link_info = db.get_user_spotify_link_info(user_id)
+
+            if spotify_link_info:
+                track_name = spotify_link_info['track_name']
+                artist_name = spotify_link_info['artist_name']
+                icon_name = f"{track_name} - {artist_name}.jpeg".replace("/", " ")
+                icon_path = os.path.join(Spotify_Downloader.download_icon_directory, icon_name)
+
+                if os.path.isfile(icon_path):
+                    async with client.action(event.chat_id, 'document'):
+                        await client.send_file(
+                            event.chat_id,
+                            icon_path,
+                            caption=f"{track_name} - {artist_name}",
+                            force_document=True
+                        )
+                else:
+                    await event.reply("Sorry, the music icon is currently unavailable.")
+            else:
+                await event.reply("No Spotify link information found. Please make sure you have provided a valid Spotify link.")
+        except Exception:
+            await event.reply("An error occurred while processing your request. Please try again later.")

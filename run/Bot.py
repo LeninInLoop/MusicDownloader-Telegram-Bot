@@ -694,12 +694,21 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
             await action(event) 
           
         elif event.data.startswith(b"@music"):
-            send_file_result = await Spotify_Downloader.download_spotify_file_and_send(Bot.Client,event)
-            if not send_file_result:
-                db.set_file_processing_flag(user_id,0)
-                await event.respond(f"Sorry, there was an error downloading the song.Try Using a Different Core.\nYou Can Change Your Core in the Settings or Simply Use This command to See Available Cores: /core")
-            await Bot.waiting_message[user_id].delete() if Bot.waiting_message.get(user_id,None) != None else None
-       
+            if event.data == b"@music_info_preview":
+                await Spotify_Downloader.send_30s_preview(Bot.Client,event)
+            elif event.data == b"@music_artist_info":
+                await Spotify_Downloader.send_artists_info(event)
+            elif event.data == b"@music_icon":
+                await Spotify_Downloader.send_music_icon(Bot.Client,event)
+            elif event.data == b"@music_lyrics":
+                await Spotify_Downloader.send_music_lyrics(event)
+            else:
+                send_file_result = await Spotify_Downloader.download_spotify_file_and_send(Bot.Client,event)
+                if not send_file_result:
+                    db.set_file_processing_flag(user_id,0)
+                    await event.respond(f"Sorry, there was an error downloading the song.Try Using a Different Core.\nYou Can Change Your Core in the Settings or Simply Use This command to See Available Cores: /core")
+                await Bot.waiting_message[user_id].delete() if Bot.waiting_message.get(user_id,None) != None else None
+        
             # if search_result != None: // Removes the search list after sending the track
             #     await search_result.delete()
             #     search_result = None
@@ -715,7 +724,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
                 
                 Bot.waiting_message[user_id] = await event.respond('⏳')
                    
-                db.set_user_spotify_link_info(user_id,Spotify_Downloader.extract_data_from_spotify_link(spotify_link_to_download))
+                Spotify_Downloader.extract_data_from_spotify_link(event,spotify_link_to_download)
                 send_info_result = await Spotify_Downloader.download_and_send_spotify_info(Bot.Client,event)
                 
                 if not send_info_result: #if getting info of the link failed
@@ -811,7 +820,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
                 return await Bot.respond_based_on_channel_membership(event,None,None,channels_user_is_not_in)
            
             Bot.waiting_message[user_id] = await event.respond('⏳')
-            db.set_user_spotify_link_info(user_id,Spotify_Downloader.extract_data_from_spotify_link(str(event.message.text)))           
+            Spotify_Downloader.extract_data_from_spotify_link(event,str(event.message.text))         
             info_tuple = await Spotify_Downloader.download_and_send_spotify_info(Bot.Client,event)
             
             if not info_tuple: #if getting info of the link failed
