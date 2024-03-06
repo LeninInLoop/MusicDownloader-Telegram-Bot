@@ -86,7 +86,7 @@ class Spotify_Downloader():
         return 'none'
 
     @staticmethod
-    def extract_data_from_spotify_link(event,spotify_url):
+    async def extract_data_from_spotify_link(event,spotify_url):
         
         user_id = event.sender_id
         link_info = {}
@@ -110,8 +110,7 @@ class Spotify_Downloader():
                 'youtube_link': track_info.get('external_urls', {}).get('youtube', None),
                 'preview_url': track_info.get('preview_url', None) # Add preview URL
             }
-            if link_info['youtube_link'] == None:
-                link_info['youtube_link'] = Spotify_Downloader.extract_yt_video_info(event)
+
         else:
             link_info = {
                 'type': None,
@@ -130,23 +129,23 @@ class Spotify_Downloader():
                 'preview_url': None
             }
         
-
+        if link_info['youtube_link'] is None:
+            link_info['youtube_link'] = await Spotify_Downloader.extract_yt_video_info(event,link_info)
         db.set_user_spotify_link_info(user_id,link_info)
         
     @staticmethod       
-    def extract_yt_video_info(event) -> tuple:
-        
+    async def extract_yt_video_info(event,spotify_link_info) -> tuple:
         user_id = event.sender_id
         video_url = None
-        spotify_link_info = db.get_user_spotify_link_info(user_id)
         if spotify_link_info == None:
             return None
         
         # If a YouTube link is found, extract the video ID and other details
-
-        if spotify_link_info['youtube_link'] != None:
-            video_url = spotify_link_info['youtube_link']
-
+        try:
+            if spotify_link_info['youtube_link'] != None:
+                video_url = spotify_link_info['youtube_link']
+        except:
+            pass
         else:
             query = f""""{spotify_link_info['track_name']}" + "{spotify_link_info['artist_name']}" lyrics {spotify_link_info['release_year']}"""
             
@@ -231,8 +230,8 @@ class Spotify_Downloader():
             [Button.inline("Download Icon", data=b"@music_icon")],
             [Button.inline("Artist Info", data=b"@music_artist_info")],
             [Button.inline("Lyrics", data=b"@music_lyrics")],
-            [Button.url("Listen On Spotify", url=link_info["track_url"]),
-             Button.url("Listen On Youtube", url=link_info['youtube_link'])],
+            [Button.url("Listen On Spotify", url=link_info["track_url"]),#Button.url("Listen On Youtube", url=link_info['youtube_link'])],
+            Button.url("Listen On Youtube", url=link_info['youtube_link'])],
             [Button.inline("Cancel", data=b"cancel")]
         ]
 
@@ -704,7 +703,7 @@ class Spotify_Downloader():
             if artist['image_url']:
                 message += f"\n🖼️ <b>Image:</b> <a href='{artist['image_url']}'>Image Url</a>\n"
             message += f"🔗 <b>Spotify URL:</b> <a href='{artist['external_url']}'>Spotify Link</a>\n\n"
-            message += "───────────────────────\n\n"
+            message += "───────────\n\n"
 
         # Create buttons with URLs
         artist_buttons = [
@@ -723,10 +722,15 @@ class Spotify_Downloader():
         user_id = event.sender_id
         spotify_link_info = db.get_user_spotify_link_info(user_id)
         waiting_message = await event.respond("Searching For Lyrics in Genius ....")
-        song = Spotify_Downloader.genius.search_song(f"{spotify_link_info['track_name']} {spotify_link_info['artist_name']}")
+        song = Spotify_Downloader.genius.search_song(f""" "{spotify_link_info['track_name']}"+"{spotify_link_info['artist_name']}" """)
         if song:
             await waiting_message.delete()
             lyrics = song.lyrics
+            
+            print(lyrics)
+            if not lyrics:
+                error_message = "Sorry, I couldn't find the lyrics for this track."
+                return await event.respond(error_message)
             
             # Remove 'Embed' and the first line of the lyrics
             lyrics = song.lyrics.strip().split('\n', 1)[-1]
@@ -764,11 +768,14 @@ class Spotify_Downloader():
 
             for i, chunk in enumerate(lyrics_chunks, start=1):
                 page_header = f"Page {i}/{len(lyrics_chunks)}\n"
+                if chunk == "``````":
+                    error_message = "Sorry, I couldn't find the lyrics for this track."
+                    return await event.respond(error_message)
                 message = metadata + chunk + page_header
-                await event.respond(message,buttons=[Button.inline("Remove",data='cancel')])
-        else:
-            error_message = "Sorry, I couldn't find the lyrics for this track. Please make sure the Spotify track URL is correct, or try searching for another song."
-            await event.respond(error_message)
+                await event.respond(message, buttons=[Button.inline("Remove", data='cancel')])
+        else:   
+            error_message = "Sorry, I couldn't find the lyrics for this track."
+            return await event.respond(error_message)
         
     @staticmethod
     async def send_music_icon(client, event):
