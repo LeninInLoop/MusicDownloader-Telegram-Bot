@@ -1,5 +1,5 @@
-from run.Bot import Bot
-import asyncio
+from run.bot import Bot
+import asyncio, os
 
 async def main():
     await Bot.initialize()

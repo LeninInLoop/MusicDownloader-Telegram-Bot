@@ -1,16 +1,12 @@
-import os,asyncio, time
+import os, asyncio, time
 from dotenv import load_dotenv
 from telethon import TelegramClient, events
 from telethon.tl.custom import Button
 from telethon.tl.functions.channels import GetParticipantsRequest
-from telethon.tl.types import ChannelParticipantsSearch
+from telethon.tl.types import ChannelParticipantsSearch, MessageMediaDocument
 from telethon.errors import ChatAdminRequiredError
-from telethon.tl.types import MessageMediaDocument
-from plugins.Spotify import Spotify_Downloader
-from run.Database import db
-from run.Broadcast import BroadcastManager
-from plugins.Shazam import ShazamHelper
-from plugins.X import X
+from utils import BroadcastManager, db, sanitize_query
+from plugins import Spotify_Downloader, ShazamHelper, X
 
 class Bot:
 
@@ -653,7 +649,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
                 Bot.search_result[user_id] = None
                 
             waiting_message_search = await event.respond('⏳')
-            sanitized_query = Spotify_Downloader.sanitize_query(search_query)
+            sanitized_query = sanitize_query(search_query)
             if not sanitized_query:
                 await event.respond("Your input was not valid. Please try again with a valid search term.")
                 return
@@ -822,7 +818,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
                     await process_file_message.delete()
                     return await event.respond("Sorry I Couldnt find any song that matches your Voice.")
                 
-            sanitized_query = Spotify_Downloader.sanitize_query(Shazam_recognized)
+            sanitized_query = sanitize_query(Shazam_recognized)
             if not sanitized_query:
                 await waiting_message_search.delete()
                 return await event.respond("Sorry I Couldnt find any song that matches your Voice.")
@@ -905,7 +901,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
                 Bot.search_result[user_id] = None
                 
             waiting_message_search = await event.respond('⏳')
-            sanitized_query = Spotify_Downloader.sanitize_query(event.message.text)
+            sanitized_query = sanitize_query(event.message.text)
             if not sanitized_query:
                 await event.respond("Your input was not valid. Please try again with a valid search term.")
                 return
