@@ -64,6 +64,13 @@ class db:
             async with conn.cursor() as c:
                 await c.execute(query, params)
                 await conn.commit()
+        except aiosqlite.OperationalError as e:
+            if 'database is locked' in str(e):
+                # Retry the operation after a short delay
+                await asyncio.sleep(1)
+                await db.execute_query(query, params)
+            else:
+                raise e
         finally:
             await db.release_connection(conn)
 

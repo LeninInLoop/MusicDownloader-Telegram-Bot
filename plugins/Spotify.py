@@ -177,7 +177,10 @@ class Spotify_Downloader():
         
         link_info = await db.get_user_spotify_link_info(user_id)
         if Spotify_Downloader.Spotify_info[user_id] != None:
-            await Spotify_Downloader.Spotify_info[user_id].edit(buttons=None)
+            try:
+                await Spotify_Downloader.Spotify_info[user_id].edit(buttons=None)
+            except:
+                pass
             
         music_quality, downloading_core = await db.get_user_settings(event.sender_id)
         if not await db.get_user_updated_flag(user_id) :
