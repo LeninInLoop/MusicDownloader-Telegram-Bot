@@ -208,9 +208,13 @@ Please join to continue."""
         await Bot.edit_message(e, message, buttons=Bot.subscription_setting_buttons)
         
     @staticmethod
-    async def respond_with_user_count(e):
-        user_count = await db.count_all_user_ids()
-        await e.respond(f"Number of Users: {user_count}")
+    async def respond_with_user_count(event):
+        number_of_users = await db.count_all_user_ids()
+        number_of_subscribed = await db.count_subscribed_users()
+        number_of_unsubscribed = number_of_users - number_of_subscribed
+        await event.respond(f"""Number of Users: {number_of_users}
+Number of Subscribed Users: {number_of_subscribed}
+Number of Unsubscribed Users: {number_of_unsubscribed}""")
         
     @classmethod
     async def initialize_action_queries(cls):
@@ -481,7 +485,7 @@ Please join to continue."""
         
     @staticmethod
     async def handle_broadcast_command(event):
-        # ... implementation of the handle_broadcast_command method ...
+        # ... implementation of the handle_*_command methods ...
         
         user_id = event.sender_id
         if user_id not in Bot.ADMIN_USER_IDS:
