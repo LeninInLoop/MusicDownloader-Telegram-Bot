@@ -4,5 +4,7 @@ python-dotenv==1.0.0
 spotipy==2.23.0
 Telethon==1.34.0
 tweet-capture==0.2.4
+spotdl
 shazamio
 lyricsgenius
+aiosqlite
