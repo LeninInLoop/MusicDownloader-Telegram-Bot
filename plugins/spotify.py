@@ -292,7 +292,7 @@ class Spotify_Downloader():
 💽 {spotify_link_info["track_name"]} - {spotify_link_info["artist_name"]}
 
 -->[Listen On Spotify]({spotify_link_info["track_url"]})
--->[Listen On Youtube Music]({video_url})
+-->[Listen On Youtube]({video_url})
             """,
                         supports_streaming=True,  # This flag enables streaming for compatible formats
                         force_document=False,  # This flag sends the file as a document or not
@@ -308,7 +308,7 @@ class Spotify_Downloader():
 💽 {spotify_link_info["track_name"]} - {spotify_link_info["artist_name"]}
 
 -->[Listen On Spotify]({spotify_link_info["track_url"]})
--->[Listen On Youtube Music]({video_url})
+-->[Listen On Youtube]({video_url})
                 """,
                             supports_streaming=True,  # This flag enables streaming for compatible formats
                             force_document=False,  # This flag sends the file as a document or not
