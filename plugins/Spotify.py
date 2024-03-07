@@ -86,32 +86,12 @@ class Spotify_Downloader():
         return 'none'
 
     @staticmethod
-    async def extract_data_from_spotify_link(event,spotify_url):
-        
+    async def extract_data_from_spotify_link(event, spotify_url):
         user_id = event.sender_id
         link_info = {}
-        if Spotify_Downloader.identify_spotify_link_type(spotify_url) == "track":
-            
-            track_info = Spotify_Downloader.spotify_account.track(spotify_url)
-            
-            link_info = {
-                'type': "track",
-                'track_name': track_info['name'],
-                'artist_name': ', '.join([artist['name'] for artist in track_info['artists']]),
-                'artist_ids': [artist['id'] for artist in track_info['artists']],
-                'artist_url': track_info['artists'][0]['external_urls']['spotify'],
-                'album_name': track_info['album']['name'].replace("(","").replace(")","").replace("[","").replace("]",""),
-                'album_url': track_info['album']['external_urls']['spotify'],
-                'release_year': track_info['album']['release_date'].split('-')[0],
-                'image_url': track_info['album']['images'][0]['url'],
-                'track_id': track_info['id'],
-                'isrc': track_info['external_ids']['isrc'],
-                'track_url': spotify_url,
-                'youtube_link': track_info.get('external_urls', {}).get('youtube', None),
-                'preview_url': track_info.get('preview_url', None) # Add preview URL
-            }
 
-        else:
+        link_type = Spotify_Downloader.identify_spotify_link_type(spotify_url)
+        if link_type != "track":
             link_info = {
                 'type': None,
                 'track_name': None,
@@ -126,47 +106,85 @@ class Spotify_Downloader():
                 'isrc': None,
                 'track_url': None,
                 'youtube_link': None,
-                'preview_url': None
+                'preview_url': None,
+                'duration_ms': None
             }
-        
+            await db.set_user_spotify_link_info(user_id, link_info)
+            return
+
+        track_info = Spotify_Downloader.spotify_account.track(spotify_url)
+
+        artists = track_info['artists']
+        album = track_info['album']
+
+        link_info = {
+            'type': "track",
+            'track_name': track_info['name'],
+            'artist_name': ', '.join(artist['name'] for artist in artists),
+            'artist_ids': [artist['id'] for artist in artists],
+            'artist_url': artists[0]['external_urls']['spotify'],
+            'album_name': album['name'].translate(str.maketrans('', '', '()[]')),
+            'album_url': album['external_urls']['spotify'],
+            'release_year': album['release_date'].split('-')[0],
+            'image_url': album['images'][0]['url'],
+            'track_id': track_info['id'],
+            'isrc': track_info['external_ids']['isrc'],
+            'track_url': spotify_url,
+            'youtube_link': track_info.get('external_urls', {}).get('youtube', None),
+            'preview_url': track_info.get('preview_url', None),
+            'duration_ms': track_info['duration_ms']
+        }
+
         if link_info['youtube_link'] is None:
-            link_info['youtube_link'] = await Spotify_Downloader.extract_yt_video_info(event,link_info)
-        await db.set_user_spotify_link_info(user_id,link_info)
+            link_info['youtube_link'] = await Spotify_Downloader.extract_yt_video_info(event, link_info)
+
+        await db.set_user_spotify_link_info(user_id, link_info)
         
-    @staticmethod       
-    async def extract_yt_video_info(event,spotify_link_info) -> tuple:
-        user_id = event.sender_id
-        video_url = None
-        if spotify_link_info == None:
+    @staticmethod
+    async def extract_yt_video_info(event, spotify_link_info) -> str:
+        if spotify_link_info is None:
             return None
-        
-        # If a YouTube link is found, extract the video ID and other details
-        try:
-            if spotify_link_info['youtube_link'] != None:
-                video_url = spotify_link_info['youtube_link']
-        except:
-            pass
-        else:
-            query = f""""{spotify_link_info['track_name']}" + "{spotify_link_info['artist_name']}" lyrics {spotify_link_info['release_year']}"""
-            
-            ydl_opts = {
+
+        # Check if a YouTube link is provided
+        video_url = spotify_link_info.get('youtube_link')
+        if video_url:
+            return video_url
+
+        # Construct the search query
+        artist_name = spotify_link_info["artist_name"]
+        track_name = spotify_link_info["track_name"]
+        release_year = spotify_link_info["release_year"]
+        track_duration = spotify_link_info.get("duration_ms", 0) / 1000  # Convert milliseconds to seconds
+        query = f'"{artist_name}" "{track_name}" lyrics {release_year} '
+
+        ydl_opts = {
             'quiet': True,
             'no_warnings': True,
             'ignoreerrors': True,
-            'ytsearch': query,
-            'skip_download': True
-            }
-            
-            with YoutubeDL(ydl_opts) as ydl:
-                try:
-                    search_results = ydl.extract_info(f'ytsearch:{query}', download=False)
-                    video_url = search_results['entries'][0]['webpage_url']
-                except:
-                    await db.set_file_processing_flag(user_id,0)
-                    video_url = None
+            'ytsearch': 5,  # Retrieve the top 5 search results
+            'skip_download': True,
+            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'  # Specify the desired format
+        }
+
+        with YoutubeDL(ydl_opts) as ydl:
+            try:
+                info = ydl.extract_info(f'ytsearch:{query}', download=False)
+                entries = info.get('entries', [])
+
+                for video_info in entries:
+                    video_url = video_info.get('webpage_url')
+                    video_duration = video_info.get('duration', 0)
+
+                    # Compare the video duration with the track duration from Spotify
+                    duration_diff = abs(video_duration - track_duration)
+                    if duration_diff <= 40:  # Adjust the tolerance as needed
+                        break
+                    else:
+                        video_url = None
+            except Exception:
+                video_url = None
 
         return video_url
-        
         
     @staticmethod  
     async def download_and_send_spotify_info(client, event) -> bool :
