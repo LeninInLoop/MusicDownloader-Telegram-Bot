@@ -245,14 +245,16 @@ class Spotify_Downloader():
             img = Image.open(BytesIO(response.content))
             img.save(icon_path)
         
+            
+        listen_on_youtube_button = Button.url("Listen On Youtube", url=link_info['youtube_link']) if link_info['youtube_link'] else Button.inline("Listen On Youtube", data=b"@unavailable_feature")
         SpotifyInfoButtons = [
             [Button.inline("Download 30s Preview", data=b"@music_info_preview")],
             [Button.inline("Download Track", data=b"@music")],
             [Button.inline("Download Icon", data=b"@music_icon")],
             [Button.inline("Artist Info", data=b"@music_artist_info")],
             [Button.inline("Lyrics", data=b"@music_lyrics")],
-            [Button.url("Listen On Spotify", url=link_info["track_url"]),#Button.url("Listen On Youtube", url=link_info['youtube_link'])],
-            Button.url("Listen On Youtube", url=link_info['youtube_link'])],
+            [Button.url("Listen On Spotify", url=link_info["track_url"]),
+            listen_on_youtube_button],
             [Button.inline("Cancel", data=b"cancel")]
         ]
 
@@ -275,7 +277,7 @@ class Spotify_Downloader():
             ,buttons=SpotifyInfoButtons)
             
             return True
-        except:
+        except Exception as Err:
             return False
         
     @staticmethod
@@ -568,9 +570,9 @@ class Spotify_Downloader():
         
         await db.set_file_processing_flag(user_id,1)
         
-        if spotify_link_info['youtube_link'] == None:
+        if spotify_link_info['youtube_link'] == None and spotdl == False :
             await db.set_file_processing_flag(user_id,0)
-            return True
+            return False
         
         artist_names = spotify_link_info['artist_name'].split(', ')
           

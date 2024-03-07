@@ -717,6 +717,10 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
             await event.reply(user_info_message)
 
     @staticmethod
+    async def handle_unavailable_feature(event):
+        await event.answer("not available", alert=True)
+            
+    @staticmethod
     async def callback_query_handler(event):
         user_id = event.sender_id
         await Bot.update_bot_version_user_season(event)
@@ -726,7 +730,10 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
         action = Bot.button_actions.get(event.data)
         if action:
             await action(event) 
-          
+        
+        elif event.data == b"@unavailable_feature":
+            await Bot.handle_unavailable_feature(event) 
+            
         elif event.data.startswith(b"@music"):
             if event.data == b"@music_info_preview":
                 await Spotify_Downloader.send_30s_preview(Bot.Client,event)
@@ -736,11 +743,12 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
                 await Spotify_Downloader.send_music_icon(Bot.Client,event)
             elif event.data == b"@music_lyrics":
                 await Spotify_Downloader.send_music_lyrics(event)
+
             else:
                 send_file_result = await Spotify_Downloader.download_spotify_file_and_send(Bot.Client,event)
                 if not send_file_result:
                     await db.set_file_processing_flag(user_id,0)
-                    await event.respond(f"Sorry, there was an error downloading the song.Try Using a Different Core.\nYou Can Change Your Core in the Settings or Simply Use This command to See Available Cores: /core")
+                    await event.respond(f"Sorry, there was an error downloading the song.\nTry Using a Different Core.\nYou Can Change Your Core in the Settings or Simply Use This command to See Available Cores: /core")
                 await Bot.waiting_message[user_id].delete() if Bot.waiting_message.get(user_id,None) != None else None
         
             # if search_result != None: // Removes the search list after sending the track
@@ -763,7 +771,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
                 send_info_result = await Spotify_Downloader.download_and_send_spotify_info(Bot.Client,event)
                 
                 if not send_info_result: #if getting info of the link failed
-                    return await event.respond("Sorry, There was a problem processing your link, try again later.")
+                    return await event.respond(f"Sorry, there was an error downloading the song.\nTry Using a Different Core.\nYou Can Change Your Core in the Settings or Simply Use This command to See Available Cores: /core")
 
     @staticmethod
     async def handle_message(event):
