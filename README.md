@@ -1,6 +1,162 @@
-# Soon
+# Spotify Downloader Bot
+
+Spotify Downloader Bot is a Telegram bot that allows users to download music from Spotify and YouTube. It provides a convenient way to access and download your favorite tracks directly to your device.
+
+You can test this bot at:
+```telegram.me/spotify_yt_downloader_bot```
+
+## Features
+
+- Download music from Spotify links
+- Search for songs on Spotify using keywords
+- Supports different audio formats and qualities
+- Option to select between SpotDL and YoutubeDL for downloading
+- Broadcast messages to all users or specific subscribers
+- Subscription management for users
+- Voice recognition for song search
+- Screenshot capture of tweets
+
+## Installation
+
+Follow these steps to set up the `telegram_spotify_downloader` project on your system.
+
+### Step 1: Clone the Repository
+
+Open a terminal and clone the `telegram_spotify_downloader` repository from GitHub:
+
+```zsh
+git clone https://github.com/AdibNikjou/telegram_spotify_downloader.git
+```
+
+### Step 2: Install Python Dependencies
+
+Navigate to the cloned repository's directory and install the required Python dependencies using `pip`:
+
+```zsh
+cd telegram_spotify_downloader
+pip install -r requirements.txt
+```
+
+### Step 3: Install Node.js and npm
+
+Install Node Version Manager (NVM) to manage Node.js versions:
+
+```zsh
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+```
 
+Close and reopen your terminal to ensure NVM is properly installed. Then, install Node.js version 20 and npm:
+
+```zsh
 nvm install 20
+```
 
-"npm install chromedriver"
+### Step 4: Install ChromeDriver
+
+Install ChromeDriver, which is required for automating Chrome:
+
+```zsh
+npm install chromedriver
+```
+
+### Step 5: Install Google Chrome
+
+Ensure you have Google Chrome version 122 installed on your system. The installation process varies depending on your operating system.
+
+#### For Ubuntu:
+
+```zsh
+sudo apt update
+sudo apt install google-chrome-stable -y
+```
+
+#### For Fedora:
+
+```zsh
+sudo dnf update
+sudo dnf install google-chrome-stable -y
+```
+
+### Step 6: Verify Installation
+
+After completing the installation steps, verify that Google Chrome is installed and that the version is 122. You can check the version by running:
+
+```zsh
+google-chrome --version
+```
+
+### Step 7: Set Up Your Environment Variables
+
+Create a `.env` file in the root directory of the project and add the following environment variables:
+
+- `SPOTIFY_CLIENT_ID=your_spotify_client_id`
+- `SPOTIFY_CLIENT_SECRET=your_spotify_client_secret`
+- `BOT_TOKEN=your_telegram_bot_token`
+- `API_ID=your_telegram_api_id`
+- `API_HASH=your_telegram_api_hash`
+- `GENIUS_ACCESS_TOKEN=your_genius_access_token`
+
+### Step 8: Run the Bot
+
+With all dependencies installed and environment variables set, you can now run the bot:
+
+```zsh
+python3 main.py
+```
+
+## Usage
+
+1. Start a conversation with the bot by sending the `/start` command.
+2. Share a Spotify link or use the `/search` command followed by a song title or lyrics to find and download music.
+3. Use the `/settings` command to change the audio format and quality.
+4. Subscribe to receive updates and news from the bot.
+5. Use the `/admin` command to access admin features (available only to authorized users).
+
+## Commands
+
+- `/start`: Start the bot and get the welcome message.
+- `/search <query>`: Search for songs on Spotify.
+- `/settings`: Access settings to change audio format and quality.
+- `/subscribe`: Subscribe to receive updates.
+- `/unsubscribe`: Unsubscribe from updates.
+- `/help`: Get help on how to use the bot.
+- `/ping`: Check the bot's response time.
+- `/stats`: Get statistics about the bot's usage.
+- `/admin`: Access admin features.
+
+## Admin Commands
+
+- `/broadcast`: Send a message to all users or specific subscribers.
+- `/stats`: Get statistics about the bot's usage.
+
+## Dependencies
+
+- Python 3.8+
+- Telethon
+- Spotipy
+- Yt-dlp
+- Shazamio
+- Pillow
+- tweet-capture
+- dotenv
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a pull request or open an issue if you find any bugs or have suggestions for improvements.
+
+## License
+
+This project is licensed under the MIT License. See the `LICENSE` file for details.
+
+## Contact
+
+For any inquiries or feedback, please contact the creator:
+- Telegram: @AdibNikjou
+- Email: adib.n7789@gmail.com
+
+## Acknowledgments
+
+- Spotify API for providing access to music metadata.
+- Telegram API for the bot framework.
+- Shazam API for voice recognition.
+- YoutubeDL for downloading music from YouTube.
