@@ -23,16 +23,16 @@ class Bot:
     waiting_message = {}
     
     @staticmethod
-    def initialize():
+    async def initialize():
         Bot.load_env_variables()
         Bot.initialize_first_globals()
         Bot.initialize_spotify_downloader()
-        Bot.initialize_database()
+        await Bot.initialize_database()
         Bot.initialize_shazam()
         Bot.initialize_X()
         Bot.initialize_messages()
         Bot.initialize_buttons()
-        Bot.initialize_action_queries()
+        await Bot.initialize_action_queries()
         
     @classmethod
     def load_env_variables(cls):
@@ -69,9 +69,9 @@ class Bot:
         Spotify_Downloader.initialize()
 
     @staticmethod
-    def initialize_database():
-        db.initialize_database()
-        db.reset_all_file_processing_flags()
+    async def initialize_database():
+        await db.initialize_database()
+        await db.reset_all_file_processing_flags()
 
     @staticmethod 
     def initialize_shazam():
@@ -185,8 +185,39 @@ Please join to continue."""
             [Button.inline("Cancel",b"cancel")]
         ]
 
+    @staticmethod
+    async def edit_quality_setting_message(e):
+        user_settings = await db.get_user_settings(e.sender_id)
+        if user_settings:
+            music_quality = user_settings[0]
+            message = f"Your Quality Setting:\nFormat: {music_quality['format']}\nQuality: {music_quality['quality']}\n\nQualities Available :"
+        else:
+            message = "No quality settings found."
+        await Bot.edit_message(e, message, buttons=Bot.quality_setting_buttons)
+        
+    @staticmethod
+    async def edit_core_setting_message(e):
+        user_settings = await db.get_user_settings(e.sender_id)
+        if user_settings:
+            downloading_core = user_settings[1]
+            message = Bot.core_selection_message + f"\nCore: {downloading_core}"
+        else:
+            message = Bot.core_selection_message + "\nNo core setting found."
+        await Bot.edit_message(e, message, buttons=Bot.core_setting_buttons)
+
+    @staticmethod
+    async def edit_subscription_status_message(e):
+        is_subscribed = await db.is_user_subscribed(e.sender_id)
+        message = f"Join our community and stay updated with the latest news and features of our bot. Be the first to experience new enhancements and improvements!\nYour Subscription Status: {is_subscribed}"
+        await Bot.edit_message(e, message, buttons=Bot.subscription_setting_buttons)
+        
+    @staticmethod
+    async def respond_with_user_count(e):
+        user_count = await db.count_all_user_ids()
+        await e.respond(f"Number of Users: {user_count}")
+        
     @classmethod
-    def initialize_action_queries(cls):
+    async def initialize_action_queries(cls):
         # Mapping button actions to functions
         cls.button_actions = {
             b"membership/continue": lambda e: Bot.handle_continue_in_membership_message(e),
@@ -195,20 +226,20 @@ Please join to continue."""
             b"back": lambda e: Bot.edit_message(e, f"Hey {e.sender.first_name}!👋\n {Bot.start_message}", buttons=Bot.main_menu_buttons),
             b"setting": lambda e: Bot.edit_message(e, "Settings :", buttons=Bot.setting_button),
             b"setting/back": lambda e: Bot.edit_message(e, "Settings :", buttons=Bot.setting_button),
-            b"setting/quality": lambda e: Bot.edit_message(e, f"Your Quality Setting:\nFormat: {db.get_user_settings(e.sender_id)[0]['format']}\nQuality: {db.get_user_settings(e.sender_id)[0]['quality']}\n\nQualities Available :", buttons=Bot.quality_setting_buttons),
+            b"setting/quality": lambda e: asyncio.create_task(Bot.edit_quality_setting_message(e)),
             b"setting/quality/mp3/320": lambda e: Bot.change_music_quality(e, "mp3",   320),
             b"setting/quality/mp3/128": lambda e: Bot.change_music_quality(e, "mp3",   128),
             b"setting/quality/flac": lambda e: Bot.change_music_quality(e, "flac",   693),
-            b"setting/core": lambda e: Bot.edit_message(e, Bot.core_selection_message+f"\nCore: {db.get_user_settings(e.sender_id)[1]}", buttons=Bot.core_setting_buttons),
+            b"setting/core": lambda e: asyncio.create_task(Bot.edit_core_setting_message(e)),
             b"setting/core/spotdl": lambda e: Bot.change_downloading_core(e, "SpotDL"),
             b"setting/core/youtubedl": lambda e: Bot.change_downloading_core(e, "YoutubeDL"),
-            b"setting/subscription": lambda e: Bot.edit_message(e,f"Join our community and stay updated with the latest news and features of our bot. Be the first to experience new enhancements and improvements!\nYour Subscription Status: {db.is_user_subscribed(e.sender_id)}",buttons=Bot.subscription_setting_buttons),
+            b"setting/subscription": lambda e: asyncio.create_task(Bot.edit_subscription_status_message(e)),
             b"setting/subscription/cancel": lambda e: asyncio.create_task(Bot.cancel_subscription(e)),
             b"setting/subscription/cancel/quite": lambda e: asyncio.create_task(Bot.cancel_subscription(e,quite=True)),
             b"setting/subscription/add": lambda e: asyncio.create_task(Bot.add_subscription(e)),
             b"cancel": lambda e: e.delete(),
             b"admin/cancel_broadcast": lambda e: Bot.set_admin_broadcast(e,False),
-            b"admin/stats": lambda e: e.respond(f"Number of Users: {db.count_all_user_ids()}"),
+            b"admin/stats": lambda e: asyncio.create_task(Bot.respond_with_user_count(e)),
             b"admin/broadcast": lambda e: Bot.edit_message(e, "BroadCast Options: ", buttons=Bot.broadcast_options_buttons),
             b"admin/broadcast/all": lambda e: Bot.handle_broadcast(e,send_to_all=True),
             b"admin/broadcast/subs": lambda e: Bot.handle_broadcast(e,send_to_subs=True),
@@ -248,33 +279,33 @@ Please join to continue."""
             join_channel_buttons.append([Button.inline("Continue",data='membership/continue')])
             await Bot.edit_message(event,f"""Hey {sender_name}!👋 \n{Bot.JOIN_CHANNEL_MESSAGE}""", buttons=join_channel_buttons)
         else:
-            user_settings = db.get_user_settings(user_id)
+            user_settings = await db.get_user_settings(user_id)
             if user_settings[0] == None and user_settings[1] == None:
-                db.save_user_settings(user_id, db.default_music_quality, db.default_downloading_core)
+                await db.save_user_settings(user_id, db.default_music_quality, db.default_downloading_core)
             await Bot.edit_message(event,f"""Hey {sender_name}!👋 \n{Bot.start_message}""", buttons=Bot.main_menu_buttons)
             
     @staticmethod
     async def change_music_quality(event, format, quality):
         user_id = event.sender_id
         music_quality = {'format': format, 'quality': quality}
-        db.change_music_quality(user_id, music_quality)
-        user_settings = db.get_user_settings(user_id)
+        await db.change_music_quality(user_id, music_quality)
+        user_settings = await db.get_user_settings(user_id)
         music_quality = user_settings[0]
         await Bot.edit_message(event, f"Quality successfully changed. \nFormat: {music_quality['format']}\nQuality: {music_quality['quality']}", buttons=Bot.quality_setting_buttons)
 
     @staticmethod
     async def change_downloading_core(event, core):
         user_id = event.sender_id
-        db.change_downloading_core(user_id, core)
-        user_settings = db.get_user_settings(user_id)
+        await db.change_downloading_core(user_id, core)
+        user_settings = await db.get_user_settings(user_id)
         downloading_core = user_settings[1]
         await Bot.edit_message(event, f"Core successfully changed. \nCore: {downloading_core}", buttons=Bot.core_setting_buttons)
 
     @staticmethod
     async def cancel_subscription(event, quite: bool = False):
         user_id = event.sender_id
-        if db.is_user_subscribed(user_id):
-            db.remove_subscribed_user(user_id)
+        if await db.is_user_subscribed(user_id):
+            await db.remove_subscribed_user(user_id)
             if not quite:
                 await Bot.edit_message(event, "You have successfully unsubscribed.", buttons=Bot.subscription_setting_buttons)
             else:
@@ -283,8 +314,8 @@ Please join to continue."""
     @staticmethod
     async def add_subscription(event):
         user_id = event.sender_id
-        if not db.is_user_subscribed(user_id):
-            db.add_subscribed_user(user_id)
+        if not await db.is_user_subscribed(user_id):
+            await db.add_subscribed_user(user_id)
             await Bot.edit_message(event, "You have successfully subscribed.", buttons=Bot.subscription_setting_buttons)
 
     @staticmethod
@@ -436,20 +467,20 @@ Please join to continue."""
     @staticmethod
     async def update_bot_version_user_season(event):
         user_id = event.sender_id 
-        music_quality, downloading_core = db.get_user_settings(user_id)
+        music_quality, downloading_core = await db.get_user_settings(user_id)
         if music_quality == None or downloading_core == None:
             await event.respond("We Have Updated The Bot, Please start Over using the /start command.")
-            db.set_user_updated_flag(user_id,0)
-        db.set_user_updated_flag(user_id,1)
+            await db.set_user_updated_flag(user_id,0)
+        await db.set_user_updated_flag(user_id,1)
     
     @staticmethod
     async def start(event):
         sender_name = event.sender.first_name
         user_id = event.sender_id
         
-        user_settings = db.get_user_settings(user_id)
+        user_settings = await db.get_user_settings(user_id)
         if user_settings[0] == None and user_settings[1] == None:
-            db.save_user_settings(user_id, db.default_music_quality, db.default_downloading_core)
+            await db.save_user_settings(user_id, db.default_music_quality, db.default_downloading_core)
         await Bot.respond_based_on_channel_membership(event,f"""Hey {sender_name}!👋 \n{Bot.start_message}""", buttons=Bot.main_menu_buttons)
         
     @staticmethod
@@ -530,7 +561,7 @@ Please join to continue."""
     @staticmethod
     async def handle_settings_command(event):
         await Bot.update_bot_version_user_season(event)
-        if db.get_user_updated_flag():
+        if await db.get_user_updated_flag(event.sender_id):
             await Bot.respond_based_on_channel_membership(event,"Settings :", buttons=Bot.setting_button)
         
     @staticmethod
@@ -538,11 +569,11 @@ Please join to continue."""
     # Check if the user is already subscribed
         await Bot.update_bot_version_user_season(event)
         user_id = event.sender_id
-        if db.get_user_updated_flag(user_id):
-            if db.is_user_subscribed(user_id):
+        if await db.get_user_updated_flag(user_id):
+            if await db.is_user_subscribed(user_id):
                 await Bot.respond_based_on_channel_membership(event,"You are already subscribed.")
                 return
-            db.add_subscribed_user(user_id)
+            await db.add_subscribed_user(user_id)
             await Bot.respond_based_on_channel_membership(event,"You have successfully subscribed.")
 
     @staticmethod
@@ -550,34 +581,36 @@ Please join to continue."""
     # Check if the user is subscribed
         await Bot.update_bot_version_user_season(event)
         user_id = event.sender_id
-        if db.get_user_updated_flag(user_id):
-            if not db.is_user_subscribed(user_id):
+        if await db.get_user_updated_flag(user_id):
+            if not await db.is_user_subscribed(user_id):
                 await Bot.respond_based_on_channel_membership(event,"You are not currently subscribed.")
                 return
-            db.remove_subscribed_user(user_id)
+            await db.remove_subscribed_user(user_id)
             await Bot.respond_based_on_channel_membership(event,"You have successfully unsubscribed.")
     
     @staticmethod
     async def handle_help_command(event):
         await Bot.update_bot_version_user_season(event)
         user_id = event.sender_id
-        if db.get_user_updated_flag(user_id):
+        if await db.get_user_updated_flag(user_id):
             await Bot.respond_based_on_channel_membership(event,Bot.instruction_message)
 
     @staticmethod
     async def handle_quality_command(event):
         await Bot.update_bot_version_user_season(event)
         user_id = event.sender_id
-        if db.get_user_updated_flag(user_id):
-            await Bot.respond_based_on_channel_membership(event, f"Your Quality Setting:\nFormat: {db.get_user_settings(event.sender_id)[0]['format']}\nQuality: {db.get_user_settings(event.sender_id)[0]['quality']}\n\nQualities Available :",
+        if await db.get_user_updated_flag(user_id):
+            user_setting = await db.get_user_settings(user_id)
+            await Bot.respond_based_on_channel_membership(event, f"Your Quality Setting:\nFormat: {user_setting[0]['format']}\nQuality: {user_setting[0]['quality']}\n\nQualities Available :",
                             buttons=Bot.quality_setting_buttons)
         
     @staticmethod
     async def handle_core_command(event):
         await Bot.update_bot_version_user_season(event)
         user_id = event.sender_id
-        if db.get_user_updated_flag(user_id):
-            await Bot.respond_based_on_channel_membership(event, Bot.core_selection_message+f"\nCore: {db.get_user_settings(event.sender_id)[1]}",
+        if await db.get_user_updated_flag(user_id):
+            user_setting = await db.get_user_settings(user_id)
+            await Bot.respond_based_on_channel_membership(event, Bot.core_selection_message+f"\nCore: {user_setting[1]}",
                             buttons=Bot.core_setting_buttons)
         
     @staticmethod
@@ -590,8 +623,8 @@ Please join to continue."""
     async def handle_stats_command(event):
         if event.sender_id not in Bot.ADMIN_USER_IDS:
             return
-        number_of_users = db.count_all_user_ids()
-        number_of_subscribed = db.count_subscribed_users()
+        number_of_users = await db.count_all_user_ids()
+        number_of_subscribed = await db.count_subscribed_users()
         number_of_unsubscribed = number_of_users - number_of_subscribed
         await event.respond(f"""Number of Users: {number_of_users}
 Number of Subscribed Users: {number_of_subscribed}
@@ -609,7 +642,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
     async def handle_search_command(event):
         await Bot.update_bot_version_user_season(event)
         user_id = event.sender_id
-        if db.get_user_updated_flag(user_id):
+        if await db.get_user_updated_flag(user_id):
             search_query = event.message.text[8:]
             
             if not search_query.strip():
@@ -625,16 +658,17 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
                 await event.respond("Your input was not valid. Please try again with a valid search term.")
                 return
 
-            Spotify_Downloader.search_spotify_based_on_user_input(event,sanitized_query)
-
-            if all(not value for value in db.get_user_song_dict(user_id).values()):
+            await Spotify_Downloader.search_spotify_based_on_user_input(event,sanitized_query)
+            song_dict = await db.get_user_song_dict(user_id)
+            if all(not value for value in song_dict.values()):
                 await waiting_message_search.delete()
                 await event.respond("Sorry,I couldnt Find any music that matches your Search query.")
                 return
             
+            song_dict = await db.get_user_song_dict(user_id)
             button_list = [
                 [Button.inline(f"🎧 {details['track_name']} - {details['artist']} 🎧 ({details['release_year']})", data=str(idx))]
-                for idx, details in db.get_user_song_dict(user_id).items()
+                for idx, details in song_dict.items()
             ]
 
             button_list.append([Button.inline("Cancel", b"cancel")])
@@ -652,7 +686,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
     # Extract user information from the event
         await Bot.update_bot_version_user_season(event)
         user_id = event.sender_id
-        if db.get_user_updated_flag(user_id):
+        if await db.get_user_updated_flag(user_id):
             username = event.sender.username if event.sender.username else "No username"
             first_name = event.sender.first_name
             last_name = event.sender.last_name if event.sender.last_name else "No last name"
@@ -686,7 +720,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
     async def callback_query_handler(event):
         user_id = event.sender_id
         await Bot.update_bot_version_user_season(event)
-        if not db.get_user_updated_flag(user_id):
+        if not await db.get_user_updated_flag(user_id):
             return
         
         action = Bot.button_actions.get(event.data)
@@ -705,7 +739,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
             else:
                 send_file_result = await Spotify_Downloader.download_spotify_file_and_send(Bot.Client,event)
                 if not send_file_result:
-                    db.set_file_processing_flag(user_id,0)
+                    await db.set_file_processing_flag(user_id,0)
                     await event.respond(f"Sorry, there was an error downloading the song.Try Using a Different Core.\nYou Can Change Your Core in the Settings or Simply Use This command to See Available Cores: /core")
                 await Bot.waiting_message[user_id].delete() if Bot.waiting_message.get(user_id,None) != None else None
         
@@ -718,13 +752,14 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
             spotify_link_to_download = None
             song_index = str(event.data.decode('utf-8'))
 
-            spotify_link_to_download = db.get_user_song_dict(user_id)[song_index]['spotify_link']
+            spotify_link_to_download = await db.get_user_song_dict(user_id)
+            spotify_link_to_download = spotify_link_to_download[song_index]['spotify_link']
             
             if spotify_link_to_download != None:
                 
                 Bot.waiting_message[user_id] = await event.respond('⏳')
                    
-                Spotify_Downloader.extract_data_from_spotify_link(event,spotify_link_to_download)
+                await Spotify_Downloader.extract_data_from_spotify_link(event,spotify_link_to_download)
                 send_info_result = await Spotify_Downloader.download_and_send_spotify_info(Bot.Client,event)
                 
                 if not send_info_result: #if getting info of the link failed
@@ -737,7 +772,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
 
         if isinstance(event.message.media, MessageMediaDocument):
             await Bot.update_bot_version_user_season(event)
-            if not db.get_user_updated_flag(user_id):
+            if not await db.get_user_updated_flag(user_id):
                 return
             
             if not user_id in Bot.messages :
@@ -784,16 +819,17 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
                 await waiting_message_search.delete()
                 return await event.respond("Sorry I Couldnt find any song that matches your Voice.")
             
-            Spotify_Downloader.search_spotify_based_on_user_input(event,sanitized_query)
-
-            if all(not value for value in db.get_user_song_dict(user_id).values()):
+            await Spotify_Downloader.search_spotify_based_on_user_input(event,sanitized_query)
+            song_dict = await db.get_user_song_dict(user_id)
+            if all(not value for value in song_dict.values()):
                 await waiting_message_search.delete()
                 await event.respond("Sorry,I couldnt Find any music that matches your Search query.")
                 return
             
+            song_dict = await db.get_user_song_dict(user_id)
             button_list = [
                 [Button.inline(f"🎧 {details['track_name']} - {details['artist']} 🎧 ({details['release_year']})", data=str(idx))]
-                for idx, details in db.get_user_song_dict(user_id).items()
+                for idx, details in song_dict.items()
             ]
 
             button_list.append([Button.inline("Cancel", b"cancel")])
@@ -809,7 +845,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
             
         elif Spotify_Downloader.is_spotify_link(event.message.text):
             await Bot.update_bot_version_user_season(event)
-            if not db.get_user_updated_flag(user_id):
+            if not await db.get_user_updated_flag(user_id):
                 return
             
             if not user_id in Bot.messages :
@@ -820,7 +856,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
                 return await Bot.respond_based_on_channel_membership(event,None,None,channels_user_is_not_in)
            
             Bot.waiting_message[user_id] = await event.respond('⏳')
-            Spotify_Downloader.extract_data_from_spotify_link(event,str(event.message.text))         
+            await Spotify_Downloader.extract_data_from_spotify_link(event,str(event.message.text))         
             info_tuple = await Spotify_Downloader.download_and_send_spotify_info(Bot.Client,event)
             
             if not info_tuple: #if getting info of the link failed
@@ -836,7 +872,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
         elif not event.message.text.startswith('/'):
             
             await Bot.update_bot_version_user_season(event)
-            if not db.get_user_updated_flag(user_id):
+            if not await db.get_user_updated_flag(user_id):
                 return
             
             if not user_id in Bot.messages :
@@ -866,16 +902,17 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
                 await event.respond("Your input was not valid. Please try again with a valid search term.")
                 return
 
-            Spotify_Downloader.search_spotify_based_on_user_input(event,sanitized_query)
-
-            if all(not value for value in db.get_user_song_dict(user_id).values()):
+            await Spotify_Downloader.search_spotify_based_on_user_input(event,sanitized_query)
+            song_dict = await db.get_user_song_dict(user_id)
+            if all(not value for value in song_dict.values()):
                 await waiting_message_search.delete()
                 await event.respond("Sorry,I couldnt Find any music that matches your Search query.")
                 return
             
+            song_dict = await db.get_user_song_dict(user_id)
             button_list = [
                 [Button.inline(f"🎧 {details['track_name']} - {details['artist']} 🎧 ({details['release_year']})", data=str(idx))]
-                for idx, details in db.get_user_song_dict(user_id).items()
+                for idx, details in song_dict.items()
             ]
 
             button_list.append([Button.inline("Cancel", b"cancel")])
