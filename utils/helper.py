@@ -115,4 +115,4 @@ async def is_file_voice(event) -> bool:
         if hasattr(attribute, 'voice'):
             voice = 1
             break
-        return voice
+    return voice
