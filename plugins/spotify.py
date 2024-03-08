@@ -383,6 +383,7 @@ class Spotify_Downloader():
             await initial_message.edit(f"SpotDL: Downloading...\nApproach: SoundCloud Failed, Using YouTube Approach.")       
             return False, initial_message
         elif not success and audio_option == "youtube":
+            await db.set_file_processing_flag(user_id,0)
             return False, False
         # Wait for the process to finish
         await process.wait()
