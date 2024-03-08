@@ -102,9 +102,17 @@ async def process_mp3_music(event,file_info,spotify_link_info,download_message =
         await db.set_file_processing_flag(user_id,0)
         return False
     
-def sanitize_query(query):
+async def sanitize_query(query):
     # Remove non-alphanumeric characters and spaces
     sanitized_query = re.sub(r'\W+', ' ', query)
     # Trim leading and trailing spaces
     sanitized_query = sanitized_query.strip()
     return sanitized_query
+
+async def is_file_voice(event) -> bool:
+    voice = 0
+    for attribute in event.message.media.document.attributes:
+        if hasattr(attribute, 'voice'):
+            voice = 1
+            break
+        return voice

@@ -5,7 +5,7 @@ from telethon.tl.custom import Button
 from telethon.tl.functions.channels import GetParticipantsRequest
 from telethon.tl.types import ChannelParticipantsSearch, MessageMediaDocument
 from telethon.errors import ChatAdminRequiredError
-from utils import BroadcastManager, db, sanitize_query
+from utils import BroadcastManager, db, sanitize_query, is_file_voice
 from plugins import Spotify_Downloader, ShazamHelper, X, insta
 
 class Bot:
@@ -113,23 +113,22 @@ You now have the option to search the Spotify database by providing the song's t
         cls.search_result_message = """🎵 The following are the top 10 search results that correspond to your query:
 """
 
-        cls.core_selection_message = cls.core_selection_message = """You Can Select the bot's Core:
+        cls.core_selection_message = """🎵 Choose Your Preferred Download Core 🎵
 
-SpotDL:   
-- More accurate in terms of metadata and track availability, as it directly accesses Spotify's Web API.
-- Takes a little more time to process due to the additional steps involved in fetching metadata from Spotify.
-- Supports FLAC quality, which is lossless and provides high audio quality.
-- Does not support MP3-320 quality, which is a common audio format with good quality but lower bitrate.
-- Requires a Spotify Premium account for some features.
+SpotDL Core ✨
+• Uses different approaches such as Piped, SoundCloud, & YouTube
+• Lossless FLAC support
+• May be slower due to multiple sources
 
-YoutubeDL:   
-- Less accurate in terms of metadata and track availability compared to SpotDL, as it relies on YouTube's search results.
-- Faster in processing time as it directly downloads from YouTube.
-- Supports MP3-320 quality, which is a common audio format with good quality and higher bitrate.
-- Actively maintained and updated with new features and bug fixes.
+YoutubeDL Core 🚀
+• Dedicated to YouTube
+• Faster, more precise downloads
+• MP3-320 for wide compatibility
+• Regularly updated for the latest YouTube features
 
-Please note that the choice of core may affect the quality and speed of the download process. Choose the one that best fits your needs."""
-        
+SpotDL offers broader platform support but may be slower. YoutubeDL excels in speed and precision for YouTube content. Consider which platform and performance are more important to you! 🎧
+
+"""
         cls.JOIN_CHANNEL_MESSAGE = """It seems you are not a member of our channel yet.
 Please join to continue."""
 
@@ -467,7 +466,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
                 
         await BroadcastManager.remove_all_users_from_temp()
         Bot.admin_broadcast[user_id] = False
-        Bot.admin_message_to_send[user_id] = None 
+        Bot.admin_message_to_send[user_id] = None
 
     @staticmethod
     async def update_bot_version_user_season(event):
@@ -478,6 +477,152 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
             await db.set_user_updated_flag(user_id,0)
         await db.set_user_updated_flag(user_id,1)
     
+    @staticmethod
+    async def process_audio_file(event, user_id):
+        await Bot.update_bot_version_user_season(event)
+        if not await db.get_user_updated_flag(user_id):
+            return
+
+        if not user_id in Bot.messages:
+            Bot.initialize_second_globals(user_id)
+
+        channels_user_is_not_in = await Bot.is_user_in_channel(event.sender_id)
+        if channels_user_is_not_in != []:
+            return await Bot.respond_based_on_channel_membership(event, None, None, channels_user_is_not_in)
+
+        if Bot.admin_broadcast[user_id] and Bot.send_to_specified_flag[user_id]:
+            Bot.admin_message_to_send[user_id] = event.message
+            return
+        elif Bot.admin_broadcast[user_id]:
+            Bot.admin_message_to_send[user_id] = event.message
+            return
+
+        if Bot.search_result[user_id] is not None:
+            await Bot.search_result[user_id].delete()
+            Bot.search_result[user_id] = None
+
+        waiting_message_search = await event.respond('⏳')
+        process_file_message = await event.respond("Processing Your File ...")
+
+        voice = await is_file_voice(event)
+        
+        if voice == 0 :
+            await event.respond("Sorry I Can only process Audio/Text.")
+            await waiting_message_search.delete()
+            await process_file_message.delete()
+            return
+        
+        file_path = await event.message.download_media(file=f"{ShazamHelper.voice_repository_dir}")
+        Shazam_recognized = await ShazamHelper.recognize(file_path)
+        if not Shazam_recognized:
+            await waiting_message_search.delete()
+            await process_file_message.delete()
+            await event.respond("Sorry I Couldnt find any song that matches your Voice.")
+            return
+
+        sanitized_query = await sanitize_query(Shazam_recognized)
+        if not sanitized_query:
+            await waiting_message_search.delete()
+            await event.respond("Sorry I Couldnt find any song that matches your Voice.")
+            return
+
+        await Spotify_Downloader.search_spotify_based_on_user_input(event, sanitized_query)
+        song_dict = await db.get_user_song_dict(user_id)
+        if all(not value for value in song_dict.values()):
+            await waiting_message_search.delete()
+            await event.respond("Sorry, I couldnt Find any music that matches your Search query.")
+            return
+
+        button_list = [
+            [Button.inline(f"🎧 {details['track_name']} - {details['artist']} 🎧 ({details['release_year']})", data=str(idx))]
+            for idx, details in song_dict.items()
+        ]
+        button_list.append([Button.inline("Cancel", b"cancel")])
+
+        await process_file_message.delete()
+        try:
+            Bot.search_result[user_id] = await event.respond(Bot.search_result_message, buttons=button_list)
+        except Exception as Err:
+            await event.respond(f"Sorry There Was an Error Processing Your Request: {str(Err)}")
+        
+        await asyncio.sleep(1.5)
+        await waiting_message_search.delete()
+
+    @staticmethod
+    async def process_spotify_link(event, user_id):
+        await Bot.update_bot_version_user_season(event)
+        if not await db.get_user_updated_flag(user_id):
+            return
+
+        if not user_id in Bot.messages:
+            Bot.initialize_second_globals(user_id)
+
+        channels_user_is_not_in = await Bot.is_user_in_channel(event.sender_id)
+        if channels_user_is_not_in != []:
+            return await Bot.respond_based_on_channel_membership(event, None, None, channels_user_is_not_in)
+
+        Bot.waiting_message[user_id] = await event.respond('⏳')
+        await Spotify_Downloader.extract_data_from_spotify_link(event, str(event.message.text))
+        info_tuple = await Spotify_Downloader.download_and_send_spotify_info(Bot.Client, event)
+
+        if not info_tuple:  # if getting info of the link failed
+            await Bot.waiting_message[user_id].delete()
+            return await event.respond("Sorry, There was a problem processing your request.")
+
+    @staticmethod
+    async def process_text_query(event, user_id):
+        await Bot.update_bot_version_user_season(event)
+        if not await db.get_user_updated_flag(user_id):
+            return
+
+        if not user_id in Bot.messages:
+            Bot.initialize_second_globals(user_id)
+
+        channels_user_is_not_in = await Bot.is_user_in_channel(event.sender_id)
+        if channels_user_is_not_in != []:
+            return await Bot.respond_based_on_channel_membership(event, None, None, channels_user_is_not_in)
+
+        if Bot.admin_broadcast[user_id] and Bot.send_to_specified_flag[user_id]:
+            Bot.admin_message_to_send[user_id] = event.message
+            return
+        elif Bot.admin_broadcast[user_id]:
+            Bot.admin_message_to_send[user_id] = event.message
+            return
+
+        if len(event.message.text) > 33:
+            return await event.respond("Your Search Query is too long. :(")
+
+        if Bot.search_result[user_id] is not None:
+            await Bot.search_result[user_id].delete()
+            Bot.search_result[user_id] = None
+
+        waiting_message_search = await event.respond('⏳')
+        sanitized_query = await sanitize_query(event.message.text)
+        if not sanitized_query:
+            await event.respond("Your input was not valid. Please try again with a valid search term.")
+            return
+
+        await Spotify_Downloader.search_spotify_based_on_user_input(event, sanitized_query)
+        song_dict = await db.get_user_song_dict(user_id)
+        if all(not value for value in song_dict.values()):
+            await waiting_message_search.delete()
+            await event.respond("Sorry, I couldnt Find any music that matches your Search query.")
+            return
+
+        button_list = [
+            [Button.inline(f"🎧 {details['track_name']} - {details['artist']} 🎧 ({details['release_year']})", data=str(idx))]
+            for idx, details in song_dict.items()
+        ]
+        button_list.append([Button.inline("Cancel", b"cancel")])
+
+        try:
+            Bot.search_result[user_id] = await event.respond(Bot.search_result_message, buttons=button_list)
+        except Exception as Err:
+            await event.respond(f"Sorry There Was an Error Processing Your Request: {str(Err)}")
+
+        await asyncio.sleep(1.5)
+        await waiting_message_search.delete()
+        
     @staticmethod
     async def start(event):
         sender_name = event.sender.first_name
@@ -658,7 +803,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
                 Bot.search_result[user_id] = None
                 
             waiting_message_search = await event.respond('⏳')
-            sanitized_query = sanitize_query(search_query)
+            sanitized_query = await sanitize_query(search_query)
             if not sanitized_query:
                 await event.respond("Your input was not valid. Please try again with a valid search term.")
                 return
@@ -688,11 +833,11 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
     
     @staticmethod
     async def handle_user_info_command(event):
-    # Extract user information from the event
         await Bot.update_bot_version_user_season(event)
+        
         user_id = event.sender_id
         if await db.get_user_updated_flag(user_id):
-            username = event.sender.username if event.sender.username else "No username"
+            username = f"@{event.sender.username}" if event.sender.username else "No username"
             first_name = event.sender.first_name
             last_name = event.sender.last_name if event.sender.last_name else "No last name"
             is_bot = event.sender.bot
@@ -724,224 +869,66 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
     @staticmethod
     async def handle_unavailable_feature(event):
         await event.answer("not available", alert=True)
-            
+
+    @staticmethod
+    async def handle_music_callback(client, event):
+        if event.data == b"@music_info_preview":
+            await Spotify_Downloader.send_30s_preview(client, event)
+        elif event.data == b"@music_artist_info":
+            await Spotify_Downloader.send_artists_info(event)
+        elif event.data == b"@music_icon":
+            await Spotify_Downloader.send_music_icon(client, event)
+        elif event.data == b"@music_lyrics":
+            await Spotify_Downloader.send_music_lyrics(event)
+        else:
+            send_file_result = await Spotify_Downloader.download_spotify_file_and_send(client, event)
+            if not send_file_result:
+                await event.respond(f"Sorry, there was an error downloading the song.\nTry Using a Different Core.\nYou Can Change Your Core in the Settings or Simply Use This command to See Available Cores: /core")
+    
     @staticmethod
     async def callback_query_handler(event):
         user_id = event.sender_id
         await Bot.update_bot_version_user_season(event)
         if not await db.get_user_updated_flag(user_id):
             return
-        
+
         action = Bot.button_actions.get(event.data)
         if action:
-            await action(event) 
-        
+            await action(event)
         elif event.data == b"@unavailable_feature":
-            await Bot.handle_unavailable_feature(event) 
-            
+            await Bot.handle_unavailable_feature(event)
         elif event.data.startswith(b"@music"):
-            if event.data == b"@music_info_preview":
-                await Spotify_Downloader.send_30s_preview(Bot.Client,event)
-            elif event.data == b"@music_artist_info":
-                await Spotify_Downloader.send_artists_info(event)
-            elif event.data == b"@music_icon":
-                await Spotify_Downloader.send_music_icon(Bot.Client,event)
-            elif event.data == b"@music_lyrics":
-                await Spotify_Downloader.send_music_lyrics(event)
-
-            else:
-                send_file_result = await Spotify_Downloader.download_spotify_file_and_send(Bot.Client,event)
-                if not send_file_result:
-                    await db.set_file_processing_flag(user_id,0)
-                    await event.respond(f"Sorry, there was an error downloading the song.\nTry Using a Different Core.\nYou Can Change Your Core in the Settings or Simply Use This command to See Available Cores: /core")
-                await Bot.waiting_message[user_id].delete() if Bot.waiting_message.get(user_id,None) != None else None
-        
-            # if search_result != None: // Removes the search list after sending the track
-            #     await search_result.delete()
-            #     search_result = None
-
+            await Bot.handle_music_callback(Bot.Client, event)
         elif event.data.isdigit():
-            
-            spotify_link_to_download = None
             song_index = str(event.data.decode('utf-8'))
-
-            spotify_link_to_download = await db.get_user_song_dict(user_id)
-            spotify_link_to_download = spotify_link_to_download[song_index]['spotify_link']
-            
-            if spotify_link_to_download != None:
-                
+            spotify_link = await db.get_user_song_dict(user_id)
+            spotify_link = spotify_link.get(song_index, {}).get('spotify_link')
+            if spotify_link:
                 Bot.waiting_message[user_id] = await event.respond('⏳')
-                   
-                await Spotify_Downloader.extract_data_from_spotify_link(event,spotify_link_to_download)
-                send_info_result = await Spotify_Downloader.download_and_send_spotify_info(Bot.Client,event)
-                
-                if not send_info_result: #if getting info of the link failed
-                    return await event.respond(f"Sorry, there was an error downloading the song.\nTry Using a Different Core.\nYou Can Change Your Core in the Settings or Simply Use This command to See Available Cores: /core")
+                await Spotify_Downloader.extract_data_from_spotify_link(event, spotify_link)
+                send_info_result = await Spotify_Downloader.download_and_send_spotify_info(Bot.Client, event)
+                if not send_info_result:
+                    await event.respond(f"Sorry, there was an error downloading the song.\nTry Using a Different Core.\nYou Can Change Your Core in the Settings or Simply Use This command to See Available Cores: /core")
+                if Bot.waiting_message.get(user_id, None) is not None:
+                    await Bot.waiting_message[user_id].delete()
+                await db.set_file_processing_flag(user_id, 0)
 
     @staticmethod
     async def handle_message(event):
-        
         user_id = event.sender_id
 
         if isinstance(event.message.media, MessageMediaDocument):
-            await Bot.update_bot_version_user_season(event)
-            if not await db.get_user_updated_flag(user_id):
-                return
-            
-            if not user_id in Bot.messages :
-                Bot.initialize_second_globals(user_id)
-            
-            channels_user_is_not_in = await Bot.is_user_in_channel(event.sender_id)
-            if channels_user_is_not_in != []:
-                return await Bot.respond_based_on_channel_membership(event,None,None,channels_user_is_not_in)
-            
-            if Bot.admin_broadcast[user_id] and Bot.send_to_specified_flag[user_id]:
-                Bot.admin_message_to_send[user_id] = event.message
-                return
-            elif Bot.admin_broadcast[user_id]:
-                Bot.admin_message_to_send[user_id] = event.message
-                return
-            
-            if Bot.search_result[user_id] != None:
-                await Bot.search_result[user_id].delete()
-                Bot.search_result[user_id] = None
-                
-            waiting_message_search = await event.respond('⏳')
-            process_file_message = await event.respond("Processing Your File.....")
-            voice = 0
-            for attribute in event.message.media.document.attributes:
-                if hasattr(attribute, 'voice'):
-                    file_path = await event.message.download_media(file=f"{ShazamHelper.voice_repository_dir}")
-                    voice = 1
-                    break
-            
-            if voice == 0 :
-                await event.respond("Sorry I Can only process Audio/Text.")
-                await waiting_message_search.delete()
-                await process_file_message.delete()
-                return
-            else:
-                Shazam_recognized = await ShazamHelper.recognize(file_path)
-                if Shazam_recognized == "":
-                    await waiting_message_search.delete()
-                    await process_file_message.delete()
-                    return await event.respond("Sorry I Couldnt find any song that matches your Voice.")
-                
-            sanitized_query = sanitize_query(Shazam_recognized)
-            if not sanitized_query:
-                await waiting_message_search.delete()
-                return await event.respond("Sorry I Couldnt find any song that matches your Voice.")
-            
-            await Spotify_Downloader.search_spotify_based_on_user_input(event,sanitized_query)
-            song_dict = await db.get_user_song_dict(user_id)
-            if all(not value for value in song_dict.values()):
-                await waiting_message_search.delete()
-                await event.respond("Sorry,I couldnt Find any music that matches your Search query.")
-                return
-            
-            song_dict = await db.get_user_song_dict(user_id)
-            button_list = [
-                [Button.inline(f"🎧 {details['track_name']} - {details['artist']} 🎧 ({details['release_year']})", data=str(idx))]
-                for idx, details in song_dict.items()
-            ]
-
-            button_list.append([Button.inline("Cancel", b"cancel")])
-            await process_file_message.delete()
-            
-            try:
-                Bot.search_result[user_id] = await event.respond(Bot.search_result_message, buttons=button_list)
-            except Exception as Err:
-                await event.respond(f"Sorry There Was an Error Processing Your Request: {str(Err)}")
-
-            await asyncio.sleep(1.5)
-            await waiting_message_search.delete()
-            
+            await Bot.process_audio_file(event, user_id)
         elif Spotify_Downloader.is_spotify_link(event.message.text):
-            await Bot.update_bot_version_user_season(event)
-            if not await db.get_user_updated_flag(user_id):
-                return
-            
-            if not user_id in Bot.messages :
-                Bot.initialize_second_globals(user_id)
-            
-            channels_user_is_not_in = await Bot.is_user_in_channel(event.sender_id)
-            if channels_user_is_not_in != []:
-                return await Bot.respond_based_on_channel_membership(event,None,None,channels_user_is_not_in)
-           
-            Bot.waiting_message[user_id] = await event.respond('⏳')
-            await Spotify_Downloader.extract_data_from_spotify_link(event,str(event.message.text))         
-            info_tuple = await Spotify_Downloader.download_and_send_spotify_info(Bot.Client,event)
-            
-            if not info_tuple: #if getting info of the link failed
-                await Bot.waiting_message[user_id].delete()
-                return await event.respond("Sorry, There was a problem processing your request.")
-
+            await Bot.process_spotify_link(event, user_id)
         elif X.contains_x_or_twitter_link(event.message.text):
-            X_link = X.find_and_send_x_or_twitter_link(event.message.text)
-            screenshot_path = await X.take_screenshot_of_tweet(event,X_link)
-            if screenshot_path != None:
-                await X.send_screenshot(Bot.Client,event,screenshot_path)
-               
+            await X.process_x_or_twitter_link(event)
         elif insta.is_instagram_url(event.message.text):
             link = insta.extract_url(event.message.text)
-            await insta.download(Bot.Client,event,link)
-            
+            await insta.download(Bot.Client, event, link)
         elif not event.message.text.startswith('/'):
-            
-            await Bot.update_bot_version_user_season(event)
-            if not await db.get_user_updated_flag(user_id):
-                return
-            
-            if not user_id in Bot.messages :
-                Bot.initialize_second_globals(user_id)
-            
-            channels_user_is_not_in = await Bot.is_user_in_channel(event.sender_id)
-            if channels_user_is_not_in != []:
-                return await Bot.respond_based_on_channel_membership(event,None,None,channels_user_is_not_in)
-            
-            if Bot.admin_broadcast[user_id] and Bot.send_to_specified_flag[user_id]:
-                Bot.admin_message_to_send[user_id] = event.message
-                return
-            elif Bot.admin_broadcast[user_id]:
-                Bot.admin_message_to_send[user_id] = event.message
-                return
-            
-            if len(event.message.text) > 33:
-                return await event.respond("Your Search Query is too long. :(")
-            
-            if Bot.search_result[user_id] != None:
-                await Bot.search_result[user_id].delete()
-                Bot.search_result[user_id] = None
-                
-            waiting_message_search = await event.respond('⏳')
-            sanitized_query = sanitize_query(event.message.text)
-            if not sanitized_query:
-                await event.respond("Your input was not valid. Please try again with a valid search term.")
-                return
+            await Bot.process_text_query(event, user_id)
 
-            await Spotify_Downloader.search_spotify_based_on_user_input(event,sanitized_query)
-            song_dict = await db.get_user_song_dict(user_id)
-            if all(not value for value in song_dict.values()):
-                await waiting_message_search.delete()
-                await event.respond("Sorry,I couldnt Find any music that matches your Search query.")
-                return
-            
-            song_dict = await db.get_user_song_dict(user_id)
-            button_list = [
-                [Button.inline(f"🎧 {details['track_name']} - {details['artist']} 🎧 ({details['release_year']})", data=str(idx))]
-                for idx, details in song_dict.items()
-            ]
-
-            button_list.append([Button.inline("Cancel", b"cancel")])
-
-            try:
-                Bot.search_result[user_id] = await event.respond(Bot.search_result_message, buttons=button_list)
-            except Exception as Err:
-                await event.respond(f"Sorry There Was an Error Processing Your Request: {str(Err)}")
-
-            await asyncio.sleep(1.5)
-            await waiting_message_search.delete()
-        
     @staticmethod
     async def run():
         Bot.Client = await TelegramClient('bot', Bot.API_ID, Bot.API_HASH).start(bot_token=Bot.BOT_TOKEN)
