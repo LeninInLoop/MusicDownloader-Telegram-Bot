@@ -883,6 +883,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
         else:
             send_file_result = await Spotify_Downloader.download_spotify_file_and_send(client, event)
             if not send_file_result:
+                await db.set_file_processing_flag(event.sender_id,0)
                 await event.respond(f"Sorry, there was an error downloading the song.\nTry Using a Different Core.\nYou Can Change Your Core in the Settings or Simply Use This command to See Available Cores: /core")
     
     @staticmethod
