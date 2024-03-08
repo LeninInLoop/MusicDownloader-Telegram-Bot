@@ -6,7 +6,7 @@ from telethon.tl.functions.channels import GetParticipantsRequest
 from telethon.tl.types import ChannelParticipantsSearch, MessageMediaDocument
 from telethon.errors import ChatAdminRequiredError
 from utils import BroadcastManager, db, sanitize_query
-from plugins import Spotify_Downloader, ShazamHelper, X
+from plugins import Spotify_Downloader, ShazamHelper, X, insta
 
 class Bot:
 
@@ -26,6 +26,7 @@ class Bot:
         await Bot.initialize_database()
         Bot.initialize_shazam()
         Bot.initialize_X()
+        Bot.initialize_instagram()
         Bot.initialize_messages()
         Bot.initialize_buttons()
         await Bot.initialize_action_queries()
@@ -76,6 +77,10 @@ class Bot:
     @staticmethod
     def initialize_X():
         X.initialize()
+        
+    @staticmethod
+    def initialize_instagram():
+        insta.initialize()
         
     @classmethod
     def initialize_messages(cls):
@@ -876,7 +881,11 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
             screenshot_path = await X.take_screenshot_of_tweet(event,X_link)
             if screenshot_path != None:
                 await X.send_screenshot(Bot.Client,event,screenshot_path)
-                
+               
+        elif insta.is_instagram_url(event.message.text):
+            link = insta.extract_url(event.message.text)
+            await insta.download(Bot.Client,event,link)
+            
         elif not event.message.text.startswith('/'):
             
             await Bot.update_bot_version_user_season(event)
