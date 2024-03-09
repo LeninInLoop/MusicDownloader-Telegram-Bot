@@ -67,18 +67,12 @@ class X:
         try:
             response = requests.get(link)
             soup = bs4.BeautifulSoup(response.content, "html.parser")
-
-            # Check if the URL has an og:video meta tag
             meta_tag = soup.find("meta", attrs={"property": "og:video"})
             if meta_tag:
                 return True
-
-            # Check if the URL has an og:image meta tag
             meta_tag = soup.find("meta", attrs={"property": "og:image"})
             if meta_tag:
                 return True
-
-            # If neither og:video nor og:image meta tag is found, return False
             return False
 
         except Exception as e:
@@ -92,7 +86,7 @@ class X:
         link = link.replace("x.com", "fxtwitter.com") if "x.com" in link else link.replace("twitter.com", "fxtwitter.com")
 
         try:
-            await client.send_file(event.chat_id, link, caption="Thank you for using - @InstaReelsdownbot")
+            await client.send_file(event.chat_id, link, caption="Thank you for using - @Spotify_YT_Downloader_Bot")
         except Exception as e:
             print(f"Error sending file: {e}")
             try:
@@ -102,12 +96,12 @@ class X:
                 if meta_tag:
                     content_value = meta_tag['content']
                     try:
-                        await client.send_file(event.chat_id, content_value, caption="Thank you for using - @InstaReelsdownbot")
+                        await client.send_file(event.chat_id, content_value, caption="Thank you for using - @Spotify_YT_Downloader_Bot")
                     except Exception as e:
                         print(f"Error sending file: {e}")
                         try:
                             await asyncio.sleep(1)
-                            await client.send_file(event.chat_id, content_value, caption="Thank you for using - @InstaReelsdownbot")
+                            await client.send_file(event.chat_id, content_value, caption="Thank you for using - @Spotify_YT_Downloader_Bot")
                         except Exception as e:
                             print(f"Error sending file: {e}")
                             await event.reply("Oops Invalid link or Media Is Not Available :(")
