@@ -150,7 +150,7 @@ class Spotify_Downloader():
             'quiet': True,
             'no_warnings': True,
             'ignoreerrors': True,
-            'ytsearch': 5,  # Retrieve the top 5 search results
+            'ytsearch': 8,  # Retrieve the top 8 search results
             'skip_download': True,
             'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'  # Specify the desired format
         }
