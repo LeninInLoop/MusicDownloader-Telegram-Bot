@@ -32,7 +32,7 @@ class db:
         try:
             await conn.execute('''CREATE TABLE IF NOT EXISTS user_settings
                                 (user_id INTEGER PRIMARY KEY, music_quality TEXT, downloading_core TEXT,
-                                spotify_link_info TEXT, song_dict TEXT,is_file_processing BOOLEAN DEFAULT 0,
+                                spotify_link_info TEXT, song_dict TEXT, tweet_url TEXT , is_file_processing BOOLEAN DEFAULT 0,
                                 is_user_updated BOOLEAN DEFAULT 1)''')
             await conn.execute('''CREATE TABLE IF NOT EXISTS subscriptions
                                 (user_id INTEGER PRIMARY KEY, subscribed BOOLEAN DEFAULT   1, temporary BOOLEAN DEFAULT   0)''')
@@ -196,11 +196,6 @@ class db:
         return result is not None and result[0] ==  1
 
     @staticmethod
-    async def update_user_spotify_link_info(user_id, spotify_link_info):
-        serialized_info = json.dumps(spotify_link_info)
-        await db.execute_query('UPDATE user_settings SET spotify_link_info = ? WHERE user_id = ?', (serialized_info, user_id))
-
-    @staticmethod
     async def set_user_song_dict(user_id, song_dict):
         serialized_dict = json.dumps(song_dict)
         await db.execute_query('UPDATE user_settings SET song_dict = ? WHERE user_id = ?', (serialized_dict, user_id))
@@ -311,3 +306,15 @@ class db:
     async def get_song_downloads(filename):
         result = await db.fetch_one('SELECT downloads FROM musics WHERE filename = ?', (filename,))
         return result[0] if result else 0
+    
+    @staticmethod
+    async def set_tweet_url(user_id, tweet_url):
+        serialized_info = json.dumps(tweet_url)
+        await db.execute_query('UPDATE user_settings SET tweet_url = ? WHERE user_id = ?', (serialized_info, user_id))
+        
+    @staticmethod
+    async def get_tweet_url(user_id):
+        result = await db.fetch_one('SELECT tweet_url FROM user_settings WHERE user_id = ?', (user_id,))
+        if result != None:
+            return json.loads(result[0]) if result[0] else {}
+        return {} # Return an empty dictionary if the user is not found or the tweet_url is not set

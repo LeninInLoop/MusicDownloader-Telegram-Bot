@@ -561,6 +561,13 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
         if channels_user_is_not_in != []:
             return await Bot.respond_based_on_channel_membership(event, None, None, channels_user_is_not_in)
 
+        if Bot.admin_broadcast[user_id] and Bot.send_to_specified_flag[user_id]:
+            Bot.admin_message_to_send[user_id] = event.message
+            return
+        elif Bot.admin_broadcast[user_id]:
+            Bot.admin_message_to_send[user_id] = event.message
+            return
+
         Bot.waiting_message[user_id] = await event.respond('⏳')
         await Spotify_Downloader.extract_data_from_spotify_link(event, str(event.message.text))
         info_tuple = await Spotify_Downloader.download_and_send_spotify_info(Bot.Client, event)
@@ -622,6 +629,34 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
 
         await asyncio.sleep(1.5)
         await waiting_message_search.delete()
+
+    @staticmethod
+    async def process_x_or_twitter_link(event):
+        user_id = event.sender_id
+        await Bot.update_bot_version_user_season(event)
+        if not await db.get_user_updated_flag(user_id):
+            return
+
+        if not user_id in Bot.messages:
+            Bot.initialize_second_globals(user_id)
+
+        channels_user_is_not_in = await Bot.is_user_in_channel(user_id)
+        if channels_user_is_not_in != []:
+            return await Bot.respond_based_on_channel_membership(event, None, None, channels_user_is_not_in)
+
+        if Bot.admin_broadcast[user_id] and Bot.send_to_specified_flag[user_id]:
+            Bot.admin_message_to_send[user_id] = event.message
+            return
+        elif Bot.admin_broadcast[user_id]:
+            Bot.admin_message_to_send[user_id] = event.message
+            return
+        
+        x_link = X.find_and_send_x_or_twitter_link(event.message.text)
+        if x_link:
+            await db.set_tweet_url(user_id,x_link)
+            screenshot_path = await X.take_screenshot_of_tweet(event,x_link)
+            has_media = await X.has_media(x_link)
+            return await X.send_screenshot(Bot.Client, event, screenshot_path, has_media)
         
     @staticmethod
     async def start(event):
@@ -898,6 +933,8 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
             await action(event)
         elif event.data == b"@unavailable_feature":
             await Bot.handle_unavailable_feature(event)
+        elif event.data == b"@X_download_media":
+            await X.download(Bot.Client,event)
         elif event.data.startswith(b"@music"):
             await Bot.handle_music_callback(Bot.Client, event)
         elif event.data.isdigit():
@@ -923,7 +960,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
         elif Spotify_Downloader.is_spotify_link(event.message.text):
             await Bot.process_spotify_link(event, user_id)
         elif X.contains_x_or_twitter_link(event.message.text):
-            await X.process_x_or_twitter_link(event)
+            await Bot.process_x_or_twitter_link(event)
         elif insta.is_instagram_url(event.message.text):
             link = insta.extract_url(event.message.text)
             await insta.download(Bot.Client, event, link)
