@@ -325,7 +325,7 @@ class Spotify_Downloader():
         return True
     
     @staticmethod
-    async def download_SpotDL(event, music_quality, spotify_link_info, initial_message=None, audio_option: str = "soundcloud") -> bool:
+    async def download_SpotDL(event, music_quality, spotify_link_info, initial_message=None, audio_option: str = "piped") -> bool:
         user_id = event.sender_id
         command = f'python3 -m spotdl --client-id {Spotify_Downloader.SPOTIFY_CLIENT_ID} --client-secret {Spotify_Downloader.SPOTIFY_CLIENT_SECRET} --format {music_quality["format"]} --audio {audio_option} --output "{Spotify_Downloader.download_directory}" "{spotify_link_info["track_url"]}"'
         
@@ -345,7 +345,7 @@ class Spotify_Downloader():
 
         if initial_message is None:
             # Send an initial message to the user with a progress bar
-            initial_message = await event.reply("SpotDL: Downloading...\nApproach: SoundCloud")
+            initial_message = await event.reply("SpotDL: Downloading...\nApproach: Piped")
 
         # Function to send updates to the user
         async def send_updates(process, message):
@@ -364,10 +364,10 @@ class Spotify_Downloader():
                 # Check for errors
                 if any(err in line for err in ("LookupError", "FFmpegError", "JSONDecodeError", "ReadTimeout", "KeyError", "Forbidden")):
                     if audio_option == "piped":
-                        await message.edit(f"SpotDL: Downloading...\nApproach: Piped Failed, Using YouTube Approach.\n\n{line}")
+                        await message.edit(f"SpotDL: Downloading...\nApproach: Piped Failed, Using SoundCloud Approach.\n\n{line}")
                         return False  # Indicate that an error occurred
                     elif audio_option == "soundcloud":
-                        await message.edit(f"SpotDL: Downloading...\nApproach: SoundCloud Failed, Using Piped Approach.\n\n{line}")
+                        await message.edit(f"SpotDL: Downloading...\nApproach: SoundCloud Failed, Using Youtube Approach.\n\n{line}")
                         return False
                     else:
                         await message.edit(f"SpotDL: Downloading...\nApproach: All Approaches Failed.\n\n{line}")
@@ -377,10 +377,10 @@ class Spotify_Downloader():
 
         success = await send_updates(process, initial_message)       
         if not success and audio_option == "piped":
-            await initial_message.edit(f"SpotDL: Downloading...\nApproach: Piped Failed, Using YouTube Approach.")       
+            await initial_message.edit(f"SpotDL: Downloading...\nApproach: Piped Failed, Using SoundCloud Approach.")       
             return False, initial_message
         elif not success and audio_option == "soundcloud":
-            await initial_message.edit(f"SpotDL: Downloading...\nApproach: SoundCloud Failed, Using Piped Approach.")       
+            await initial_message.edit(f"SpotDL: Downloading...\nApproach: SoundCloud Failed, Using Youtube Approach.")       
             return False, initial_message
         elif not success and audio_option == "youtube":
             return False, False
@@ -542,7 +542,7 @@ class Spotify_Downloader():
         elif is_local == False and spotdl == True:         
             result, initial_message = await Spotify_Downloader.download_SpotDL(event, music_quality, spotify_link_info)
             if result == False:
-                result, initial_message = await Spotify_Downloader.download_SpotDL(event, music_quality, spotify_link_info, initial_message, audio_option="piped")
+                result, initial_message = await Spotify_Downloader.download_SpotDL(event, music_quality, spotify_link_info, initial_message, audio_option="soundcloud")
                 if result == False:
                     result, _ = await Spotify_Downloader.download_SpotDL(event, music_quality, spotify_link_info, initial_message, audio_option="youtube")
             if result == True and initial_message == True:
