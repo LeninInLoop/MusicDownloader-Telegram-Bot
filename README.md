@@ -116,7 +116,9 @@ python3 main.py
 
 - `/start`: Start the bot and get the welcome message.
 - `/search <query>`: Search for songs on Spotify.
-- `/settings`: Access settings to change audio format and quality.
+- `/settings`: Access settings to change audio format and quality, downloading core, and subscription.
+- `/core`: Access directly to core settings to change downloading core.
+- `/quality`: Access directly to quality settings to change audio format and quality.
 - `/subscribe`: Subscribe to receive updates.
 - `/unsubscribe`: Unsubscribe from updates.
 - `/help`: Get help on how to use the bot.
@@ -126,7 +128,10 @@ python3 main.py
 
 ## Admin Commands
 
-- `/broadcast`: Send a message to all users or specific subscribers.
+- `/broadcast`: Send a message to all subscribed users or specific subscribers.
+   Ex: `/broadcast` -> Send a message to all subscribed users
+   Ex: `/broadcast (1297994832,1297994833)` -> Send a message to 1297994832 and 1297994833 only.
+   Ex: `/broadcast_to_all` -> Send a message to all users
 - `/stats`: Get statistics about the bot's usage.
 
 ## Dependencies
@@ -135,10 +140,13 @@ python3 main.py
 - Telethon
 - Spotipy
 - Yt-dlp
+- spotdl
 - Shazamio
 - Pillow
 - tweet-capture
 - dotenv
+- aiosqlite
+- lyricsgenius
 
 ## Contributing
 
