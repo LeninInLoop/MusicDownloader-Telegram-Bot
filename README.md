@@ -15,6 +15,8 @@ You can test this bot at:
 - Subscription management for users
 - Voice recognition for song search
 - Screenshot capture of tweets
+- Download twitter media
+- Download Instagram media
 
 ## Installation
 
