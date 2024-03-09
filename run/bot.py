@@ -886,7 +886,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
     User Information:
 
     ID: {user_id}
-    Username: @{username}
+    Username: {username}
 
     First Name: {first_name}
     Last Name: {last_name}
