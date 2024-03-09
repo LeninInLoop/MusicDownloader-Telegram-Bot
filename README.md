@@ -129,12 +129,9 @@ python3 main.py
 ## Admin Commands
 
 - `/broadcast`: Send a message to all subscribed users or specific subscribers.
-   Ex: `/broadcast` -> Send a message to all subscribed users.
-  
-   Ex: `/broadcast (1297994832,1297994833)` -> Send a message to 1297994832 and 1297994833 only.
-  
-   Ex: `/broadcast_to_all` -> Send a message to all users.
-  
+   - Ex: `/broadcast` -> Send a message to all subscribed users.
+   - Ex: `/broadcast (1297994832,1297994833)` -> Send a message to 1297994832 and 1297994833 only.
+   - Ex: `/broadcast_to_all` -> Send a message to all users.
 - `/stats`: Get statistics about the bot's usage.
 
 ## Dependencies
