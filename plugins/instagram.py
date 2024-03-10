@@ -97,19 +97,15 @@ class insta():
 
     async def download_post(client, event, link):
         meta_tags = await insta.search_saveig(link)
-        
         if meta_tags:
             for meta in meta_tags[:-1]:
-                com = await event.reply_text(meta)
                 await asyncio.sleep(1)
                 await insta.send_file(client, event, com.text)
-                await com.delete()
         else:
             await event.reply("Oops, something went wrong")
 
     async def download_story(client, event, link):
         meta_tag = await insta.search_saveig(link)
-        
         if meta_tag:
             await insta.send_file(client, event, meta_tag[0])
         else:
