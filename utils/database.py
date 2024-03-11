@@ -32,8 +32,9 @@ class db:
         try:
             await conn.execute('''CREATE TABLE IF NOT EXISTS user_settings
                                 (user_id INTEGER PRIMARY KEY, music_quality TEXT, downloading_core TEXT,
-                                spotify_link_info TEXT, song_dict TEXT, tweet_url TEXT , is_file_processing BOOLEAN DEFAULT 0,
-                                is_user_updated BOOLEAN DEFAULT 1)''')
+                                spotify_link_info TEXT, song_dict TEXT, current_page INTEGER DEFAULT 1 ,tweet_url TEXT ,
+                                is_file_processing BOOLEAN DEFAULT 0,is_user_updated BOOLEAN DEFAULT 1)'''
+                                )
             await conn.execute('''CREATE TABLE IF NOT EXISTS subscriptions
                                 (user_id INTEGER PRIMARY KEY, subscribed BOOLEAN DEFAULT   1, temporary BOOLEAN DEFAULT   0)''')
             await conn.execute('''CREATE TABLE IF NOT EXISTS musics
@@ -318,3 +319,14 @@ class db:
         if result != None:
             return json.loads(result[0]) if result[0] else {}
         return {} # Return an empty dictionary if the user is not found or the tweet_url is not set
+    
+    @staticmethod
+    async def set_current_page(user_id, page):
+        await db.execute_query('UPDATE user_settings SET current_page = ? WHERE user_id = ?', (page, user_id))
+
+    @staticmethod
+    async def get_current_page(user_id):
+        result = await db.fetch_one('SELECT current_page FROM user_settings WHERE user_id = ?', (user_id,))
+        if result:
+            return result[0]
+        return 1  # Return 1 (the default value) if the user is not found or the current_page is not set

@@ -555,23 +555,29 @@ class Spotify_Downloader():
                 return False
             
     @staticmethod
-    async def search_spotify_based_on_user_input(event, query, limit=10): #check
-        
+    async def search_spotify_based_on_user_input(event, query, limit=50):
         results = Spotify_Downloader.spotify_account.search(q=query, limit=limit)
-        song_dict = {}
-        
+        song_pages = {}
+        page_idx = 1
+
         for i, t in enumerate(results['tracks']['items']):
             artists = ', '.join([a['name'] for a in t['artists']])
-            # Extract the Spotify URL from the external_urls field
             spotify_link = t['external_urls']['spotify']
-            song_dict[i] = {
-                'track_name': t['name'],  
+            song_details = {
+                'track_name': t['name'],
                 'artist': artists,
                 'release_year': t['album']['release_date'][:4],
-                'spotify_link': spotify_link  # Include the Spotify link in the dictionary
+                'spotify_link': spotify_link
             }
-        await db.set_user_song_dict(event.sender_id,song_dict)
-          
+
+            if i % 10 == 0:
+                song_pages[page_idx] = []
+                page_idx += 1
+
+            song_pages[page_idx - 1].append(song_details)
+
+        await db.set_user_song_dict(event.sender_id, song_pages)
+
     @staticmethod
     async def send_30s_preview(client,event):
         user_id = event.sender_id

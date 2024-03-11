@@ -248,6 +248,8 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
             b"admin/broadcast/all": lambda e: Bot.handle_broadcast(e,send_to_all=True),
             b"admin/broadcast/subs": lambda e: Bot.handle_broadcast(e,send_to_subs=True),
             b"admin/broadcast/specified": lambda e: Bot.handle_broadcast(e,send_to_specified=True),
+            b"next_page": lambda e: Bot.next_page(e),
+            b"prev_page": lambda e: Bot.prev_page(e)
             # Add other actions here
         }
 
@@ -527,19 +529,22 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
             return
 
         await Spotify_Downloader.search_spotify_based_on_user_input(event, sanitized_query)
-        song_dict = await db.get_user_song_dict(user_id)
-        if all(not value for value in song_dict.values()):
+        song_pages = await db.get_user_song_dict(user_id)
+        if all(not value for value in song_pages.values()):
             await waiting_message_search.delete()
             await event.respond("Sorry, I couldnt Find any music that matches your Search query.")
             return
 
+        await db.set_current_page(user_id,1)
+        page = 1
         button_list = [
             [Button.inline(f"🎧 {details['track_name']} - {details['artist']} 🎧 ({details['release_year']})", data=str(idx))]
-            for idx, details in song_dict.items()
+            for idx, details in enumerate(song_pages[str(page)])
         ]
+        if len(song_pages) > 1:
+            button_list.append([Button.inline("Previous Page", b"prev_page"), Button.inline("Next Page", b"next_page")])
         button_list.append([Button.inline("Cancel", b"cancel")])
 
-        await process_file_message.delete()
         try:
             Bot.search_result[user_id] = await event.respond(Bot.search_result_message, buttons=button_list)
         except Exception as Err:
@@ -610,16 +615,20 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
             return
 
         await Spotify_Downloader.search_spotify_based_on_user_input(event, sanitized_query)
-        song_dict = await db.get_user_song_dict(user_id)
-        if all(not value for value in song_dict.values()):
+        song_pages = await db.get_user_song_dict(user_id)
+        if not song_pages:
             await waiting_message_search.delete()
             await event.respond("Sorry, I couldnt Find any music that matches your Search query.")
             return
 
+        await db.set_current_page(user_id,1)
+        page = 1
         button_list = [
             [Button.inline(f"🎧 {details['track_name']} - {details['artist']} 🎧 ({details['release_year']})", data=str(idx))]
-            for idx, details in song_dict.items()
+            for idx, details in enumerate(song_pages[str(page)])
         ]
+        if len(song_pages) > 1:
+            button_list.append([Button.inline("Previous Page", b"prev_page"), Button.inline("Next Page", b"next_page")])
         button_list.append([Button.inline("Cancel", b"cancel")])
 
         try:
@@ -629,6 +638,56 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
 
         await asyncio.sleep(1.5)
         await waiting_message_search.delete()
+
+    @staticmethod
+    async def prev_page(event):
+        user_id = event.sender_id
+        song_pages = await db.get_user_song_dict(user_id)
+        total_pages = len(song_pages)
+
+        current_page = await db.get_current_page(user_id)
+        page = max(1, current_page - 1)
+        await db.set_current_page(user_id,page) # Update the current page
+
+        button_list = [
+            [Button.inline(f"🎧 {details['track_name']} - {details['artist']} 🎧 ({details['release_year']})", data=str(idx))]
+            for idx, details in enumerate(song_pages[str(page)])
+        ]
+        if total_pages > 1:
+            button_list.append([Button.inline("Previous Page", b"prev_page"), Button.inline("Next Page", b"next_page")])
+        button_list.append([Button.inline("Cancel", b"cancel")])
+
+        # Check if the button list has changed before editing the message
+        if Bot.search_result[user_id].buttons != button_list:
+            try:
+                await Bot.search_result[user_id].edit(buttons=button_list)
+            except:
+                pass
+            
+    @staticmethod
+    async def next_page(event):
+        user_id = event.sender_id
+        song_pages = await db.get_user_song_dict(user_id)
+        total_pages = len(song_pages)
+
+        current_page = await db.get_current_page(user_id)
+        page = min(total_pages, current_page + 1)
+        await db.set_current_page(user_id,page)  # Update the current page
+
+        button_list = [
+            [Button.inline(f"🎧 {details['track_name']} - {details['artist']} 🎧 ({details['release_year']})", data=str(idx))]
+            for idx, details in enumerate(song_pages[str(page)])
+        ]
+        if total_pages > 1:
+            button_list.append([Button.inline("Previous Page", b"prev_page"), Button.inline("Next Page", b"next_page")])
+        button_list.append([Button.inline("Cancel", b"cancel")])
+
+        # Check if the button list has changed before editing the message
+        if Bot.search_result[user_id].buttons != button_list:
+            try:
+                await Bot.search_result[user_id].edit(buttons=button_list)
+            except:
+                pass
 
     @staticmethod
     async def process_x_or_twitter_link(event):
@@ -938,9 +997,11 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
         elif event.data.startswith(b"@music"):
             await Bot.handle_music_callback(Bot.Client, event)
         elif event.data.isdigit():
+            song_pages = await db.get_user_song_dict(user_id)
+            current_page = await db.get_current_page(user_id)
             song_index = str(event.data.decode('utf-8'))
-            spotify_link = await db.get_user_song_dict(user_id)
-            spotify_link = spotify_link.get(song_index, {}).get('spotify_link')
+            song_details = song_pages[str(current_page)][int(song_index)]
+            spotify_link = song_details.get('spotify_link')
             if spotify_link:
                 Bot.waiting_message[user_id] = await event.respond('⏳')
                 await Spotify_Downloader.extract_data_from_spotify_link(event, spotify_link)
