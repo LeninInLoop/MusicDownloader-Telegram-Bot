@@ -13,7 +13,7 @@ class ShazamHelper():
         
     @staticmethod
     async def recognize(file):
-        out = await ShazamHelper.Shazam.recognize_song(file)
+        out = await ShazamHelper.Shazam.recognize(file)
         return ShazamHelper.extract_song_details(out)
     
     # Function to extract the Spotify link
