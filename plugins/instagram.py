@@ -100,7 +100,7 @@ class insta():
         if meta_tags:
             for meta in meta_tags[:-1]:
                 await asyncio.sleep(1)
-                await insta.send_file(client, event, com.text)
+                await insta.send_file(client, event, meta)
         else:
             await event.reply("Oops, something went wrong")
 
@@ -127,5 +127,6 @@ class insta():
         try:
             await client.send_file(event.chat_id, content_value, caption="Here's your Instagram content")
         except:
-            downfile = wget.download(content_value)
-            await event.send_file(event.chat_id, downfile, caption="Here's your Instagram content")
+            fileoutput = f"{str(content_value)}"
+            downfile = wget.download(content_value, out=fileoutput)
+            await client.send_file(event.chat_id, fileoutput, caption="Here's your Instagram content")
