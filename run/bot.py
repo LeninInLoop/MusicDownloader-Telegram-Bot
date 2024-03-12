@@ -6,7 +6,7 @@ from telethon.tl.functions.channels import GetParticipantsRequest
 from telethon.tl.types import ChannelParticipantsSearch, MessageMediaDocument
 from telethon.errors import ChatAdminRequiredError
 from utils import BroadcastManager, db, sanitize_query, is_file_voice
-from plugins import Spotify_Downloader, ShazamHelper, X, insta
+from plugins import Spotify_Downloader, ShazamHelper, X, Insta
 
 class Bot:
 
@@ -80,7 +80,7 @@ class Bot:
         
     @staticmethod
     def initialize_instagram():
-        insta.initialize()
+        Insta.initialize()
         
     @classmethod
     def initialize_messages(cls):
@@ -110,7 +110,7 @@ You now have the option to search the Spotify database by providing the song's t
         cls.contact_creator_message = """Should you have any inquiries or require feedback, please do not hesitate to contact me. 🌐
 >> @AdibNikjou"""
 
-        cls.search_result_message = """🎵 The following are the top 10 search results that correspond to your query:
+        cls.search_result_message = """🎵 The following are the top search results that correspond to your query:
 """
 
         cls.core_selection_message = """🎵 Choose Your Preferred Download Core 🎵
@@ -657,12 +657,24 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
             button_list.append([Button.inline("Previous Page", b"prev_page"), Button.inline("Next Page", b"next_page")])
         button_list.append([Button.inline("Cancel", b"cancel")])
 
-        # Check if the button list has changed before editing the message
-        if Bot.search_result[user_id].buttons != button_list:
+        try:
+            await Bot.search_result[user_id].edit(buttons=button_list)
+        except KeyError:
+            page = await db.get_current_page(user_id)
+            button_list = [
+            [Button.inline(f"🎧 {details['track_name']} - {details['artist']} 🎧 ({details['release_year']})", data=str(idx))]
+            for idx, details in enumerate(song_pages[str(page)])
+            ]
+            if len(song_pages) > 1:
+                button_list.append([Button.inline("Previous Page", b"prev_page"), Button.inline("Next Page", b"next_page")])
+            button_list.append([Button.inline("Cancel", b"cancel")])
+
             try:
-                await Bot.search_result[user_id].edit(buttons=button_list)
-            except:
-                pass
+                Bot.search_result[user_id] = await event.respond(Bot.search_result_message, buttons=button_list)
+            except Exception as Err:
+                await event.respond(f"Sorry There Was an Error Processing Your Request: {str(Err)}")
+        except:
+            pass
             
     @staticmethod
     async def next_page(event):
@@ -682,13 +694,25 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
             button_list.append([Button.inline("Previous Page", b"prev_page"), Button.inline("Next Page", b"next_page")])
         button_list.append([Button.inline("Cancel", b"cancel")])
 
-        # Check if the button list has changed before editing the message
-        if Bot.search_result[user_id].buttons != button_list:
-            try:
-                await Bot.search_result[user_id].edit(buttons=button_list)
-            except:
-                pass
+        try:
+            await Bot.search_result[user_id].edit(buttons=button_list)
+        except KeyError:
+            page = await db.get_current_page(user_id)
+            button_list = [
+            [Button.inline(f"🎧 {details['track_name']} - {details['artist']} 🎧 ({details['release_year']})", data=str(idx))]
+            for idx, details in enumerate(song_pages[str(page)])
+            ]
+            if len(song_pages) > 1:
+                button_list.append([Button.inline("Previous Page", b"prev_page"), Button.inline("Next Page", b"next_page")])
+            button_list.append([Button.inline("Cancel", b"cancel")])
 
+            try:
+                Bot.search_result[user_id] = await event.respond(Bot.search_result_message, buttons=button_list)
+            except Exception as Err:
+                await event.respond(f"Sorry There Was an Error Processing Your Request: {str(Err)}")
+        except:
+            pass
+        
     @staticmethod
     async def process_x_or_twitter_link(event):
         user_id = event.sender_id
@@ -1022,9 +1046,9 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
             await Bot.process_spotify_link(event, user_id)
         elif X.contains_x_or_twitter_link(event.message.text):
             await Bot.process_x_or_twitter_link(event)
-        elif insta.is_instagram_url(event.message.text):
-            link = insta.extract_url(event.message.text)
-            await insta.download(Bot.Client, event, link)
+        elif Insta.is_instagram_url(event.message.text):
+            link = Insta.extract_url(event.message.text)
+            await Insta.download(Bot.Client, event, link)
         elif not event.message.text.startswith('/'):
             await Bot.process_text_query(event, user_id)
 
