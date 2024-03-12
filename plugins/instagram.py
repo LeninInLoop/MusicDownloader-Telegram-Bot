@@ -1,5 +1,5 @@
-import re, requests, bs4
-import wget, asyncio
+from utils import bs4, wget
+from utils import asyncio, re, requests
 
 class Insta():
     

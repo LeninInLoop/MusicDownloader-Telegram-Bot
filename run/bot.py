@@ -1,12 +1,8 @@
-import os, asyncio, time
-from dotenv import load_dotenv
-from telethon import TelegramClient, events
-from telethon.tl.custom import Button
-from telethon.tl.functions.channels import GetParticipantsRequest
-from telethon.tl.types import ChannelParticipantsSearch, MessageMediaDocument
-from telethon.errors import ChatAdminRequiredError
+from utils import os, asyncio, time, load_dotenv
 from utils import BroadcastManager, db, sanitize_query, is_file_voice
 from plugins import Spotify_Downloader, ShazamHelper, X, Insta
+from run import TelegramClient, events, Button, GetParticipantsRequest, ChannelParticipantsSearch
+from run import ChatAdminRequiredError, MessageMediaDocument
 
 class Bot:
 

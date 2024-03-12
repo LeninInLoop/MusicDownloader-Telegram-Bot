@@ -1,7 +1,7 @@
-from telethon import Button
-from tweetcapture import TweetCapture
-import os, hashlib, re, asyncio, bs4, requests
-from utils import db
+from run import Button
+from utils import TweetCapture
+from utils import os, hashlib, re, asyncio
+from utils import db, bs4, requests
 
 class X:
     

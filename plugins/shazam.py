@@ -1,5 +1,4 @@
-from shazamio import Shazam
-import os
+from utils import Shazam, os
 
 class ShazamHelper():
 

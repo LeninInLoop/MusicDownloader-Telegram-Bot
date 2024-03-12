@@ -1,13 +1,8 @@
-from dotenv import load_dotenv
-import os, spotipy, requests, asyncio, re
-from itertools import combinations
-from spotipy.oauth2 import SpotifyClientCredentials
-from PIL import Image
-from io import BytesIO
-from yt_dlp import YoutubeDL
-from telethon.tl.custom import Button
-import lyricsgenius
-from utils import process_flac_music, process_mp3_music, db
+from run import Button
+from utils import requests, asyncio, re, os, load_dotenv, combinations
+from utils import db, process_flac_music, process_mp3_music
+from utils import Image, BytesIO, YoutubeDL, lyricsgenius
+from utils import SpotifyClientCredentials, spotipy
 
 class Spotify_Downloader():
 
