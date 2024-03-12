@@ -1,6 +1,6 @@
 from utils import os, asyncio, time, load_dotenv
 from utils import BroadcastManager, db, sanitize_query, is_file_voice
-from plugins import Spotify_Downloader, ShazamHelper, X, Insta
+from plugins import SpotifyDownloader, ShazamHelper, X, Insta
 from run import TelegramClient, events, Button, GetParticipantsRequest, ChannelParticipantsSearch
 from run import ChatAdminRequiredError, MessageMediaDocument
 
@@ -59,7 +59,7 @@ class Bot:
         
     @staticmethod
     def initialize_spotify_downloader():
-        Spotify_Downloader.initialize()
+        SpotifyDownloader.initialize()
 
     @staticmethod
     async def initialize_database():
@@ -524,7 +524,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
             await event.respond("Sorry I Couldnt find any song that matches your Voice.")
             return
 
-        await Spotify_Downloader.search_spotify_based_on_user_input(event, sanitized_query)
+        await SpotifyDownloader.search_spotify_based_on_user_input(event, sanitized_query)
         song_pages = await db.get_user_song_dict(user_id)
         if all(not value for value in song_pages.values()):
             await waiting_message_search.delete()
@@ -570,8 +570,8 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
             return
 
         Bot.waiting_message[user_id] = await event.respond('⏳')
-        await Spotify_Downloader.extract_data_from_spotify_link(event, str(event.message.text))
-        info_tuple = await Spotify_Downloader.download_and_send_spotify_info(Bot.Client, event)
+        await SpotifyDownloader.extract_data_from_spotify_link(event, str(event.message.text))
+        info_tuple = await SpotifyDownloader.download_and_send_spotify_info(Bot.Client, event)
 
         if not info_tuple:  # if getting info of the link failed
             await Bot.waiting_message[user_id].delete()
@@ -610,7 +610,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
             await event.respond("Your input was not valid. Please try again with a valid search term.")
             return
 
-        await Spotify_Downloader.search_spotify_based_on_user_input(event, sanitized_query)
+        await SpotifyDownloader.search_spotify_based_on_user_input(event, sanitized_query)
         song_pages = await db.get_user_song_dict(user_id)
         if not song_pages:
             await waiting_message_search.delete()
@@ -922,7 +922,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
                 await event.respond("Your input was not valid. Please try again with a valid search term.")
                 return
 
-            await Spotify_Downloader.search_spotify_based_on_user_input(event,sanitized_query)
+            await SpotifyDownloader.search_spotify_based_on_user_input(event,sanitized_query)
             song_dict = await db.get_user_song_dict(user_id)
             if all(not value for value in song_dict.values()):
                 await waiting_message_search.delete()
@@ -987,15 +987,15 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
     @staticmethod
     async def handle_music_callback(client, event):
         if event.data == b"@music_info_preview":
-            await Spotify_Downloader.send_30s_preview(client, event)
+            await SpotifyDownloader.send_30s_preview(client, event)
         elif event.data == b"@music_artist_info":
-            await Spotify_Downloader.send_artists_info(event)
+            await SpotifyDownloader.send_artists_info(event)
         elif event.data == b"@music_icon":
-            await Spotify_Downloader.send_music_icon(client, event)
+            await SpotifyDownloader.send_music_icon(client, event)
         elif event.data == b"@music_lyrics":
-            await Spotify_Downloader.send_music_lyrics(event)
+            await SpotifyDownloader.send_music_lyrics(event)
         else:
-            send_file_result = await Spotify_Downloader.download_spotify_file_and_send(client, event)
+            send_file_result = await SpotifyDownloader.download_spotify_file_and_send(client, event)
             if not send_file_result:
                 await db.set_file_processing_flag(event.sender_id,0)
                 await event.respond(f"Sorry, there was an error downloading the song.\nTry Using a Different Core.\nYou Can Change Your Core in the Settings or Simply Use This command to See Available Cores: /core")
@@ -1024,8 +1024,8 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
             spotify_link = song_details.get('spotify_link')
             if spotify_link:
                 Bot.waiting_message[user_id] = await event.respond('⏳')
-                await Spotify_Downloader.extract_data_from_spotify_link(event, spotify_link)
-                send_info_result = await Spotify_Downloader.download_and_send_spotify_info(Bot.Client, event)
+                await SpotifyDownloader.extract_data_from_spotify_link(event, spotify_link)
+                send_info_result = await SpotifyDownloader.download_and_send_spotify_info(Bot.Client, event)
                 if not send_info_result:
                     await event.respond(f"Sorry, there was an error downloading the song.\nTry Using a Different Core.\nYou Can Change Your Core in the Settings or Simply Use This command to See Available Cores: /core")
                 if Bot.waiting_message.get(user_id, None) is not None:
@@ -1038,7 +1038,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
 
         if isinstance(event.message.media, MessageMediaDocument):
             await Bot.process_audio_file(event, user_id)
-        elif Spotify_Downloader.is_spotify_link(event.message.text):
+        elif SpotifyDownloader.is_spotify_link(event.message.text):
             await Bot.process_spotify_link(event, user_id)
         elif X.contains_x_or_twitter_link(event.message.text):
             await Bot.process_x_or_twitter_link(event)
