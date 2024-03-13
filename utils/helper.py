@@ -28,7 +28,6 @@ async def process_flac_music(event,file_info,spotify_link_info,download_message 
         
         audio = File(file_path)
         
-        await asyncio.sleep(0.3)
         download_message = await download_message.edit("Downloading . . .") if download_message != None else None
         
         image = Picture()

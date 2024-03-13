@@ -1016,6 +1016,8 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
             await X.download(Bot.Client,event)
         elif event.data.startswith(b"@music"):
             await Bot.handle_music_callback(Bot.Client, event)
+        elif event.data == b"@playlist_download_10":
+            await SpotifyDownloader.download_playlist(Bot.Client, event)
         elif event.data.isdigit():
             song_pages = await db.get_user_song_dict(user_id)
             current_page = await db.get_current_page(user_id)
