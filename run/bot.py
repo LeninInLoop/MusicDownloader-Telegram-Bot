@@ -111,19 +111,6 @@ You now have the option to search the Spotify database by providing the song's t
 
         cls.core_selection_message = """🎵 Choose Your Preferred Download Core 🎵
 
-SpotDL Core ✨
-• Uses different approaches such as Piped, SoundCloud, & YouTube
-• Lossless FLAC support
-• May be slower due to multiple sources
-
-YoutubeDL Core 🚀
-• Dedicated to YouTube
-• Faster, more precise downloads
-• MP3-320 for wide compatibility
-• Regularly updated for the latest YouTube features
-
-SpotDL offers broader platform support but may be slower. YoutubeDL excels in speed and precision for YouTube content. Consider which platform and performance are more important to you! 🎧
-
 """
         cls.JOIN_CHANNEL_MESSAGE = """It seems you are not a member of our channel yet.
 Please join to continue."""
@@ -155,6 +142,7 @@ Please join to continue."""
         ]
 
         cls.core_setting_buttons = [
+            [Button.inline("Auto", data=b"setting/core/auto")],
             [Button.inline("YoutubeDL", b"setting/core/youtubedl")],
             [Button.inline("SpotDL", b"setting/core/spotdl")],
             [cls.back_button, cls.back_button_to_setting],
@@ -231,6 +219,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
             b"setting/quality/mp3/128": lambda e: Bot.change_music_quality(e, "mp3",   128),
             b"setting/quality/flac": lambda e: Bot.change_music_quality(e, "flac",   693),
             b"setting/core": lambda e: asyncio.create_task(Bot.edit_core_setting_message(e)),
+            b"setting/core/auto": lambda e: Bot.change_downloading_core(e, "Auto"),
             b"setting/core/spotdl": lambda e: Bot.change_downloading_core(e, "SpotDL"),
             b"setting/core/youtubedl": lambda e: Bot.change_downloading_core(e, "YoutubeDL"),
             b"setting/subscription": lambda e: asyncio.create_task(Bot.edit_subscription_status_message(e)),

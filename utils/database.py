@@ -46,7 +46,7 @@ class db:
         await db.set_defualt_values()
 
     @classmethod
-    async def set_defualt_values(cls, default_downloading_core:str = "YoutubeDL", default_music_quality:dict = {'format': 'flac', 'quality': '693'}):
+    async def set_defualt_values(cls, default_downloading_core:str = "Auto", default_music_quality:dict = {'format': 'flac', 'quality': '693'}):
         cls.default_downloading_core = default_downloading_core
         cls.default_music_quality = default_music_quality
         
