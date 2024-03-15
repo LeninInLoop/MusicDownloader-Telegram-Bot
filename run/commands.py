@@ -148,7 +148,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
         # Check if the message is "/broadcast_to_all"
         if BotState.get_admin_message_to_send(user_id) == None and BotState.get_admin_broadcast(user_id):
             await event.respond("There is nothing to send")
-            BotState.set_admin_broadcast(user_id, True)
+            BotState.set_admin_broadcast(user_id, False)
             BotState.set_admin_message_to_send(user_id, None)
             await BroadcastManager.remove_all_users_from_temp()
             return
