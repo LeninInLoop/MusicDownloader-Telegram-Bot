@@ -667,11 +667,12 @@ class SpotifyDownloader():
         else:
             spotdl = downloading_core == "SpotDL"
 
-        if spotify_link_info.get('youtube_link') and not spotdl:
+        if (spotify_link_info.get('youtube_link',None) is None) and not spotdl:
             await db.set_file_processing_flag(user_id, 0)
             return False
 
         file_path, filename, is_local = SpotifyDownloader._determine_file_path(spotify_link_info, music_quality, spotdl)
+
 
         await db.add_or_increment_song(spotify_link_info['track_name'])
 
