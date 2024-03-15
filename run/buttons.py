@@ -51,3 +51,9 @@ class Buttons:
         [Button.inline("Broadcast To Specified Users Only", b"admin/broadcast/specified")],
         [Button.inline("Cancel",b"cancel")]
     ]
+    
+    continue_button = [Button.inline("Continue",data='membership/continue')]
+    
+    cancel_subscription_button_quite = [Button.inline("Cancel Subscription To News", b"setting/subscription/cancel/quite")]
+    
+    cancel_button = [Button.inline("Cancel", b"cancel")]

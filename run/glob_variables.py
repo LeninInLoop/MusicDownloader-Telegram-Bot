@@ -1,8 +1,21 @@
-
+from utils import os, load_dotenv
+from telethon import TelegramClient
 
 class BotState:
     channel_usernames = ["Spotify_yt_downloader"]
     user_states = {}
+
+    load_dotenv('config.env')
+
+    BOT_TOKEN = os.getenv('BOT_TOKEN')
+    API_ID = os.getenv("API_ID")
+    API_HASH = os.getenv("API_HASH")
+    ADMIN_USER_IDS = [int(id) for id in os.getenv('ADMIN_USER_IDS').split(',')]
+
+    if not all([BOT_TOKEN, API_ID, API_HASH, ADMIN_USER_IDS]):
+        raise ValueError("Required environment variables are missing.")
+        
+    BOT_CLIENT = TelegramClient('bot', API_ID, API_HASH)
 
     @staticmethod
     def initialize_user_state(user_id):
@@ -10,7 +23,6 @@ class BotState:
             BotState.user_states[user_id] = {
                 'admin_message_to_send': None,
                 'admin_broadcast': False,
-                'cancel_broadcast': False,
                 'send_to_specified_flag': False,
                 'messages': {},
                 'search_result': None,
@@ -29,10 +41,6 @@ class BotState:
     @staticmethod
     def get_admin_broadcast(user_id):
         return BotState.get_user_state(user_id)['admin_broadcast']
-
-    @staticmethod
-    def get_cancel_broadcast(user_id):
-        return BotState.get_user_state(user_id)['cancel_broadcast']
 
     @staticmethod
     def get_send_to_specified_flag(user_id):
@@ -57,10 +65,6 @@ class BotState:
     @staticmethod
     def set_admin_broadcast(user_id, value):
         BotState.get_user_state(user_id)['admin_broadcast'] = value
-
-    @staticmethod
-    def set_cancel_broadcast(user_id, value):
-        BotState.get_user_state(user_id)['cancel_broadcast'] = value
 
     @staticmethod
     def set_send_to_specified_flag(user_id, value):
