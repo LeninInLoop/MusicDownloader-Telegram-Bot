@@ -197,28 +197,30 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
                 await event.respond("Your input was not valid. Please try again with a valid search term.")
                 return
 
-            await SpotifyDownloader.search_spotify_based_on_user_input(event,sanitized_query)
-            song_dict = await db.get_user_song_dict(user_id)
-            if all(not value for value in song_dict.values()):
-                await waiting_message_search.delete()
-                await event.respond("Sorry,I couldnt Find any music that matches your Search query.")
-                return
-            
-            song_dict = await db.get_user_song_dict(user_id)
-            button_list = [
-                [Button.inline(f"🎧 {details['track_name']} - {details['artist']} 🎧 ({details['release_year']})", data=str(idx))]
-                for idx, details in song_dict.items()
-            ]
-
-            button_list.append(Buttons.cancel_button)
-
-            try:
-                BotState.set_search_result(user_id,await event.respond(BotMessageHandler.search_result_message, buttons=button_list))
-            except Exception as Err:
-                await event.respond(f"Sorry There Was an Error Processing Your Request: {str(Err)}")
-
-            await asyncio.sleep(1.5)
+        await SpotifyDownloader.search_spotify_based_on_user_input(event, sanitized_query)
+        song_pages = await db.get_user_song_dict(user_id)
+        if all(not value for value in song_pages.values()):
             await waiting_message_search.delete()
+            await event.respond("Sorry, I couldnt Find any music that matches your Search query.")
+            return
+
+        await db.set_current_page(user_id,1)
+        page = 1
+        button_list = [
+            [Button.inline(f"🎧 {details['track_name']} - {details['artist']} 🎧 ({details['release_year']})", data=str(idx))]
+            for idx, details in enumerate(song_pages[str(page)])
+        ]
+        if len(song_pages) > 1:
+            button_list.append([Button.inline("Previous Page", b"prev_page"), Button.inline("Next Page", b"next_page")])
+        button_list.append([Button.inline("Cancel", b"cancel")])
+
+        try:
+            BotState.set_search_result(user_id,await event.respond(BotMessageHandler.search_result_message, buttons=button_list))
+        except Exception as Err:
+            await event.respond(f"Sorry There Was an Error Processing Your Request: {str(Err)}")
+        
+        await asyncio.sleep(1.5)
+        await waiting_message_search.delete()
             
     @staticmethod
     async def handle_user_info_command(event):
