@@ -200,7 +200,7 @@ class SpotifyDownloader():
 
                     # Compare the video duration with the track duration from Spotify
                     duration_diff = abs(video_duration - track_duration)
-                    if duration_diff <= 40:
+                    if duration_diff <= 20:
                         break
                     else:
                         video_url = None
