@@ -2,8 +2,9 @@ from .glob_variables import BotState
 from run import GetParticipantsRequest,ChannelParticipantsSearch,ChatAdminRequiredError, Button
 from .buttons import Buttons
 from .messages import BotMessageHandler
+from utils import db
 
-BOT_CLIENT = BotState.BOT_CLIENT
+
 @staticmethod
 async def is_user_in_channel(user_id, channel_usernames=None):
     if channel_usernames is None:
@@ -11,11 +12,11 @@ async def is_user_in_channel(user_id, channel_usernames=None):
     channels_user_is_not_in = []
 
     for channel_username in channel_usernames:
-        channel = await BOT_CLIENT.get_entity(channel_username)
+        channel = await BotState.BOT_CLIENT.get_entity(channel_username)
         offset =  0  
         while True:
             try:
-                participants = await BOT_CLIENT(GetParticipantsRequest(
+                participants = await BotState.BOT_CLIENT(GetParticipantsRequest(
                     channel,
                     ChannelParticipantsSearch(''),  # Search query, empty for all participants
                     offset=offset,  # Providing the offset
@@ -57,3 +58,18 @@ async def respond_based_on_channel_membership(event, message_if_in_channels:str 
     elif message_if_in_channels != None:
         await BotMessageHandler.send_message_and_store_id(event,f"""{message_if_in_channels}""", buttons=buttons_if_in_channesl)
     
+@staticmethod
+async def handle_continue_in_membership_message(event):
+    sender_name = event.sender.first_name
+    user_id = event.sender_id
+    channels_user_is_not_in = await is_user_in_channel(user_id)
+    if channels_user_is_not_in != []:
+        join_channel_buttons = [[join_channel_button(channel)] for channel in channels_user_is_not_in]
+        join_channel_buttons.append(Buttons.continue_button)
+        await BotMessageHandler.edit_message(event,f"""Hey {sender_name}!👋 \n{BotMessageHandler.JOIN_CHANNEL_MESSAGE}""", buttons=join_channel_buttons)
+    else:
+        user_settings = await db.get_user_settings(user_id)
+        if user_settings[0] == None and user_settings[1] == None:
+            await db.save_user_settings(user_id, db.default_music_quality, db.default_downloading_core)
+        await BotMessageHandler.edit_message(event,f"""Hey {sender_name}!👋 \n{BotMessageHandler.start_message}""", buttons=Buttons.main_menu_buttons)
+        

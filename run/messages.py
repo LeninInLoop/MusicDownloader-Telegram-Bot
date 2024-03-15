@@ -1,5 +1,6 @@
 from .glob_variables import BotState
 from .buttons import Buttons
+from utils import db
 
 class BotMessageHandler:
     start_message = """
@@ -59,3 +60,29 @@ Please join to continue."""
         else:
             await BotMessageHandler.send_message_and_store_id(event, message_text, buttons=buttons)
             
+    @staticmethod
+    async def edit_quality_setting_message(e):
+        user_settings = await db.get_user_settings(e.sender_id)
+        if user_settings:
+            music_quality = user_settings[0]
+            message = f"Your Quality Setting:\nFormat: {music_quality['format']}\nQuality: {music_quality['quality']}\n\nQualities Available :"
+        else:
+            message = "No quality settings found."
+        await BotMessageHandler.edit_message(e, message, buttons=Buttons.quality_setting_buttons)
+        
+    @staticmethod
+    async def edit_core_setting_message(e):
+        user_settings = await db.get_user_settings(e.sender_id)
+        if user_settings:
+            downloading_core = user_settings[1]
+            message = BotMessageHandler.core_selection_message + f"\nCore: {downloading_core}"
+        else:
+            message = BotMessageHandler.core_selection_message + "\nNo core setting found."
+        await BotMessageHandler.edit_message(e, message, buttons=Buttons.core_setting_buttons)
+
+    @staticmethod
+    async def edit_subscription_status_message(e):
+        is_subscribed = await db.is_user_subscribed(e.sender_id)
+        message = f"Your Subscription Status: {is_subscribed}"
+        await BotMessageHandler.edit_message(e, message, buttons=Buttons.subscription_setting_buttons)
+        

@@ -1,48 +1,67 @@
 from utils import BroadcastManager, db, asyncio, sanitize_query, is_file_voice
 from plugins import SpotifyDownloader, ShazamHelper, X, Insta
-from run import events, Button, MessageMediaDocument, update_bot_version_user_season, is_user_in_channel
-from run import Buttons, BotMessageHandler, BotState, BotCommandHandler
+from run import events, Button, MessageMediaDocument, update_bot_version_user_season, is_user_in_channel, handle_continue_in_membership_message
+from run import Buttons, BotMessageHandler, BotState, BotCommandHandler, respond_based_on_channel_membership
 
-BOT_TOKEN = BotState.BOT_TOKEN
-API_ID = BotState.API_ID
-API_HASH = BotState.API_HASH
-ADMIN_USER_IDS = BotState.ADMIN_USER_IDS
-BOT_CLIENT = BotState.BOT_CLIENT
 
 class Bot:
     
     @staticmethod
     async def initialize():
-        Bot.initialize_spotify_downloader()
-        await Bot.initialize_database()
-        Bot.initialize_shazam()
-        Bot.initialize_X()
-        Bot.initialize_instagram()
-        Bot.initialize_messages()
-        Bot.initialize_buttons()
-        await Bot.initialize_action_queries()
-        
+        try:
+            Bot.initialize_spotify_downloader()
+            await Bot.initialize_database()
+            Bot.initialize_shazam()
+            Bot.initialize_X()
+            Bot.initialize_instagram()
+            Bot.initialize_messages()
+            Bot.initialize_buttons()
+            await Bot.initialize_action_queries()
+            print("Bot initialization completed successfully.")
+        except Exception as e:
+            print(f"An error occurred during bot initialization: {str(e)}")
+
     @staticmethod
     def initialize_spotify_downloader():
-        SpotifyDownloader.initialize()
+        try:
+            SpotifyDownloader.initialize()
+            print("Plugins: Spotify downloader initialized.")
+        except Exception as e:
+            print(f"An error occurred while initializing Spotify downloader: {str(e)}")
 
     @staticmethod
     async def initialize_database():
-        await db.initialize_database()
-        await db.reset_all_file_processing_flags()
+        try:
+            await db.initialize_database()
+            await db.reset_all_file_processing_flags()
+            print("Utils: Database initialized and file processing flags reset.")
+        except Exception as e:
+            print(f"An error occurred while initializing the database: {str(e)}")
 
     @staticmethod 
     def initialize_shazam():
-        ShazamHelper.initialize()
-        
+        try:
+            ShazamHelper.initialize()
+            print("Plugins: Shazam helper initialized.")
+        except Exception as e:
+            print(f"An error occurred while initializing Shazam helper: {str(e)}")
+
     @staticmethod
     def initialize_X():
-        X.initialize()
-        
+        try:
+            X.initialize()
+            print("Plugins: X initialized.")
+        except Exception as e:
+            print(f"An error occurred while initializing X: {str(e)}")
+
     @staticmethod
     def initialize_instagram():
-        Insta.initialize()
-        
+        try:
+            Insta.initialize()
+            print("Plugins: Instagram initialized.")
+        except Exception as e:
+            print(f"An error occurred while initializing Instagram: {str(e)}")
+
     @classmethod
     def initialize_messages(cls):
         # Initialize messages here
@@ -66,67 +85,32 @@ class Bot:
         cls.cancel_broadcast_button = Buttons.cancel_broadcast_button
         cls.admins_buttons  =  Buttons.admins_buttons
         cls.broadcast_options_buttons = Buttons.broadcast_options_buttons
-
-    @staticmethod
-    async def edit_quality_setting_message(e):
-        user_settings = await db.get_user_settings(e.sender_id)
-        if user_settings:
-            music_quality = user_settings[0]
-            message = f"Your Quality Setting:\nFormat: {music_quality['format']}\nQuality: {music_quality['quality']}\n\nQualities Available :"
-        else:
-            message = "No quality settings found."
-        await BotMessageHandler.edit_message(e, message, buttons=Bot.quality_setting_buttons)
-        
-    @staticmethod
-    async def edit_core_setting_message(e):
-        user_settings = await db.get_user_settings(e.sender_id)
-        if user_settings:
-            downloading_core = user_settings[1]
-            message = Bot.core_selection_message + f"\nCore: {downloading_core}"
-        else:
-            message = Bot.core_selection_message + "\nNo core setting found."
-        await BotMessageHandler.edit_message(e, message, buttons=Bot.core_setting_buttons)
-
-    @staticmethod
-    async def edit_subscription_status_message(e):
-        is_subscribed = await db.is_user_subscribed(e.sender_id)
-        message = f"Join our community and stay updated with the latest news and features of our bot. Be the first to experience new enhancements and improvements!\nYour Subscription Status: {is_subscribed}"
-        await BotMessageHandler.edit_message(e, message, buttons=Bot.subscription_setting_buttons)
-        
-    @staticmethod
-    async def respond_with_user_count(event):
-        number_of_users = await db.count_all_user_ids()
-        number_of_subscribed = await db.count_subscribed_users()
-        number_of_unsubscribed = number_of_users - number_of_subscribed
-        await event.respond(f"""Number of Users: {number_of_users}
-Number of Subscribed Users: {number_of_subscribed}
-Number of Unsubscribed Users: {number_of_unsubscribed}""")
         
     @classmethod
     async def initialize_action_queries(cls):
         # Mapping button actions to functions
         cls.button_actions = {
-            b"membership/continue": lambda e: Bot.handle_continue_in_membership_message(e),
+            b"membership/continue": lambda e: handle_continue_in_membership_message(e),
             b"instructions": lambda e: BotMessageHandler.edit_message(e, Bot.instruction_message, buttons=Bot.back_button),
             b"contact_creator": lambda e: BotMessageHandler.edit_message(e, Bot.contact_creator_message, buttons=Bot.back_button),
             b"back": lambda e: BotMessageHandler.edit_message(e, f"Hey {e.sender.first_name}!👋\n {Bot.start_message}", buttons=Bot.main_menu_buttons),
             b"setting": lambda e: BotMessageHandler.edit_message(e, "Settings :", buttons=Bot.setting_button),
             b"setting/back": lambda e: BotMessageHandler.edit_message(e, "Settings :", buttons=Bot.setting_button),
-            b"setting/quality": lambda e: asyncio.create_task(Bot.edit_quality_setting_message(e)),
+            b"setting/quality": lambda e: asyncio.create_task(BotMessageHandler.edit_quality_setting_message(e)),
             b"setting/quality/mp3/320": lambda e: Bot.change_music_quality(e, "mp3",   320),
             b"setting/quality/mp3/128": lambda e: Bot.change_music_quality(e, "mp3",   128),
             b"setting/quality/flac": lambda e: Bot.change_music_quality(e, "flac",   693),
-            b"setting/core": lambda e: asyncio.create_task(Bot.edit_core_setting_message(e)),
+            b"setting/core": lambda e: asyncio.create_task(BotMessageHandler.edit_core_setting_message(e)),
             b"setting/core/auto": lambda e: Bot.change_downloading_core(e, "Auto"),
             b"setting/core/spotdl": lambda e: Bot.change_downloading_core(e, "SpotDL"),
             b"setting/core/youtubedl": lambda e: Bot.change_downloading_core(e, "YoutubeDL"),
-            b"setting/subscription": lambda e: asyncio.create_task(Bot.edit_subscription_status_message(e)),
+            b"setting/subscription": lambda e: asyncio.create_task(BotMessageHandler.edit_subscription_status_message(e)),
             b"setting/subscription/cancel": lambda e: asyncio.create_task(Bot.cancel_subscription(e)),
             b"setting/subscription/cancel/quite": lambda e: asyncio.create_task(Bot.cancel_subscription(e,quite=True)),
             b"setting/subscription/add": lambda e: asyncio.create_task(Bot.add_subscription(e)),
             b"cancel": lambda e: e.delete(),
-            b"admin/cancel_broadcast": lambda e: Bot.set_admin_broadcast(e,False),
-            b"admin/stats": lambda e: asyncio.create_task(Bot.respond_with_user_count(e)),
+            b"admin/cancel_broadcast": lambda e: BotState.set_admin_broadcast(e.sender_id,False),
+            b"admin/stats": lambda e: asyncio.create_task(BotCommandHandler.handle_stats_command(e)),
             b"admin/broadcast": lambda e: BotMessageHandler.edit_message(e, "BroadCast Options: ", buttons=Bot.broadcast_options_buttons),
             b"admin/broadcast/all": lambda e: Bot.handle_broadcast(e,send_to_all=True),
             b"admin/broadcast/subs": lambda e: Bot.handle_broadcast(e,send_to_subs=True),
@@ -136,21 +120,6 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
             # Add other actions here
         }
 
-    @staticmethod
-    async def handle_continue_in_membership_message(event):
-        sender_name = event.sender.first_name
-        user_id = event.sender_id
-        channels_user_is_not_in = await is_user_in_channel(user_id)
-        if channels_user_is_not_in != []:
-            join_channel_buttons = [[Bot.join_channel_button(channel)] for channel in channels_user_is_not_in]
-            join_channel_buttons.append([Button.inline("Continue",data='membership/continue')])
-            await BotMessageHandler.edit_message(event,f"""Hey {sender_name}!👋 \n{Bot.JOIN_CHANNEL_MESSAGE}""", buttons=join_channel_buttons)
-        else:
-            user_settings = await db.get_user_settings(user_id)
-            if user_settings[0] == None and user_settings[1] == None:
-                await db.save_user_settings(user_id, db.default_music_quality, db.default_downloading_core)
-            await BotMessageHandler.edit_message(event,f"""Hey {sender_name}!👋 \n{Bot.start_message}""", buttons=Bot.main_menu_buttons)
-            
     @staticmethod
     async def change_music_quality(event, format, quality):
         user_id = event.sender_id
@@ -183,18 +152,13 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
         user_id = event.sender_id
         if not await db.is_user_subscribed(user_id):
             await db.add_subscribed_user(user_id)
-            await BotMessageHandler.edit_message(event, "You have successfully subscribed.", buttons=Bot.subscription_setting_buttons)
-
-    @staticmethod
-    async def set_admin_broadcast(event,broadcast: bool):
-        user_id = event.sender_id
-        BotState.set_admin_broadcast(user_id, broadcast) 
+            await BotMessageHandler.edit_message(event, "You have successfully subscribed.", buttons=Bot.subscription_setting_buttons) 
 
     @staticmethod
     async def handle_broadcast(e, send_to_all: bool = False, send_to_subs: bool = False, send_to_specified: bool = False):
         
         user_id = e.sender_id
-        if user_id not in ADMIN_USER_IDS:
+        if user_id not in BotState.ADMIN_USER_IDS:
             return
         
         if send_to_specified:
@@ -255,13 +219,12 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
             await BroadcastManager.remove_all_users_from_temp()
             return
         
-        cancel_subscription_button = Button.inline("Cancel Subscription", b"setting/subscription/cancel/quite")
         try:
             if BotState.get_admin_broadcast(user_id) and send_to_specified:
                 await BroadcastManager.broadcast_message_to_temp_members(Bot.Client, BotState.get_admin_message_to_send(user_id))
                 await e.respond("Broadcast initiated.")
             elif BotState.get_admin_broadcast(user_id) and send_to_subs:
-                await BroadcastManager.broadcast_message_to_sub_members(Bot.Client, BotState.get_admin_message_to_send(user_id),cancel_subscription_button)
+                await BroadcastManager.broadcast_message_to_sub_members(Bot.Client, BotState.get_admin_message_to_send(user_id), Buttons.cancel_subscription_button_quite)
                 await e.respond("Broadcast initiated.")
             elif BotState.get_admin_broadcast(user_id) and send_to_all:
                 await BroadcastManager.broadcast_message_to_temp_members(Bot.Client, BotState.get_admin_message_to_send(user_id))
@@ -287,7 +250,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
 
         channels_user_is_not_in = await is_user_in_channel(event.sender_id)
         if channels_user_is_not_in != []:
-            return await Bot.respond_based_on_channel_membership(event, None, None, channels_user_is_not_in)
+            return await respond_based_on_channel_membership(event, None, None, channels_user_is_not_in)
 
         if BotState.get_admin_broadcast(user_id) and BotState.get_send_to_specified_flag(user_id):
             BotState.set_admin_message_to_send(user_id,event.message)
@@ -362,7 +325,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
 
         channels_user_is_not_in = await is_user_in_channel(event.sender_id)
         if channels_user_is_not_in != []:
-            return await Bot.respond_based_on_channel_membership(event, None, None, channels_user_is_not_in)
+            return await respond_based_on_channel_membership(event, None, None, channels_user_is_not_in)
 
         if BotState.get_admin_broadcast(user_id) and BotState.get_send_to_specified_flag(user_id):
             BotState.set_admin_message_to_send(user_id,event.message)
@@ -391,7 +354,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
 
         channels_user_is_not_in = await is_user_in_channel(event.sender_id)
         if channels_user_is_not_in != []:
-            return await Bot.respond_based_on_channel_membership(event, None, None, channels_user_is_not_in)
+            return await respond_based_on_channel_membership(event, None, None, channels_user_is_not_in)
 
         if BotState.get_admin_broadcast(user_id) and BotState.get_send_to_specified_flag(user_id):
             BotState.set_admin_message_to_send(user_id,event.message)
@@ -529,7 +492,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
 
         channels_user_is_not_in = await is_user_in_channel(user_id)
         if channels_user_is_not_in != []:
-            return await Bot.respond_based_on_channel_membership(event, None, None, channels_user_is_not_in)
+            return await respond_based_on_channel_membership(event, None, None, channels_user_is_not_in)
 
         if BotState.get_admin_broadcast(user_id) and BotState.get_send_to_specified_flag(user_id):
             BotState.set_admin_message_to_send(user_id,event.message)
@@ -618,7 +581,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
 
     @staticmethod
     async def run():
-        Bot.Client = await BOT_CLIENT.start(bot_token=BOT_TOKEN)
+        Bot.Client = await BotState.BOT_CLIENT.start(bot_token=BotState.BOT_TOKEN)
         # Register event handlers
         Bot.Client.add_event_handler(BotCommandHandler.start , events.NewMessage(pattern='/start'))
         Bot.Client.add_event_handler(BotCommandHandler.handle_broadcast_command, events.NewMessage(pattern='/broadcast'))
