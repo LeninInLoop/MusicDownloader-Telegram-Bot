@@ -538,6 +538,7 @@ class SpotifyDownloader():
                 line = await process.stdout.readline()
                 line = line.decode().strip()
 
+                print(line)
                 if audio_option == "piped":
                     await message.edit(f"SpotDL: Downloading...\nApproach: Piped\n\n{line}")
                 elif audio_option == "soundcloud":
@@ -546,7 +547,7 @@ class SpotifyDownloader():
                     await message.edit(f"SpotDL: Downloading...\nApproach: YouTube\n\n{line}")
                 
                 # Check for errors
-                if any(err in line for err in ("LookupError", "FFmpegError", "JSONDecodeError", "ReadTimeout", "KeyError", "Forbidden")):
+                if any(err in line for err in ("LookupError", "FFmpegError", "JSONDecodeError", "ReadTimeout", "KeyError", "Forbidden", "AudioProviderError")):
                     if audio_option == "piped":
                         await message.edit(f"SpotDL: Downloading...\nApproach: Piped Failed, Using SoundCloud Approach.\n\n{line}")
                         return False  # Indicate that an error occurred
