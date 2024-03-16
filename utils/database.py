@@ -25,6 +25,7 @@ class db:
     
     db_name = 'user_settings.db'
     pool = ConnectionPool(db_name)
+    lock = asyncio.Lock()
     
     @staticmethod
     async def initialize_database():
@@ -67,8 +68,6 @@ class db:
                 await conn.commit()
         except aiosqlite.OperationalError as e:
             if 'database is locked' in str(e):
-                # Retry the operation after a short delay
-                await asyncio.sleep(1)
                 await db.execute_query(query, params)
             else:
                 raise e
@@ -80,8 +79,14 @@ class db:
         conn = await db.get_connection()
         try:
             async with conn.cursor() as c:
-                await c.execute(query, params)
-                return await c.fetchone()
+                try:
+                    await c.execute(query, params)
+                    return await c.fetchone()
+                except Exception as e:
+                    print(f"Error executing query: {query}")
+                    print(f"Parameters: {params}")
+                    print(f"Error details: {e}")
+                    raise e
         finally:
             await db.release_connection(conn)
 
@@ -279,12 +284,13 @@ class db:
 
     @staticmethod
     async def add_or_increment_song(filename):
-        try:
-            query = 'INSERT INTO musics (filename) VALUES (?)'
-            await db.execute_query(query, (filename,))
-        except aiosqlite.IntegrityError:
-            query = 'UPDATE musics SET downloads = downloads + 1 WHERE filename = ?'
-            await db.execute_query(query, (filename,))
+        async with db.lock:
+            try:
+                query = 'INSERT INTO musics (filename) VALUES (?)'
+                await db.execute_query(query, (filename,))
+            except aiosqlite.IntegrityError:
+                query = 'UPDATE musics SET downloads = downloads + 1 WHERE filename = ?'
+                await db.execute_query(query, (filename,))
             
     @staticmethod
     async def get_total_downloads():
