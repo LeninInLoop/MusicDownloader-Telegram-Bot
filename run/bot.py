@@ -522,6 +522,8 @@ class Bot:
             await SpotifyDownloader.send_music_icon(client, event)
         elif event.data == b"@music_lyrics":
             await SpotifyDownloader.send_music_lyrics(event)
+        elif event.data == b"@music_playlist_download_10":
+            await SpotifyDownloader.download_playlist(Bot.Client, event)
         else:
             send_file_result = await SpotifyDownloader.download_spotify_file_and_send(client, event)
             if not send_file_result:
@@ -544,8 +546,6 @@ class Bot:
             await X.download(Bot.Client,event)
         elif event.data.startswith(b"@music"):
             await Bot.handle_music_callback(Bot.Client, event)
-        elif event.data == b"@playlist_download_10":
-            await SpotifyDownloader.download_playlist(Bot.Client, event)
         elif event.data.isdigit():
             song_pages = await db.get_user_song_dict(user_id)
             current_page = await db.get_current_page(user_id)
