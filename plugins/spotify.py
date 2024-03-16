@@ -837,6 +837,8 @@ class SpotifyDownloader():
             }
 
             file_info_list.append(file_info)
+            await db.add_or_increment_song(filename)
+            print(file_info_list)
             if not is_local:
                 if video_url:
                     result, _ = await SpotifyDownloader.download_YoutubeDL(event, file_info, music_quality, playlist=True)
@@ -859,15 +861,15 @@ class SpotifyDownloader():
             else:
                 return f"✅ {track_name} - {artist_name} :\n\t\t(Found in DB)\n---------------------------------\n"
             
-        video_urls = await asyncio.gather(*[extract_video_url(i, link_info) for i in range(10)])
+        video_urls = await asyncio.gather(*[extract_video_url(i,link_info) for i in range(10)])
         icon_paths = await asyncio.gather(*[download_icon(i,link_info) for i in range(10)])
         
         if downloading_core == "Auto":
-            track_messages = [await future for future in asyncio.as_completed([process_track(i, icon_paths[i], video_urls[i], "Auto") for i in range(10)])]
+            track_messages = await asyncio.gather(*[process_track(i, icon_paths[i], video_urls[i], "Auto") for i in range(10)])
         elif downloading_core == "YoutubeDL":
-            track_messages = [await future for future in asyncio.as_completed([process_track(i, icon_paths[i], video_urls[i], "YoutubeDL") for i in range(10)])]
+            track_messages = await asyncio.gather(*[process_track(i, icon_paths[i], video_urls[i], "YoutubeDL") for i in range(10)])
         elif downloading_core == "SpotDL":
-            track_messages = [await future for future in asyncio.as_completed([process_track(i, icon_paths[i], video_urls[i], "SpotDL") for i in range(10)])]
+            track_messages = await asyncio.gather(*[process_track(i, icon_paths[i], video_urls[i], "SpotDL") for i in range(10)])
 
         message += ''.join(track_messages)
         message += "\nDownload process completed. Starting the upload process..."
