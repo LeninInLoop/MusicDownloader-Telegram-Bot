@@ -53,7 +53,7 @@ Please join to continue."""
         if BotState.get_messages(user_id) :
             BotState.initialize_user_state(user_id)
         message = BotState.get_messages(user_id)
-        if message is not None:
+        if message != {}:
             if message.id:
                 BotState.set_messages(user_id,message)
                 await BotState.BOT_CLIENT.edit_message(chat_id, message.id, message_text, buttons=buttons)
