@@ -9,3 +9,4 @@ shazamio
 lyricsgenius
 aiosqlite
 wget
+FastTelethonhelper

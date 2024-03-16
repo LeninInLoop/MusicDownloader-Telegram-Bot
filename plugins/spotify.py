@@ -1,8 +1,8 @@
 from run import Button
 from utils import asyncio, re, os, load_dotenv, combinations
-from utils import db, process_flac_music, process_mp3_music
-from utils import Image, BytesIO, YoutubeDL, lyricsgenius, aiohttp
-from utils import SpotifyClientCredentials, spotipy, ThreadPoolExecutor
+from utils import db, fast_upload, concurrent
+from utils import Image, BytesIO, YoutubeDL, lyricsgenius, aiohttp, InputMediaUploadedDocument
+from utils import SpotifyClientCredentials, spotipy, ThreadPoolExecutor, DocumentAttributeAudio
 
 class SpotifyDownloader():
 
@@ -415,17 +415,13 @@ class SpotifyDownloader():
         except Exception as Err:
             print(f"Failed to send track info: {Err}")
             return False
-            
-            
+                
     @staticmethod
-    async def send_local_file(client, event, file_info, spotify_link_info, playlist:bool = False) -> bool:
+    async def send_local_file(client, event, file_info, spotify_link_info, playlist: bool = False) -> bool:
         user_id = event.sender_id
 
         # Unpack file_info for clarity
         was_local = file_info['is_local']
-        file_path = file_info['file_path']
-        icon_path = file_info['icon_path']
-        video_url = file_info['video_url']
 
         # Notify the user about local availability for faster processing, if applicable
         local_availability_message = None
@@ -439,18 +435,17 @@ class SpotifyDownloader():
         try:
             # Indicate ongoing file upload to enhance user experience
             async with client.action(event.chat_id, 'document'):
-                await client.send_file(
-                    event.chat_id,
-                    file_path,
-                    caption=(
-                        f"🎵 **{spotify_link_info['track_name']}** by **{spotify_link_info['artist_name']}**\n\n"
-                        f"▶️  [Listen on Spotify]({spotify_link_info['track_url']})\n"
-                        f"🎥  [Watch on YouTube]({video_url})"
-                    ),
-                    supports_streaming=True,
-                    force_document=False,
-                    thumb=icon_path
-                )
+                # Use a ThreadPoolExecutor to upload files in parallel
+                with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+                    futures = [
+                        asyncio.create_task(
+                            SpotifyDownloader._upload_file(
+                                client, event, file_info, spotify_link_info, playlist
+                            )
+                        )
+                        for _ in range(1)
+                    ]
+                    await asyncio.gather(*futures)
 
         except Exception as e:
             # Handle exceptions and provide feedback
@@ -461,15 +456,66 @@ class SpotifyDownloader():
         # Clean up feedback messages
         if local_availability_message:
             await local_availability_message.delete()
-        
+
         if not playlist:
             await upload_status_message.delete()
 
         # Reset file processing flag after completion
         await db.set_file_processing_flag(user_id, 0)
-        
+
         # Indicate successful upload operation
         return True
+
+    @staticmethod
+    async def _upload_file(client, event, file_info, spotify_link_info, playlist: bool = False):
+        # Unpack file_info for clarity
+        file_path = file_info['file_path']
+        icon_path = file_info['icon_path']
+        video_url = file_info['video_url']
+        
+        if not playlist:
+            # Use fast_upload for faster uploads
+            uploaded_file = await fast_upload(
+                client=client,
+                file_location=file_path,
+                reply=None,  # No need for a progress bar in this case
+                name=file_info['file_name'],
+                progress_bar_function=None
+            )
+
+        uploaded_file = await client.upload_file(uploaded_file if not playlist else file_path)
+        uploaded_thumbnail = await client.upload_file(icon_path)
+
+        audio_attributes = DocumentAttributeAudio(
+            duration=0,  # You need to specify the duration of the audio
+            title=f"{spotify_link_info['track_name']} - {spotify_link_info['artist_name']}",
+            performer="@SPOTIFY_YT_DOWNLOADER_BOT",
+            waveform=None,
+            voice=False
+        )
+
+        # Send the uploaded file as music
+        media = InputMediaUploadedDocument(
+            file=uploaded_file,
+            thumb=uploaded_thumbnail,
+            mime_type='audio/mpeg',  # Adjust the MIME type based on your file's format
+            attributes=[audio_attributes],
+        )
+
+        # Send the media to the chat
+        await client.send_file(
+            event.chat_id,
+            media,
+            caption=(
+                f"🎵 **{spotify_link_info['track_name']}** by **{spotify_link_info['artist_name']}**\n\n"
+                f"▶️ [Listen on Spotify]({spotify_link_info['track_url']})\n"
+                f"🎥 [Watch on YouTube]({video_url})"
+            ),
+            supports_streaming=True,
+            force_document=False,
+            thumb=icon_path
+        )
+
     
     @staticmethod
     async def download_SpotDL(event, music_quality, spotify_link_info, quite:bool = False, initial_message=None, audio_option: str = "piped") -> bool:
@@ -670,20 +716,12 @@ class SpotifyDownloader():
             if os.path.isfile(file_path) and result == True:
                 
                 download_message = await download_message.edit("Downloading . . . .")
-                flac_process_result, mp3_process_result = False, False
-                
-                if file_path.endswith('.flac'):
-                    flac_process_result = await process_flac_music(event,file_info,spotify_link_info,download_message)
-                    download_message = await download_message.edit("Downloading . . . . .")
-                
-                elif file_path.endswith('.mp3'):
-                    mp3_process_result = await process_mp3_music(event,file_info,spotify_link_info,download_message)
-                    download_message = await download_message.edit("Downloading . . . . .")
+                download_message = await download_message.edit("Downloading . . . . .")
 
                 await download_message.delete()
                 
                 send_file_result = await SpotifyDownloader.send_local_file(client,event,file_info,spotify_link_info)
-                return True if (mp3_process_result or flac_process_result) and send_file_result else False
+                return send_file_result
             else:
                 return False
             
@@ -694,10 +732,6 @@ class SpotifyDownloader():
                 if result == False:
                     result, _ = await SpotifyDownloader.download_SpotDL(event, music_quality, spotify_link_info, False, initial_message, audio_option="youtube")
             if result == True and initial_message == True:
-                if music_quality['format'] == "mp3":
-                    await process_mp3_music(event,file_info,spotify_link_info)
-                else:
-                    await process_flac_music(event,file_info,spotify_link_info)
                 return await SpotifyDownloader.send_local_file(client,event,file_info,spotify_link_info) if result else False
             else:
                 return False
@@ -807,10 +841,6 @@ class SpotifyDownloader():
                 if video_url:
                     result, _ = await SpotifyDownloader.download_YoutubeDL(event, file_info, music_quality, playlist=True)
                     if os.path.isfile(file_path) and result:
-                        if file_path.endswith('.flac'):
-                            await process_flac_music(event, file_info, spotify_link_info=link_info[str(i+1)])
-                        elif file_path.endswith('.mp3'):
-                            await process_mp3_music(event, file_info, spotify_link_info=link_info[str(i+1)])
                         return f"✅ {track_name} - {artist_name} : \n\t\t(Downloaded)\n---------------------------------\n"
                     else:
                         return f"❌ {track_name} - {artist_name} :\n\t\t(Download Failed)\n---------------------------------\n"
@@ -823,10 +853,6 @@ class SpotifyDownloader():
                         if result == False:
                             result, _ = await SpotifyDownloader.download_SpotDL(event, music_quality, link_info[str(i+1)], True, initial_message, audio_option="youtube")
                     if result == True and initial_message == True:
-                        if music_quality['format'] == "mp3":
-                            await process_mp3_music(event, file_info, link_info[str(i+1)])
-                        else:
-                            await process_flac_music(event, file_info, link_info[str(i+1)])
                         return f"✅ {track_name} - {artist_name} : \n\t\t(Downloaded)\n---------------------------------\n"
                     else:
                         return f"❌ {track_name} - {artist_name} :\n\t\t(Download Failed)\n---------------------------------\n"
@@ -849,10 +875,17 @@ class SpotifyDownloader():
             
         upload_status_message = await event.reply("Uploading tracks... Please wait.")
 
-        async def upload_track(j):
-            await SpotifyDownloader.send_local_file(client, event, file_info_list[j], link_info[str(j+1)], playlist=True)
+        async def upload_tracks(client, event, file_info_list, link_info):
+            tasks = [
+                asyncio.create_task(
+                    SpotifyDownloader.send_local_file(client, event, file_info_list[i], link_info[str(i+1)], playlist=True)
+                )
+                for i in range(len(file_info_list))
+            ]
+            await asyncio.gather(*tasks)
 
-        [await future for future in asyncio.as_completed([upload_track(i) for i in range(10)])]
+        # Usage
+        await upload_tracks(client, event, file_info_list, link_info)
 
         await init_message.delete()
         await upload_status_message.delete()

@@ -15,3 +15,9 @@ import lyricsgenius
 import spotipy
 from concurrent.futures import ThreadPoolExecutor
 import aiohttp
+from telethon import sync
+from telethon.tl.functions.messages import SendMediaRequest
+from telethon.tl.types import InputMediaUploadedDocument, DocumentAttributeAudio
+from FastTelethonhelper import fast_upload
+from threading import Thread
+import concurrent 
