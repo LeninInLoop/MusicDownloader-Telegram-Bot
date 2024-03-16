@@ -13,3 +13,4 @@ import requests, asyncio, re, os
 import bs4, wget, hashlib, time
 import lyricsgenius
 import spotipy
+from concurrent.futures import ThreadPoolExecutor
