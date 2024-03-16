@@ -279,24 +279,12 @@ class db:
 
     @staticmethod
     async def add_or_increment_song(filename):
-        conn = await db.get_connection()
         try:
-            async with conn.cursor() as c:
-                try:
-                    # Attempt to insert the new song
-                    await c.execute('INSERT INTO musics (filename) VALUES (?)', (filename,))
-                except aiosqlite.IntegrityError:
-                    # If the song already exists, increment the download counter
-                    await c.execute('UPDATE musics SET downloads = downloads + 1 WHERE filename = ?', (filename,))
-                # Commit the transaction
-                await conn.commit()
-        except Exception as e:
-            # Rollback the transaction in case of any error
-            await conn.rollback()
-            raise e
-        finally:
-            # Release the connection back to the pool
-            await db.release_connection(conn)
+            query = 'INSERT INTO musics (filename) VALUES (?)'
+            await db.execute_query(query, (filename,))
+        except aiosqlite.IntegrityError:
+            query = 'UPDATE musics SET downloads = downloads + 1 WHERE filename = ?'
+            await db.execute_query(query, (filename,))
             
     @staticmethod
     async def get_total_downloads():
