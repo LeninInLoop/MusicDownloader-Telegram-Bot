@@ -245,7 +245,7 @@ class Bot:
         if not await db.get_user_updated_flag(user_id):
             return
 
-        if not user_id in Bot.messages:
+        if BotState.get_messages(user_id) == {}:
             BotState.initialize_user_state(user_id)
 
         channels_user_is_not_in = await is_user_in_channel(event.sender_id)
