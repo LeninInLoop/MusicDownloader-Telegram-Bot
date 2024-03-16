@@ -1,7 +1,7 @@
 from run import Button
-from utils import requests, asyncio, re, os, load_dotenv, combinations
+from utils import asyncio, re, os, load_dotenv, combinations
 from utils import db, process_flac_music, process_mp3_music
-from utils import Image, BytesIO, YoutubeDL, lyricsgenius
+from utils import Image, BytesIO, YoutubeDL, lyricsgenius, aiohttp
 from utils import SpotifyClientCredentials, spotipy, ThreadPoolExecutor
 
 class SpotifyDownloader():
@@ -188,7 +188,7 @@ class SpotifyDownloader():
             'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'  # Specify the desired format
         }
 
-        executor = ThreadPoolExecutor(max_workers=16)  # Use a single worker for the blocking I/O operation
+        executor = ThreadPoolExecutor(max_workers=32)  # Use 32 workers for the blocking I/O operation
 
         def extract_info_blocking(query):
             with YoutubeDL(ydl_opts) as ydl:
@@ -253,14 +253,20 @@ class SpotifyDownloader():
     async def fetch_and_save_playlist_image(playlist_id, playlist_image_url):
         icon_name = f"{playlist_id}.jpeg"
         icon_path = os.path.join(SpotifyDownloader.download_icon_directory, icon_name)
+
         try:
-            response = requests.get(playlist_image_url)
-            if response.status_code == 200:
-                img = Image.open(BytesIO(response.content))
-                img.save(icon_path)
-                return icon_path
+            async with aiohttp.ClientSession() as session:
+                async with session.get(playlist_image_url) as response:
+                    if response.status == 200:
+                        image_data = await response.read()
+                        img = Image.open(BytesIO(image_data))
+                        img.save(icon_path)
+                        return icon_path
+                    else:
+                        print(f"Failed to download playlist image. Status code: {response.status}")
         except Exception as e:
             print(f"Error downloading or saving playlist image: {e}")
+
         return None
     
     @staticmethod
@@ -347,21 +353,33 @@ class SpotifyDownloader():
                         return True, file_path
             return False, None
         
+        async def download_icon(link_info):
+            track_name = link_info['track_name']
+            artist_name = link_info['artist_name']
+            image_url = link_info["image_url"]
+
+            icon_name = f"{track_name} - {artist_name}.jpeg".replace("/", " ")
+            icon_path = os.path.join(SpotifyDownloader.download_icon_directory, icon_name)
+
+            if not os.path.isfile(icon_path):
+                try:
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(image_url) as response:
+                            if response.status == 200:
+                                image_data = await response.read()
+                                img = Image.open(BytesIO(image_data))
+                                img.save(icon_path)
+                            else:
+                                print(f"Failed to download track image for {track_name} - {artist_name}. Status code: {response.status}")
+                except Exception as e:
+                    print(f"Failed to download or save track image for {track_name} - {artist_name}: {e}")
+            return icon_path
+         
         artist_names = link_info['artist_name'].split(', ')
         is_local, file_path = is_track_local(artist_names, link_info['track_name'])
         
-        icon_name = f"{link_info['track_name']} - {link_info['artist_name']}.jpeg".replace("/", " ")
-        icon_path = os.path.join(SpotifyDownloader.download_icon_directory, icon_name)
-        
-        if not os.path.isfile(icon_path):
-            try:
-                response = requests.get(link_info["image_url"])
-                if response.status_code == 200:
-                    img = Image.open(BytesIO(response.content))
-                    img.save(icon_path)
-            except Exception as e:
-                print(f"Failed to download or save track image: {e}")
-        
+        icon_path = await download_icon(link_info)
+
         SpotifyInfoButtons = [
             [Button.inline("Download 30s Preview", data=b"@music_info_preview")],
             [Button.inline("Download Track", data=b"@music")],
@@ -738,7 +756,7 @@ class SpotifyDownloader():
             link_info[str(i+1)]['youtube_link'] = video_url
             return video_url
             
-        async def download_icon(i,link_info):
+        async def download_icon(i, link_info):
             track_name = link_info[str(i+1)]['track_name']
             artist_name = link_info[str(i+1)]['artist_name']
 
@@ -747,12 +765,17 @@ class SpotifyDownloader():
 
             if not os.path.isfile(icon_path):
                 try:
-                    response = requests.get(link_info[str(i+1)]["image_url"])
-                    if response.status_code == 200:
-                        img = Image.open(BytesIO(response.content))
-                        img.save(icon_path)
+                    image_url = link_info[str(i+1)]["image_url"]
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(image_url) as response:
+                            if response.status == 200:
+                                image_data = await response.read()
+                                img = Image.open(BytesIO(image_data))
+                                img.save(icon_path)
+                            else:
+                                print(f"Failed to download track image for {track_name} - {artist_name}. Status code: {response.status}")
                 except Exception as e:
-                    print(f"Failed to download or save track image: {e}")
+                    print(f"Failed to download or save track image for {track_name} - {artist_name}: {e}")
 
             return icon_path
 
@@ -833,7 +856,7 @@ class SpotifyDownloader():
 
         await init_message.delete()
         await upload_status_message.delete()
-        await event.respond("Top-10 Has finished. :)\nThank You for using @Spotify_YT_Downloader_Bot\n\nOur bot is OpenSource:\nGITHUB: [GITHUB LINK](https://github.com/AdibNikjou/telegram_spotify_downloader)")
+        await event.respond("Top-10 Has finished. :)\nThank You for using @Spotify_YT_Downloader_Bot\n\nOur bot is OpenSource:\nSource code: [GITHUB LINK](https://github.com/AdibNikjou/telegram_spotify_downloader)")
      
     @staticmethod
     async def search_spotify_based_on_user_input(event, query, limit=50):
