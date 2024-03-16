@@ -302,7 +302,7 @@ class SpotifyDownloader():
         # Buttons for interactivity
         buttons = [
             [Button.inline("Download Top 10", data=b"@music_playlist_download_10")],
-            [Button.inline("Search Tracks inside", data=b"@music_playlist_search")],
+            [Button.inline("Search Tracks inside", data=b"@unavailable_feature")], #@music_playlist_search
             [Button.inline("Cancel", data=b"cancel")]
         ]
 
