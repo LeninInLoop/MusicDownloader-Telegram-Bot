@@ -89,7 +89,9 @@ class SpotifyDownloader():
             'track_url': track_info['external_urls']['spotify'],
             'youtube_link': None,  # This could be enhanced separately if needed
             'preview_url': track_info.get('preview_url'),
-            'duration_ms': track_info['duration_ms']
+            'duration_ms': track_info['duration_ms'],
+            'track_number': track_info['track_number'],
+            'is_explicit': track_info['explicit']
         }
         
     @staticmethod
@@ -120,7 +122,9 @@ class SpotifyDownloader():
                     'track_url': spotify_url,
                     'youtube_link': None,  # Placeholder, will be resolved below
                     'preview_url': track_info.get('preview_url'),
-                    'duration_ms': track_info['duration_ms']
+                    'duration_ms': track_info['duration_ms'],
+                    'track_number': track_info['track_number'],
+                    'is_explicit': track_info['explicit']
                 }
 
                 # Attempt to enhance track info with additional external data (e.g., YouTube link)
@@ -162,58 +166,89 @@ class SpotifyDownloader():
 
         return True
 
+
     @staticmethod
     async def extract_yt_video_info(spotify_link_info):
         if spotify_link_info is None:
             return None
 
-        # Check if a YouTube link is provided
         video_url = spotify_link_info.get('youtube_link')
         if video_url:
             return video_url
 
-        # Construct the search query
         artist_name = spotify_link_info["artist_name"]
         track_name = spotify_link_info["track_name"]
         release_year = spotify_link_info["release_year"]
-        track_duration = spotify_link_info.get("duration_ms", 0) / 1000  # Convert milliseconds to seconds
-        query = f'"{artist_name}" "{track_name}" lyrics {release_year} '
+        track_duration = spotify_link_info.get("duration_ms", 0) / 1000
+        album_name = spotify_link_info.get("album_name", "")
+        track_number = spotify_link_info.get("track_number", "")
+        is_explicit = spotify_link_info.get("is_explicit", False)
+
+        queries = [
+            f'"{artist_name}" "{track_name}" lyrics {release_year}',
+            f'"{artist_name}" "{track_name}" audio {release_year}',
+            f'"{artist_name}" "{track_name}" official audio {release_year}',
+            f'"{artist_name}" "{track_name}" official video {release_year}',
+            f'"{artist_name}" "{track_name}" official music video {release_year}',
+            f'"{track_name}" by "{artist_name}" {release_year}',
+            f'"{track_name}" by "{artist_name}" official audio {release_year}',
+            f'"{track_name}" by "{artist_name}" official video {release_year}',
+            f'"{track_name}" by "{artist_name}" official music video {release_year}',
+            f'"{artist_name}" "{track_name}" "{album_name}" {release_year}',
+            f'"{artist_name}" "{track_name}" "{album_name}" track {track_number} {release_year}',
+            f'"{artist_name}" "{track_name}" {"explicit" if is_explicit else ""} {release_year}'
+        ]
 
         ydl_opts = {
             'quiet': True,
             'no_warnings': True,
             'ignoreerrors': True,
-            'ytsearch': 8,  # Retrieve the top 8 search results
+            'ytsearch': 3,  # Limit the number of search results
             'skip_download': True,
-            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'  # Specify the desired format
+            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+            'noplaylist': True,  # Disable playlist processing
+            'nocheckcertificate': True,  # Disable SSL certificate verification
+            'cachedir': False  # Disable caching
         }
 
         executor = ThreadPoolExecutor(max_workers=32)  # Use 32 workers for the blocking I/O operation
+        stop_event = asyncio.Event()
 
-        def extract_info_blocking(query):
-            with YoutubeDL(ydl_opts) as ydl:
-                try:
-                    info = ydl.extract_info(f'ytsearch:{query}', download=False)
-                    entries = info.get('entries', [])
-                    return entries
-                except Exception:
-                    return []
+        async def search_query(query):
+            def extract_info_blocking():
+                with YoutubeDL(ydl_opts) as ydl:
+                    try:
+                        info = ydl.extract_info(f'ytsearch:{query}', download=False)
+                        entries = info.get('entries', [])
+                        return entries
+                    except Exception:
+                        return []
 
-        entries_future = asyncio.get_running_loop().run_in_executor(executor, extract_info_blocking, query)
-        entries = await entries_future
+            entries = await asyncio.get_running_loop().run_in_executor(executor, extract_info_blocking)
 
-        for video_info in entries:
-            video_url = video_info.get('webpage_url')
-            video_duration = video_info.get('duration', 0)
+            if not stop_event.is_set():
+                for video_info in entries:
+                    video_url = video_info.get('webpage_url')
+                    video_duration = video_info.get('duration', 0)
 
-            # Compare the video duration with the track duration from Spotify
-            duration_diff = abs(video_duration - track_duration)
-            if duration_diff <= 35:
-                break
-            else:
-                video_url = None
+                    # Compare the video duration with the track duration from Spotify
+                    duration_diff = abs(video_duration - track_duration)
+                    if duration_diff <= 35:
+                        stop_event.set()
+                        return video_url
 
-        return video_url
+            return None
+
+        search_tasks = [asyncio.create_task(search_query(query)) for query in queries]
+        search_results = await asyncio.gather(*search_tasks, return_exceptions=True)
+
+        for result in search_results:
+            if isinstance(result, Exception):
+                continue
+            if result is not None:
+                return result
+
+        return None
     
     @staticmethod
     async def download_and_send_spotify_info(client, event) -> bool:
@@ -287,14 +322,14 @@ class SpotifyDownloader():
             f"---\n\n"
             f"**Details:**\n\n"
 
-            f"    - 👤 Owner: {playlist_owner}\n"
-            f"    - 👥 Followers: {followers}\n"
+            f"  - 👤 Owner: {playlist_owner}\n"
+            f"  - 👥 Followers: {followers}\n"
             
-            f"    - 🎵 Total Tracks: {total_tracks}\n"
-            f"    - 🤝 Collaborative: {collaborative}\n"
-            f"    - 🌐 Public: {public}\n"
+            f"  - 🎵 Total Tracks: {total_tracks}\n"
+            f"  - 🤝 Collaborative: {collaborative}\n"
+            f"  - 🌐 Public: {public}\n"
 
-            f"    - 🎧 Playlist URL: [Listen On Spotify]({playlist_url})\n"
+            f"  - 🎧 Playlist URL: [Listen On Spotify]({playlist_url})\n"
             f"---\n\n"
             f"**Enjoy the music!** 🎶"
         )
@@ -509,7 +544,7 @@ class SpotifyDownloader():
             caption=(
                 f"🎵 **{spotify_link_info['track_name']}** by **{spotify_link_info['artist_name']}**\n\n"
                 f"▶️ [Listen on Spotify]({spotify_link_info['track_url']})\n"
-                f"🎥 [Watch on YouTube]({video_url})"
+                f"🎥 [Watch on YouTube]({video_url})" if video_url else None
             ),
             supports_streaming=True,
             force_document=False,
@@ -786,6 +821,9 @@ class SpotifyDownloader():
         await db.set_file_processing_flag(user_id, 1)
     
         async def extract_video_url(i, link_info):
+            print(link_info[str(i+1)]['youtube_link'])
+            if link_info[str(i+1)]['youtube_link']:
+                return link_info[str(i+1)]['youtube_link']
             video_url = await SpotifyDownloader.extract_yt_video_info(link_info[str(i+1)])
             link_info[str(i+1)]['youtube_link'] = video_url
             return video_url
@@ -838,7 +876,7 @@ class SpotifyDownloader():
 
             file_info_list.append(file_info)
             await db.add_or_increment_song(filename)
-            print(file_info_list)
+
             if not is_local:
                 if video_url:
                     result, _ = await SpotifyDownloader.download_YoutubeDL(event, file_info, music_quality, playlist=True)
