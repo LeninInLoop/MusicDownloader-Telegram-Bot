@@ -187,13 +187,8 @@ class SpotifyDownloader():
         queries = [
             f'"{artist_name}" "{track_name}" lyrics {release_year}',
             f'"{artist_name}" "{track_name}" audio {release_year}',
-            f'"{artist_name}" "{track_name}" official audio {release_year}',
-            f'"{artist_name}" "{track_name}" official video {release_year}',
             f'"{artist_name}" "{track_name}" official music video {release_year}',
             f'"{track_name}" by "{artist_name}" {release_year}',
-            f'"{track_name}" by "{artist_name}" official audio {release_year}',
-            f'"{track_name}" by "{artist_name}" official video {release_year}',
-            f'"{track_name}" by "{artist_name}" official music video {release_year}',
             f'"{artist_name}" "{track_name}" "{album_name}" {release_year}',
             f'"{artist_name}" "{track_name}" "{album_name}" track {track_number} {release_year}',
             f'"{artist_name}" "{track_name}" {"explicit" if is_explicit else ""} {release_year}'
@@ -211,7 +206,7 @@ class SpotifyDownloader():
             'cachedir': False  # Disable caching
         }
 
-        executor = ThreadPoolExecutor(max_workers=32)  # Use 32 workers for the blocking I/O operation
+        executor = ThreadPoolExecutor(max_workers=16)  # Use 16 workers for the blocking I/O operation
         stop_event = asyncio.Event()
 
         async def search_query(query):
@@ -433,7 +428,7 @@ class SpotifyDownloader():
             f"**🗓 Release Year:** {link_info['release_year']}\n"
             f"**❗️ Is Local:** {is_local}\n"
             f"**🌐 ISRC:** {link_info['isrc']}\n"
-            f"**🔄 Downloaded:** {await db.get_song_downloads(file_path)} times\n\n"
+            f"**🔄 Downloaded:** {await db.get_song_downloads(link_info['track_name'])} times\n\n"
             f"**Image URL:** [Click here]({link_info['image_url']})\n"
             f"**Track id:** {link_info['track_id']}\n"
         )
@@ -524,7 +519,7 @@ class SpotifyDownloader():
         audio_attributes = DocumentAttributeAudio(
             duration=0,  # You need to specify the duration of the audio
             title=f"{spotify_link_info['track_name']} - {spotify_link_info['artist_name']}",
-            performer="@SPOTIFY_YT_DOWNLOADER_BOT",
+            performer="@Spotify_YT_Downloader_BOT",
             waveform=None,
             voice=False
         )
@@ -667,6 +662,7 @@ class SpotifyDownloader():
             }
 
             with YoutubeDL(ydl_opts) as ydl:
+                await download_message.edit("Downloading . . .") if not playlist else None
                 await asyncio.to_thread(ydl.extract_info, video_url, download=True)
 
         async def download_handler():
@@ -725,7 +721,6 @@ class SpotifyDownloader():
             return False
 
         file_path, filename, is_local = SpotifyDownloader._determine_file_path(spotify_link_info, music_quality, spotdl)
-
 
         await db.add_or_increment_song(spotify_link_info['track_name'])
 
@@ -875,7 +870,7 @@ class SpotifyDownloader():
             }
 
             file_info_list.append(file_info)
-            await db.add_or_increment_song(filename)
+            await db.add_or_increment_song(track_name)
 
             if not is_local:
                 if video_url:
@@ -924,7 +919,6 @@ class SpotifyDownloader():
             ]
             await asyncio.gather(*tasks)
 
-        # Usage
         await upload_tracks(client, event, file_info_list, link_info)
 
         await init_message.delete()
