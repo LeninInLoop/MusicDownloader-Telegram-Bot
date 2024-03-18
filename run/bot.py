@@ -42,7 +42,7 @@ class Bot:
     def initialize_shazam():
         try:
             ShazamHelper.initialize()
-            print("Plugins: Shazam helper initialized.")
+            print("Plugins: Shazam initialized.")
         except Exception as e:
             print(f"An error occurred while initializing Shazam helper: {str(e)}")
 
@@ -523,7 +523,7 @@ class Bot:
         elif event.data == b"@music_lyrics":
             await SpotifyDownloader.send_music_lyrics(event)
         elif event.data == b"@music_playlist_download_10":
-            await SpotifyDownloader.download_playlist(Bot.Client, event)
+            await SpotifyDownloader.download_spotify_file_and_send(client, event)
         else:
             send_file_result = await SpotifyDownloader.download_spotify_file_and_send(client, event)
             if not send_file_result:

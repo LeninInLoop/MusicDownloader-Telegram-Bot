@@ -489,10 +489,11 @@ class SpotifyDownloader():
 
         if not playlist:
             await upload_status_message.delete()
-
+        
         # Reset file processing flag after completion
         await db.set_file_processing_flag(user_id, 0)
 
+        await db.add_or_increment_song(spotify_link_info['track_name'])
         # Indicate successful upload operation
         return True
 
@@ -703,7 +704,7 @@ class SpotifyDownloader():
         if spotify_link_info['type'] == "track":
             return await SpotifyDownloader.download_track(client,event,spotify_link_info)
         elif spotify_link_info['type'] == "playlist":
-            print(spotify_link_info)
+            return await SpotifyDownloader.download_playlist(client,event,spotify_link_info)
          
     @staticmethod
     async def download_track(client, event, spotify_link_info):
@@ -720,8 +721,6 @@ class SpotifyDownloader():
             return False
 
         file_path, filename, is_local = SpotifyDownloader._determine_file_path(spotify_link_info, music_quality, spotdl)
-
-        await db.add_or_increment_song(spotify_link_info['track_name'])
 
         file_info = {
             "file_name": filename,
@@ -785,20 +784,15 @@ class SpotifyDownloader():
         return os.path.join(SpotifyDownloader.download_directory, f"{filename}.{music_quality['format']}"), filename, False
        
     @staticmethod
-    async def download_playlist(client, event):
+    async def download_playlist(client, event, spotify_link_info):
         user_id = event.sender_id
-
-        if await db.get_file_processing_flag(user_id) == True:
-            await event.respond("Sorry,There is already a file being processed for you.")
-            return True
         
         message = "Downloading playlist tracks...\n\n"
         init_message = await event.respond(message)
 
         music_quality, downloading_core = await db.get_user_settings(user_id)
 
-        total_link_info = await db.get_user_spotify_link_info(user_id)
-        link_info = total_link_info['playlist_tracks']
+        link_info = spotify_link_info['playlist_tracks']
 
         file_info_list = []
         track_messages = []
@@ -811,11 +805,8 @@ class SpotifyDownloader():
         message += ''.join(track_messages)
         await init_message.edit(message)
         message = ''
-            
-        await db.set_file_processing_flag(user_id, 1)
     
         async def extract_video_url(i, link_info):
-            print(link_info[str(i+1)]['youtube_link'])
             if link_info[str(i+1)]['youtube_link']:
                 return link_info[str(i+1)]['youtube_link']
             video_url = await SpotifyDownloader.extract_yt_video_info(link_info[str(i+1)])
@@ -869,7 +860,6 @@ class SpotifyDownloader():
             }
 
             file_info_list.append(file_info)
-            await db.add_or_increment_song(track_name)
 
             if not is_local:
                 if video_url:
