@@ -539,14 +539,13 @@ class SpotifyDownloader():
             caption=(
                 f"🎵 **{spotify_link_info['track_name']}** by **{spotify_link_info['artist_name']}**\n\n"
                 f"▶️ [Listen on Spotify]({spotify_link_info['track_url']})\n"
-                f"🎥 [Watch on YouTube]({video_url})" if video_url else None
+                + (f"🎥 [Watch on YouTube]({video_url})\n" if video_url else "")
             ),
             supports_streaming=True,
             force_document=False,
             thumb=icon_path
         )
 
-    
     @staticmethod
     async def download_SpotDL(event, music_quality, spotify_link_info, quite:bool = False, initial_message=None, audio_option: str = "piped") -> bool:
         user_id = event.sender_id
