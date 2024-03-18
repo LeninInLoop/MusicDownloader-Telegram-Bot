@@ -61,44 +61,47 @@ class db:
 
     @staticmethod
     async def execute_query(query, params=()):
-        conn = await db.get_connection()
-        try:
-            async with conn.cursor() as c:
-                await c.execute(query, params)
-                await conn.commit()
-        except aiosqlite.OperationalError as e:
-            if 'database is locked' in str(e):
-                await db.execute_query(query, params)
-            else:
-                raise e
-        finally:
-            await db.release_connection(conn)
+        async with db.lock:
+            conn = await db.get_connection()
+            try:
+                async with conn.cursor() as c:
+                    await c.execute(query, params)
+                    await conn.commit()
+            except aiosqlite.OperationalError as e:
+                if 'database is locked' in str(e):
+                    await db.execute_query(query, params)
+                else:
+                    raise e
+            finally:
+                await db.release_connection(conn)
 
     @staticmethod
     async def fetch_one(query, params=()):
-        conn = await db.get_connection()
-        try:
-            async with conn.cursor() as c:
-                try:
-                    await c.execute(query, params)
-                    return await c.fetchone()
-                except Exception as e:
-                    print(f"Error executing query: {query}")
-                    print(f"Parameters: {params}")
-                    print(f"Error details: {e}")
-                    raise e
-        finally:
-            await db.release_connection(conn)
+        async with db.lock:
+            conn = await db.get_connection()
+            try:
+                async with conn.cursor() as c:
+                    try:
+                        await c.execute(query, params)
+                        return await c.fetchone()
+                    except Exception as e:
+                        print(f"Error executing query: {query}")
+                        print(f"Parameters: {params}")
+                        print(f"Error details: {e}")
+                        raise e
+            finally:
+                await db.release_connection(conn)
 
     @staticmethod
     async def fetch_all(query, params=()):
-        conn = await db.get_connection()
-        try:
-            async with conn.cursor() as c:
-                await c.execute(query, params)
-                return await c.fetchall()
-        finally:
-            await db.release_connection(conn)
+        async with db.lock:
+            conn = await db.get_connection()
+            try:
+                async with conn.cursor() as c:
+                    await c.execute(query, params)
+                    return await c.fetchall()
+            finally:
+                await db.release_connection(conn)
 
     @staticmethod
     async def create_trigger():
@@ -284,13 +287,12 @@ class db:
 
     @staticmethod
     async def add_or_increment_song(filename):
-        async with db.lock:
-            try:
-                query = 'INSERT INTO musics (filename) VALUES (?)'
-                await db.execute_query(query, (filename,))
-            except aiosqlite.IntegrityError:
-                query = 'UPDATE musics SET downloads = downloads + 1 WHERE filename = ?'
-                await db.execute_query(query, (filename,))
+        try:
+            query = 'INSERT INTO musics (filename) VALUES (?)'
+            await db.execute_query(query, (filename,))
+        except aiosqlite.IntegrityError:
+            query = 'UPDATE musics SET downloads = downloads + 1 WHERE filename = ?'
+            await db.execute_query(query, (filename,))
             
     @staticmethod
     async def get_total_downloads():
