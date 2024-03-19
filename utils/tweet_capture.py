@@ -15,9 +15,9 @@ class AsyncWebDriver:
         return self.driver
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        if self.driver is not None:
+        if self.driver:
             return self.driver.quit()
-        
+
 class TweetCapture:
     
     max_drivers = 5
@@ -29,18 +29,22 @@ class TweetCapture:
         if cls.driver_pool.empty():
             chrome_options = cls.setup_chrome_options()
             chrome_service = webdriver.chrome.service.Service(ChromeDriverManager().install())
-            driver = webdriver.Chrome(service=chrome_service, options=chrome_options)
-            driver.set_window_size(1920, 1080)
+            try:
+                driver = webdriver.Chrome(service=chrome_service, options=chrome_options)
+                driver.set_window_size(1920, 1080)
+            except Exception as e:
+                print(f"Failed to initialize Chrome driver: {str(e)}")
+                return None
         else:
             driver = cls.driver_pool.get()
 
         if driver is not None:
             return AsyncWebDriver(driver)
         else:
-            raise ValueError("Failed to get a valid driver instance.")
+            return None
     
     @classmethod
-    def release_driver(cls, driver):
+    async def release_driver(cls, driver):
         cls.driver_pool.put(driver)
         if cls.driver_pool.qsize() > cls.max_drivers:
             driver = cls.driver_pool.get()
@@ -76,7 +80,7 @@ class TweetCapture:
         return None
     
     @staticmethod
-    async def take_screenshot_of_tweet(tweet_url, screenshot_path):
+    async def screenshot(tweet_url, screenshot_path):
         async with await TweetCapture.get_driver() as driver:
             try:
                 driver.get(tweet_url)
@@ -102,3 +106,5 @@ class TweetCapture:
                 print(f"Screenshot saved: {screenshot_path}")
             except Exception as e:
                 print(f"Error occurred: {str(e)}")
+            finally:
+                await TweetCapture.release_driver(driver)
