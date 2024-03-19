@@ -22,7 +22,6 @@ class TweetCapture:
     
     max_drivers = 5
     driver_pool = queue.Queue()
-    thread_pool = ThreadPoolExecutor(max_workers=8)
     
     @classmethod
     async def get_driver(cls):
