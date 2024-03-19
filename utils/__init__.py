@@ -21,3 +21,4 @@ from telethon.tl.types import InputMediaUploadedDocument, DocumentAttributeAudio
 from FastTelethonhelper import fast_upload
 from threading import Thread
 import concurrent 
+from functools import lru_cache,partial
