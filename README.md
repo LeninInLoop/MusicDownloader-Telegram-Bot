@@ -39,29 +39,7 @@ cd telegram_spotify_downloader
 pip install -r requirements.txt
 ```
 
-### Step 3: Install Node.js and npm
-
-Install Node Version Manager (NVM) to manage Node.js versions:
-
-```zsh
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-```
-
-Close and reopen your terminal to ensure NVM is properly installed. Then, install Node.js version 20 and npm:
-
-```zsh
-nvm install 20
-```
-
-### Step 4: Install ChromeDriver
-
-Install ChromeDriver, which is required for automating Chrome:
-
-```zsh
-npm install chromedriver
-```
-
-### Step 5: Install Google Chrome
+### Step 3: Install Google Chrome
 
 Ensure you have Google Chrome version 122 installed on your system. The installation process varies depending on your operating system.
 
@@ -79,7 +57,7 @@ sudo dnf update
 sudo dnf install google-chrome-stable -y
 ```
 
-### Step 6: Verify Installation
+### Step 4: Verify Installation
 
 After completing the installation steps, verify that Google Chrome is installed and that the version is 122. You can check the version by running:
 
@@ -87,7 +65,7 @@ After completing the installation steps, verify that Google Chrome is installed 
 google-chrome --version
 ```
 
-### Step 7: Set Up Your Environment Variables
+### Step 5: Set Up Your Environment Variables
 
 Create a `.env` file in the root directory of the project and add the following environment variables:
 
@@ -98,7 +76,7 @@ Create a `.env` file in the root directory of the project and add the following 
 - `API_HASH=your_telegram_api_hash`
 - `GENIUS_ACCESS_TOKEN=your_genius_access_token`
 
-### Step 8: Run the Bot
+### Step 6: Run the Bot
 
 With all dependencies installed and environment variables set, you can now run the bot:
 
