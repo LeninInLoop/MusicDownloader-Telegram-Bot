@@ -145,10 +145,10 @@ python3 main.py
 - spotdl
 - Shazamio
 - Pillow
-- tweet-capture
 - dotenv
 - aiosqlite
 - lyricsgenius
+- FastTelethonhelper
 
 ## Contributing
 
