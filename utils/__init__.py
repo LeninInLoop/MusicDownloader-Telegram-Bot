@@ -8,7 +8,6 @@ from PIL import Image
 from io import BytesIO
 from yt_dlp import YoutubeDL
 from shazamio import Shazam
-from tweetcapture import TweetCapture
 import requests, asyncio, re, os
 import bs4, wget, hashlib, time
 import lyricsgenius
@@ -22,3 +21,4 @@ from FastTelethonhelper import fast_upload
 from threading import Thread
 import concurrent 
 from functools import lru_cache,partial
+from .tweet_capture import TweetCapture

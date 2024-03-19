@@ -1,14 +1,13 @@
 from run import Button
-from utils import TweetCapture, lru_cache
-from utils import os, hashlib, re
+from utils import lru_cache
+from utils import os, hashlib, re, asyncio
 from utils import db, bs4, aiohttp
-
+from utils import TweetCapture
 
 class X:
     
     @classmethod
     def initialize(cls):
-        cls.tweet = TweetCapture()
         cls.screen_shot_path = 'repository/X_screen'
         if not os.path.isdir(cls.screen_shot_path):
             os.makedirs(cls.screen_shot_path, exist_ok=True)
@@ -30,7 +29,8 @@ class X:
             return screenshot_path
 
         try:
-            await X.tweet.screenshot(tweet_url, screenshot_path, mode=3, night_mode=1, overwrite=True)
+            screenshot_task = asyncio.create_task(TweetCapture.take_screenshot_of_tweet(tweet_url, screenshot_path))
+            await screenshot_task
             return screenshot_path
         except Exception as Err:
             await tweet_message.edit(f"We apologize for the inconvenience.\nThe requested tweet could not be found. Reason: {str(Err)}")
