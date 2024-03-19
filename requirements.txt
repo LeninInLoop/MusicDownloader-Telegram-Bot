@@ -3,10 +3,10 @@ yt-dlp
 python-dotenv
 spotipy
 Telethon
-tweet-capture
 spotdl
 shazamio
 lyricsgenius
 aiosqlite
 wget
 FastTelethonhelper
+lxml
