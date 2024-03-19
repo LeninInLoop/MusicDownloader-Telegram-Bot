@@ -16,11 +16,12 @@ class AsyncWebDriver:
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if self.driver is not None:
-            await self.driver.quit()
+            return self.driver.quit()
         
 class TweetCapture:
-    driver_pool = queue.Queue()
+    
     max_drivers = 5
+    driver_pool = queue.Queue()
     thread_pool = ThreadPoolExecutor(max_workers=8)
     
     @classmethod

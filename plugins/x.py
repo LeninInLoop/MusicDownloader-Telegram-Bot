@@ -27,11 +27,13 @@ class X:
         if os.path.exists(screenshot_path):
             await tweet_message.delete()
             return screenshot_path
-
         try:
             screenshot_task = asyncio.create_task(TweetCapture.take_screenshot_of_tweet(tweet_url, screenshot_path))
             await screenshot_task
+            
+            await tweet_message.delete()
             return screenshot_path
+        
         except Exception as Err:
             await tweet_message.edit(f"We apologize for the inconvenience.\nThe requested tweet could not be found. Reason: {str(Err)}")
             return None
