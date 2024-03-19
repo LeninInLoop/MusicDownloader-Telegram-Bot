@@ -28,7 +28,7 @@ class X:
             await tweet_message.delete()
             return screenshot_path
         try:
-            screenshot_task = asyncio.create_task(TweetCapture.take_screenshot_of_tweet(tweet_url, screenshot_path))
+            screenshot_task = asyncio.create_task(TweetCapture.screenshot(tweet_url, screenshot_path))
             await screenshot_task
             
             await tweet_message.delete()
