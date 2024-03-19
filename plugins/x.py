@@ -13,7 +13,7 @@ class X:
         if not os.path.isdir(cls.screen_shot_path):
             os.makedirs(cls.screen_shot_path, exist_ok=True)
         
-    @lru_cache(maxsize=512)  # Cache the last 512 screenshots
+    @lru_cache(maxsize=128)  # Cache the last 128 screenshots
     def get_screenshot_path(tweet_url):
         url_hash = hashlib.blake2b(tweet_url.encode()).hexdigest()
         filename = f"{url_hash}.png"
