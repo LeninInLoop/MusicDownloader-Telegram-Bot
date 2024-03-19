@@ -5,15 +5,27 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 from concurrent.futures import ThreadPoolExecutor
-import queue
+import queue, asyncio
 
+
+class AsyncWebDriver:
+    def __init__(self, driver):
+        self.driver = driver
+
+    async def __aenter__(self):
+        return self.driver
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if self.driver is not None:
+            await self.driver.quit()
+        
 class TweetCapture:
     driver_pool = queue.Queue()
     max_drivers = 5
     thread_pool = ThreadPoolExecutor(max_workers=8)
     
     @classmethod
-    def get_driver(cls):
+    async def get_driver(cls):
         if cls.driver_pool.empty():
             chrome_options = cls.setup_chrome_options()
             chrome_service = webdriver.chrome.service.Service(ChromeDriverManager().install())
@@ -21,7 +33,11 @@ class TweetCapture:
             driver.set_window_size(1920, 1080)
         else:
             driver = cls.driver_pool.get()
-        return driver
+
+        if driver is not None:
+            return AsyncWebDriver(driver)
+        else:
+            raise ValueError("Failed to get a valid driver instance.")
     
     @classmethod
     def release_driver(cls, driver):
@@ -61,7 +77,7 @@ class TweetCapture:
     
     @staticmethod
     async def take_screenshot_of_tweet(tweet_url, screenshot_path):
-        async with TweetCapture.get_driver() as driver:
+        async with await TweetCapture.get_driver() as driver:
             try:
                 driver.get(tweet_url)
                 WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "(//ancestor::article)/..")))
@@ -86,4 +102,3 @@ class TweetCapture:
                 print(f"Screenshot saved: {screenshot_path}")
             except Exception as e:
                 print(f"Error occurred: {str(e)}")
-
