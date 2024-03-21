@@ -71,7 +71,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
         await update_bot_version_user_season(event)
         user_id = event.sender_id
         if await db.get_user_updated_flag(user_id):
-            await respond_based_on_channel_membership(event,Buttons.instruction_message)
+            await respond_based_on_channel_membership(event,BotMessageHandler.instruction_message, buttons=Buttons.back_button)
             
     @staticmethod
     async def handle_unsubscribe_command(event):
