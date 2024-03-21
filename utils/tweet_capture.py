@@ -4,7 +4,6 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
-from concurrent.futures import ThreadPoolExecutor
 import queue
 
 class AsyncWebDriver:
@@ -60,6 +59,26 @@ class TweetCapture:
         return chrome_options
     
     @staticmethod
+    def set_night_mode_and_cookies(driver, night_mode=None, cookies=None):
+        """
+        Sets the night mode and adds cookies to the Selenium WebDriver instance.
+        
+        Args:
+            driver (webdriver.Chrome): The Selenium WebDriver instance.
+            night_mode (bool, optional): The night mode setting. If not provided, it will use the class attribute `self.night_mode`.
+            cookies (list, optional): A list of cookies to be added to the WebDriver instance.
+        """
+        # Set the night mode cookie
+        driver.add_cookie(
+            {"name": "night_mode", "value": str(night_mode)}
+        )
+
+        # Add any additional cookies
+        if cookies:
+            for cookie in cookies:
+                driver.add_cookie(cookie)
+                
+    @staticmethod
     def dismiss_cookie_accept(driver):
         try:
             cookie_accept_button = driver.find_element(By.CSS_SELECTOR, "div[role='button'][class*='r-sdzlij'][class*='r-1phboty']")
@@ -80,9 +99,12 @@ class TweetCapture:
         return None
     
     @staticmethod
-    async def screenshot(tweet_url, screenshot_path):
+    async def screenshot(tweet_url, screenshot_path, night_mode=1, cookies=None):
         async with await TweetCapture.get_driver() as driver:
             try:
+                # Set the night mode and add cookies
+                TweetCapture.set_night_mode_and_cookies(driver, night_mode, cookies)
+
                 driver.get(tweet_url)
                 WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "(//ancestor::article)/..")))
                 main_tweet_element = TweetCapture.find_main_tweet_element(driver)
