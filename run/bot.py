@@ -109,7 +109,7 @@ class Bot:
             b"setting/subscription/cancel": lambda e: asyncio.create_task(Bot.cancel_subscription(e)),
             b"setting/subscription/cancel/quite": lambda e: asyncio.create_task(Bot.cancel_subscription(e,quite=True)),
             b"setting/subscription/add": lambda e: asyncio.create_task(Bot.add_subscription(e)),
-            b"setting/TweetCapture": lambda e: asyncio.create_task(BotMessageHandler.edit_tweet_capture_setting_message(e)),
+            b"setting/TweetCapture": lambda e: asyncio.create_task(BotMessageHandler.edit_tweet_capture_setting_message(Bot.Client,e)),
             b"setting/TweetCapture/mode_0": lambda e: asyncio.create_task(Bot.change_tweet_capture_night_mode(e,"0")),
             b"setting/TweetCapture/mode_1": lambda e: asyncio.create_task(Bot.change_tweet_capture_night_mode(e,"1")),
             b"setting/TweetCapture/mode_2": lambda e: asyncio.create_task(Bot.change_tweet_capture_night_mode(e,"2")),

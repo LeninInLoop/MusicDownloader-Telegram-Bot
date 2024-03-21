@@ -104,8 +104,8 @@ Please join to continue."""
         await BotMessageHandler.edit_message(e, message, buttons=Buttons.subscription_setting_buttons)
         
     @staticmethod
-    async def edit_tweet_capture_setting_message(e):
+    async def edit_tweet_capture_setting_message(client,e):
         night_mode = await TweetCapture.get_settings(e.sender_id)
-        message = f"Tweet capture settings:\nYour Night Mode: {night_mode['night_mode']}\nHere's the difference between night modes:"
+        message = f"Tweet capture settings:\nYour Night Mode: {night_mode['night_mode']}"
         await BotMessageHandler.edit_message(e, message, buttons=Buttons.tweet_capture_setting_buttons)
-        await e.respond(file="./repository/ScreenShots/night_modes.png")
+        await client.send_file(e.chat_id , "./repository/ScreenShots/night_modes.png", caption="Here's the difference between night modes:")
