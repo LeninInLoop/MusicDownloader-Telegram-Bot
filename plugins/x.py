@@ -25,8 +25,6 @@ class X:
         settings = await TweetCapture.get_settings(event.sender_id)
         night_mode = settings['night_mode']
         
-        print(night_mode)
-        
         screenshot_path = X.get_screenshot_path(tweet_url+night_mode)
 
         if os.path.exists(screenshot_path):
