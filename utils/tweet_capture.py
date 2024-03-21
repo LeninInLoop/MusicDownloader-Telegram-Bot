@@ -1,3 +1,13 @@
+"""
+Acknowledgment of Contributions
+
+The team behind this project would like to extend our heartfelt gratitude to the wonderful contributors of the tweetcapture repository (https://github.com/xacnio/tweetcapture).
+Their initial implementation of the TweetCapture classes has been incredibly helpful, and we've adapted and modified this code to fit the specific needs and use cases of our current project.
+
+We're truly grateful for the efforts and insights shared by the tweetcapture project team.
+
+"""
+
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
@@ -63,10 +73,6 @@ class TweetCapture:
         """
         Sets the night mode and adds cookies to the Selenium WebDriver instance.
         
-        Args:
-            driver (webdriver.Chrome): The Selenium WebDriver instance.
-            night_mode (bool, optional): The night mode setting. If not provided, it will use 0.
-            cookies (list, optional): A list of cookies to be added to the WebDriver instance.
         """
         driver.get(tweet_url)
         # Set the night mode cookie
