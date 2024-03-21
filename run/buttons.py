@@ -11,6 +11,7 @@ class Buttons:
     setting_button = [
         [Button.inline("Core", b"setting/core")],
         [Button.inline("Quality", b"setting/quality")],
+        [Button.inline("TweetCapture", b"setting/TweetCapture")],
         [Button.inline("Subscription", b"setting/subscription")],
         [back_button]
         ]
@@ -37,6 +38,13 @@ class Buttons:
         [back_button, back_button_to_setting]
     ]
 
+    tweet_capture_setting_buttons = [
+        [Button.inline("Mode 0",data=b"setting/TweetCapture/mode_0")],
+        [Button.inline("Mode 1",data=b"setting/TweetCapture/mode_1")],
+        [Button.inline("Mode 2",data=b"setting/TweetCapture/mode_2")],
+        [back_button, back_button_to_setting]
+    ]
+    
     cancel_broadcast_button = [Button.inline("Cancel BroadCast",data=b"admin/cancel_broadcast")]
 
     admins_buttons  =  [

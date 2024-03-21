@@ -7,7 +7,7 @@ Their initial implementation of the TweetCapture classes has been incredibly hel
 We're truly grateful for the efforts and insights shared by the tweetcapture project team.
 
 """
-
+from .database import db
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
@@ -69,7 +69,7 @@ class TweetCapture:
         return chrome_options
     
     @staticmethod
-    def set_night_mode(driver, tweet_url, night_mode=None):
+    def set_night_mode(driver, tweet_url, night_mode):
         """
         Sets the night mode and adds cookies to the Selenium WebDriver instance.
         
@@ -77,7 +77,7 @@ class TweetCapture:
         driver.get(tweet_url)
         # Set the night mode cookie
         driver.add_cookie(
-            {"name": "night_mode", "value": str(night_mode if night_mode is not None else 0)}
+            {"name": "night_mode", "value": (night_mode if night_mode is not None else "0")}
         )
                 
     @staticmethod
@@ -101,10 +101,18 @@ class TweetCapture:
         return None
     
     @staticmethod
-    async def screenshot(tweet_url, screenshot_path, night_mode=0):
+    async def get_settings(user_id):
+        return await db.get_user_tweet_capture_settings(user_id)
+    
+    @staticmethod
+    async def set_settings(user_id, settings:dict):
+        return await db.set_user_tweet_capture_settings(user_id,settings)
+    
+    @staticmethod
+    async def screenshot(tweet_url, screenshot_path, night_mode):
         async with await TweetCapture.get_driver() as driver:
             try:
-                # Set the night mode and add cookies
+                # Set the night mode
                 TweetCapture.set_night_mode(driver, tweet_url, night_mode)
                 
                 driver.get(tweet_url)
@@ -130,4 +138,3 @@ class TweetCapture:
                 main_tweet_element.screenshot(screenshot_path)
             except Exception as e:
                 raise(f"Internal Error: {str(e)}")
-                

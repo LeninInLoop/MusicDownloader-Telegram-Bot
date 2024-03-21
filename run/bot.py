@@ -1,4 +1,4 @@
-from utils import BroadcastManager, db, asyncio, sanitize_query, is_file_voice
+from utils import BroadcastManager, db, asyncio, sanitize_query, is_file_voice, TweetCapture
 from plugins import SpotifyDownloader, ShazamHelper, X, Insta
 from run import events, Button, MessageMediaDocument, update_bot_version_user_season, is_user_in_channel, handle_continue_in_membership_message
 from run import Buttons, BotMessageHandler, BotState, BotCommandHandler, respond_based_on_channel_membership
@@ -85,38 +85,43 @@ class Bot:
         cls.cancel_broadcast_button = Buttons.cancel_broadcast_button
         cls.admins_buttons  =  Buttons.admins_buttons
         cls.broadcast_options_buttons = Buttons.broadcast_options_buttons
+        cls.tweet_capture_setting_buttons = Buttons.tweet_capture_setting_buttons
         
     @classmethod
     async def initialize_action_queries(cls):
         # Mapping button actions to functions
         cls.button_actions = {
-            b"membership/continue": lambda e: handle_continue_in_membership_message(e),
-            b"instructions": lambda e: BotMessageHandler.edit_message(e, Bot.instruction_message, buttons=Bot.back_button),
-            b"contact_creator": lambda e: BotMessageHandler.edit_message(e, Bot.contact_creator_message, buttons=Bot.back_button),
-            b"back": lambda e: BotMessageHandler.edit_message(e, f"Hey {e.sender.first_name}!👋\n {Bot.start_message}", buttons=Bot.main_menu_buttons),
-            b"setting": lambda e: BotMessageHandler.edit_message(e, "Settings :", buttons=Bot.setting_button),
-            b"setting/back": lambda e: BotMessageHandler.edit_message(e, "Settings :", buttons=Bot.setting_button),
+            b"membership/continue": lambda e: asyncio.create_task(handle_continue_in_membership_message(e)),
+            b"instructions": lambda e: asyncio.create_task(BotMessageHandler.edit_message(e, Bot.instruction_message, buttons=Bot.back_button)),
+            b"contact_creator": lambda e: asyncio.create_task(BotMessageHandler.edit_message(e, Bot.contact_creator_message, buttons=Bot.back_button)),
+            b"back": lambda e: asyncio.create_task(BotMessageHandler.edit_message(e, f"Hey {e.sender.first_name}!👋\n {Bot.start_message}", buttons=Bot.main_menu_buttons)),
+            b"setting": lambda e: asyncio.create_task(BotMessageHandler.edit_message(e, "Settings :", buttons=Bot.setting_button)),
+            b"setting/back": lambda e: asyncio.create_task(BotMessageHandler.edit_message(e, "Settings :", buttons=Bot.setting_button)),
             b"setting/quality": lambda e: asyncio.create_task(BotMessageHandler.edit_quality_setting_message(e)),
-            b"setting/quality/mp3/320": lambda e: Bot.change_music_quality(e, "mp3",   320),
-            b"setting/quality/mp3/128": lambda e: Bot.change_music_quality(e, "mp3",   128),
-            b"setting/quality/flac": lambda e: Bot.change_music_quality(e, "flac",   693),
+            b"setting/quality/mp3/320": lambda e: asyncio.create_task(Bot.change_music_quality(e, "mp3",   320)),
+            b"setting/quality/mp3/128": lambda e: asyncio.create_task(Bot.change_music_quality(e, "mp3",   128)),
+            b"setting/quality/flac": lambda e: asyncio.create_task(Bot.change_music_quality(e, "flac",   693)),
             b"setting/core": lambda e: asyncio.create_task(BotMessageHandler.edit_core_setting_message(e)),
-            b"setting/core/auto": lambda e: Bot.change_downloading_core(e, "Auto"),
-            b"setting/core/spotdl": lambda e: Bot.change_downloading_core(e, "SpotDL"),
-            b"setting/core/youtubedl": lambda e: Bot.change_downloading_core(e, "YoutubeDL"),
+            b"setting/core/auto": lambda e: asyncio.create_task(Bot.change_downloading_core(e, "Auto")),
+            b"setting/core/spotdl": lambda e: asyncio.create_task(Bot.change_downloading_core(e, "SpotDL")),
+            b"setting/core/youtubedl": lambda e: asyncio.create_task(Bot.change_downloading_core(e, "YoutubeDL")),
             b"setting/subscription": lambda e: asyncio.create_task(BotMessageHandler.edit_subscription_status_message(e)),
             b"setting/subscription/cancel": lambda e: asyncio.create_task(Bot.cancel_subscription(e)),
             b"setting/subscription/cancel/quite": lambda e: asyncio.create_task(Bot.cancel_subscription(e,quite=True)),
             b"setting/subscription/add": lambda e: asyncio.create_task(Bot.add_subscription(e)),
+            b"setting/TweetCapture": lambda e: asyncio.create_task(BotMessageHandler.edit_tweet_capture_setting_message(e)),
+            b"setting/TweetCapture/mode_0": lambda e: asyncio.create_task(Bot.change_tweet_capture_night_mode(e,"0")),
+            b"setting/TweetCapture/mode_1": lambda e: asyncio.create_task(Bot.change_tweet_capture_night_mode(e,"1")),
+            b"setting/TweetCapture/mode_2": lambda e: asyncio.create_task(Bot.change_tweet_capture_night_mode(e,"2")),
             b"cancel": lambda e: e.delete(),
-            b"admin/cancel_broadcast": lambda e: BotState.set_admin_broadcast(e.sender_id,False),
+            b"admin/cancel_broadcast": lambda e: asyncio.create_task(BotState.set_admin_broadcast(e.sender_id,False)),
             b"admin/stats": lambda e: asyncio.create_task(BotCommandHandler.handle_stats_command(e)),
-            b"admin/broadcast": lambda e: BotMessageHandler.edit_message(e, "BroadCast Options: ", buttons=Bot.broadcast_options_buttons),
-            b"admin/broadcast/all": lambda e: Bot.handle_broadcast(e,send_to_all=True),
-            b"admin/broadcast/subs": lambda e: Bot.handle_broadcast(e,send_to_subs=True),
-            b"admin/broadcast/specified": lambda e: Bot.handle_broadcast(e,send_to_specified=True),
-            b"next_page": lambda e: Bot.next_page(e),
-            b"prev_page": lambda e: Bot.prev_page(e)
+            b"admin/broadcast": lambda e: asyncio.create_task(BotMessageHandler.edit_message(e, "BroadCast Options: ", buttons=Bot.broadcast_options_buttons)),
+            b"admin/broadcast/all": lambda e: asyncio.create_task(Bot.handle_broadcast(e,send_to_all=True)),
+            b"admin/broadcast/subs": lambda e: asyncio.create_task(Bot.handle_broadcast(e,send_to_subs=True)),
+            b"admin/broadcast/specified": lambda e: asyncio.create_task(Bot.handle_broadcast(e,send_to_specified=True)),
+            b"next_page": lambda e: asyncio.create_task(Bot.next_page(e)),
+            b"prev_page": lambda e: asyncio.create_task(Bot.prev_page(e))
             # Add other actions here
         }
 
@@ -124,19 +129,21 @@ class Bot:
     async def change_music_quality(event, format, quality):
         user_id = event.sender_id
         music_quality = {'format': format, 'quality': quality}
-        await db.change_music_quality(user_id, music_quality)
-        user_settings = await db.get_user_settings(user_id)
-        music_quality = user_settings[0]
+        await db.set_user_music_quality(user_id, music_quality)
         await BotMessageHandler.edit_message(event, f"Quality successfully changed. \nFormat: {music_quality['format']}\nQuality: {music_quality['quality']}", buttons=Bot.quality_setting_buttons)
 
     @staticmethod
     async def change_downloading_core(event, core):
         user_id = event.sender_id
-        await db.change_downloading_core(user_id, core)
-        user_settings = await db.get_user_settings(user_id)
-        downloading_core = user_settings[1]
-        await BotMessageHandler.edit_message(event, f"Core successfully changed. \nCore: {downloading_core}", buttons=Bot.core_setting_buttons)
+        await db.set_user_downloading_core(user_id, core)
+        await BotMessageHandler.edit_message(event, f"Core successfully changed. \nCore: {core}", buttons=Bot.core_setting_buttons)
 
+    @staticmethod
+    async def change_tweet_capture_night_mode(event, mode:str):
+        user_id = event.sender_id
+        await TweetCapture.set_settings(user_id,{'night_mode': mode})
+        await BotMessageHandler.edit_message(event,f"Night mode successfully changed.\nNight mode: {mode}", buttons=Bot.tweet_capture_setting_buttons)
+        
     @staticmethod
     async def cancel_subscription(event, quite: bool = False):
         user_id = event.sender_id

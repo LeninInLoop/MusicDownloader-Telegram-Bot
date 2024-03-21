@@ -22,7 +22,10 @@ class X:
     async def take_screenshot_of_tweet(event, tweet_url):
         tweet_message = await event.respond("Processing your request ...\nPlease wait while the screenshot is being generated.\nThis may take a few moments.")
 
-        night_mode = TweetCapture.get_settings(event.sender_id)
+        settings = await TweetCapture.get_settings(event.sender_id)
+        night_mode = settings['night_mode']
+        
+        print(night_mode)
         
         screenshot_path = X.get_screenshot_path(tweet_url+night_mode)
 
