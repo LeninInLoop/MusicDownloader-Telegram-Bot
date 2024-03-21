@@ -59,24 +59,20 @@ class TweetCapture:
         return chrome_options
     
     @staticmethod
-    def set_night_mode_and_cookies(driver, night_mode=None, cookies=None):
+    def set_night_mode(driver, tweet_url, night_mode=None):
         """
         Sets the night mode and adds cookies to the Selenium WebDriver instance.
         
         Args:
             driver (webdriver.Chrome): The Selenium WebDriver instance.
-            night_mode (bool, optional): The night mode setting. If not provided, it will use the class attribute `self.night_mode`.
+            night_mode (bool, optional): The night mode setting. If not provided, it will use 0.
             cookies (list, optional): A list of cookies to be added to the WebDriver instance.
         """
+        driver.get(tweet_url)
         # Set the night mode cookie
         driver.add_cookie(
-            {"name": "night_mode", "value": str(night_mode)}
+            {"name": "night_mode", "value": str(night_mode if night_mode is not None else 0)}
         )
-
-        # Add any additional cookies
-        if cookies:
-            for cookie in cookies:
-                driver.add_cookie(cookie)
                 
     @staticmethod
     def dismiss_cookie_accept(driver):
@@ -99,13 +95,14 @@ class TweetCapture:
         return None
     
     @staticmethod
-    async def screenshot(tweet_url, screenshot_path, night_mode=1, cookies=None):
+    async def screenshot(tweet_url, screenshot_path, night_mode=0):
         async with await TweetCapture.get_driver() as driver:
             try:
                 # Set the night mode and add cookies
-                TweetCapture.set_night_mode_and_cookies(driver, night_mode, cookies)
-
+                TweetCapture.set_night_mode(driver, tweet_url, night_mode)
+                
                 driver.get(tweet_url)
+                
                 WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "(//ancestor::article)/..")))
                 main_tweet_element = TweetCapture.find_main_tweet_element(driver)
 
@@ -121,10 +118,10 @@ class TweetCapture:
                 height = tweet_rect['height']
 
                 # Set the window size to match the tweet dimensions
-                driver.set_window_size(width, height+512)
+                driver.set_window_size(width, height + 512)
 
                 # Take the screenshot
                 main_tweet_element.screenshot(screenshot_path)
-                print(f"Screenshot saved: {screenshot_path}")
             except Exception as e:
-                print(f"Error occurred: {str(e)}")
+                raise(f"Internal Error: {str(e)}")
+                
