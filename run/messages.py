@@ -3,11 +3,12 @@ from .buttons import Buttons
 from utils import db, TweetCapture
 
 class BotMessageHandler:
-    start_message = """ 
+    start_message = """
 Welcome to your **Music Downloader!** 🎧
 
 Send me the name of a song or artist, and I'll find and send you the downloadable track. 🎶
 
+To see what I can do, type: /help
 """
 
     instruction_message = """
