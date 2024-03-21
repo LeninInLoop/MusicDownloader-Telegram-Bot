@@ -6,7 +6,7 @@ class ShazamHelper():
     def initialize(cls):
         cls.Shazam = Shazam()
         
-        cls.voice_repository_dir = "repository/Shazam_voice"
+        cls.voice_repository_dir = "repository/Voices"
         if not os.path.isdir(cls.voice_repository_dir):
             os.makedirs(cls.voice_repository_dir, exist_ok=True)
         

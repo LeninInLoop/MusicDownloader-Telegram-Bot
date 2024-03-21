@@ -8,7 +8,7 @@ class X:
     
     @classmethod
     def initialize(cls):
-        cls.screen_shot_path = 'repository/X_screen'
+        cls.screen_shot_path = 'repository/ScreenShots'
         if not os.path.isdir(cls.screen_shot_path):
             os.makedirs(cls.screen_shot_path, exist_ok=True)
         
@@ -22,13 +22,15 @@ class X:
     async def take_screenshot_of_tweet(event, tweet_url):
         tweet_message = await event.respond("Processing your request ...\nPlease wait while the screenshot is being generated.\nThis may take a few moments.")
 
-        screenshot_path = X.get_screenshot_path(tweet_url)
+        night_mode = TweetCapture.get_settings(event.sender_id)
+        
+        screenshot_path = X.get_screenshot_path(tweet_url+night_mode)
 
         if os.path.exists(screenshot_path):
             await tweet_message.delete()
             return screenshot_path
         try:
-            screenshot_task = asyncio.create_task(TweetCapture.screenshot(tweet_url, screenshot_path))
+            screenshot_task = asyncio.create_task(TweetCapture.screenshot(tweet_url, screenshot_path, night_mode))
             await screenshot_task
             
             await tweet_message.delete()
