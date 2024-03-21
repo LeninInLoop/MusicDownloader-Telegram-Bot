@@ -1,9 +1,13 @@
 from run import Button
 
 class Buttons:
+    
+    source_code_button = [Button.url("Source Code", url="https://github.com/AdibNikjou/telegram_spotify_downloader")]
+    
     main_menu_buttons = [
-        [Button.inline("Instructions", b"instructions"),Button.inline("Settings", b"setting")],
-        [Button.inline("Contact Creator", b"contact_creator")]
+        [Button.inline("Settings", b"setting"),Button.inline("Instructions", b"instructions")],
+        source_code_button,
+        [Button.inline("Contact Creator", b"contact_creator")],
         ]
 
     back_button = Button.inline("<< Back To Main Menu", b"back")
@@ -65,3 +69,4 @@ class Buttons:
     cancel_subscription_button_quite = [Button.inline("Cancel Subscription To News", b"setting/subscription/cancel/quite")]
     
     cancel_button = [Button.inline("Cancel", b"cancel")]
+    

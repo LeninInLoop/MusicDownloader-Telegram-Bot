@@ -41,7 +41,7 @@ Or simply click the Instructions button below. 👇
 
 ——————————————————
 Use any service by following the instructions!
-If you have questions, just ask. 😊
+If you have any questions, feel free to ask @adibnikjou. 😊
 """
 
     contact_creator_message = """Should you have any inquiries or require feedback, please do not hesitate to contact me. 🌐
