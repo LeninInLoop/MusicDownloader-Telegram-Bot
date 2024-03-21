@@ -68,8 +68,8 @@ async def handle_continue_in_membership_message(event):
         join_channel_buttons.append(Buttons.continue_button)
         await BotMessageHandler.edit_message(event,f"""Hey {sender_name}!👋 \n{BotMessageHandler.JOIN_CHANNEL_MESSAGE}""", buttons=join_channel_buttons)
     else:
-        user_settings = await db.get_user_settings(user_id)
-        if user_settings[0] == None and user_settings[1] == None:
-            await db.save_user_settings(user_id, db.default_music_quality, db.default_downloading_core)
-        await BotMessageHandler.edit_message(event,f"""Hey {sender_name}!👋 \n{BotMessageHandler.start_message}""", buttons=Buttons.main_menu_buttons)
+        user_already_in_db = await db.check_username_in_database(user_id)
+        if not user_already_in_db:
+            await db.create_user_settings(user_id)
+        await respond_based_on_channel_membership(event,f"""Hey {sender_name}!👋 \n{BotMessageHandler.start_message}""", buttons=Buttons.main_menu_buttons)
         

@@ -18,9 +18,9 @@ class BotCommandHandler:
         sender_name = event.sender.first_name
         user_id = event.sender_id
         
-        user_settings = await db.get_user_settings(user_id)
-        if user_settings[0] == None and user_settings[1] == None:
-            await db.save_user_settings(user_id, db.default_music_quality, db.default_downloading_core)
+        user_already_in_db = await db.check_username_in_database(user_id)
+        if not user_already_in_db:
+            await db.create_user_settings(user_id)
         await respond_based_on_channel_membership(event,f"""Hey {sender_name}!👋 \n{BotMessageHandler.start_message}""", buttons=Buttons.main_menu_buttons)
         
     @staticmethod
@@ -53,8 +53,8 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
         await update_bot_version_user_season(event)
         user_id = event.sender_id
         if await db.get_user_updated_flag(user_id):
-            user_setting = await db.get_user_settings(user_id)
-            await respond_based_on_channel_membership(event, BotMessageHandler.core_selection_message+f"\nCore: {user_setting[1]}",
+            downloading_core = await db.get_user_downloading_core(user_id)
+            await respond_based_on_channel_membership(event, BotMessageHandler.core_selection_message+f"\nCore: {downloading_core}",
                             buttons=Buttons.core_setting_buttons)
 
     @staticmethod
@@ -62,8 +62,8 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
         await update_bot_version_user_season(event)
         user_id = event.sender_id
         if await db.get_user_updated_flag(user_id):
-            user_setting = await db.get_user_settings(user_id)
-            await respond_based_on_channel_membership(event, f"Your Quality Setting:\nFormat: {user_setting[0]['format']}\nQuality: {user_setting[0]['quality']}\n\nQualities Available :",
+            music_quality = await db.get_user_music_quality(user_id)
+            await respond_based_on_channel_membership(event, f"Your Quality Setting:\nFormat: {music_quality['format']}\nQuality: {music_quality['quality']}\n\nQualities Available :",
                             buttons=Buttons.quality_setting_buttons)
 
     @staticmethod
@@ -71,7 +71,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
         await update_bot_version_user_season(event)
         user_id = event.sender_id
         if await db.get_user_updated_flag(user_id):
-            await respond_based_on_channel_membership(event,Buttons.instruction_message)
+            await respond_based_on_channel_membership(event,BotMessageHandler.instruction_message, buttons=Buttons.back_button)
             
     @staticmethod
     async def handle_unsubscribe_command(event):

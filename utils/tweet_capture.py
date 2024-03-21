@@ -1,10 +1,19 @@
+"""
+Acknowledgment of Contributions
+
+The team behind this project would like to extend our heartfelt gratitude to the wonderful contributors of the tweetcapture repository (https://github.com/xacnio/tweetcapture).
+Their initial implementation of the TweetCapture classes has been incredibly helpful, and we've adapted and modified this code to fit the specific needs and use cases of our current project.
+
+We're truly grateful for the efforts and insights shared by the tweetcapture project team.
+
+"""
+from .database import db
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
-from concurrent.futures import ThreadPoolExecutor
 import queue
 
 class AsyncWebDriver:
@@ -60,6 +69,18 @@ class TweetCapture:
         return chrome_options
     
     @staticmethod
+    def set_night_mode(driver, tweet_url, night_mode):
+        """
+        Sets the night mode and adds cookies to the Selenium WebDriver instance.
+        
+        """
+        driver.get(tweet_url)
+        # Set the night mode cookie
+        driver.add_cookie(
+            {"name": "night_mode", "value": (night_mode if night_mode is not None else "0")}
+        )
+                
+    @staticmethod
     def dismiss_cookie_accept(driver):
         try:
             cookie_accept_button = driver.find_element(By.CSS_SELECTOR, "div[role='button'][class*='r-sdzlij'][class*='r-1phboty']")
@@ -80,10 +101,22 @@ class TweetCapture:
         return None
     
     @staticmethod
-    async def screenshot(tweet_url, screenshot_path):
+    async def get_settings(user_id):
+        return await db.get_user_tweet_capture_settings(user_id)
+    
+    @staticmethod
+    async def set_settings(user_id, settings:dict):
+        return await db.set_user_tweet_capture_settings(user_id,settings)
+    
+    @staticmethod
+    async def screenshot(tweet_url, screenshot_path, night_mode):
         async with await TweetCapture.get_driver() as driver:
             try:
+                # Set the night mode
+                TweetCapture.set_night_mode(driver, tweet_url, night_mode)
+                
                 driver.get(tweet_url)
+                
                 WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "(//ancestor::article)/..")))
                 main_tweet_element = TweetCapture.find_main_tweet_element(driver)
 
@@ -99,10 +132,9 @@ class TweetCapture:
                 height = tweet_rect['height']
 
                 # Set the window size to match the tweet dimensions
-                driver.set_window_size(width, height+512)
+                driver.set_window_size(width, height + 512)
 
                 # Take the screenshot
                 main_tweet_element.screenshot(screenshot_path)
-                print(f"Screenshot saved: {screenshot_path}")
             except Exception as e:
-                print(f"Error occurred: {str(e)}")
+                raise(f"Internal Error: {str(e)}")

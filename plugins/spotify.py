@@ -17,11 +17,11 @@ class SpotifyDownloader():
             print("Failed to Load .env variables")
         
         # Create a directory for the download
-        cls.download_directory = "repository/Spotify_music"
+        cls.download_directory = "repository/Musics"
         if not os.path.isdir(cls.download_directory):
             os.makedirs(cls.download_directory, exist_ok=True)
             
-        cls.download_icon_directory = "repository/Spotify_icon"
+        cls.download_icon_directory = "repository/Icons"
         if not os.path.isdir(cls.download_icon_directory):
             os.makedirs(cls.download_icon_directory, exist_ok=True)
 

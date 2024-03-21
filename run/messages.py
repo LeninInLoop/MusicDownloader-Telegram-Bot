@@ -1,28 +1,47 @@
 from .glob_variables import BotState
 from .buttons import Buttons
-from utils import db
+from utils import db, TweetCapture
 
 class BotMessageHandler:
     start_message = """
-I'm a dedicated Spotify Downloader, ready to turn your favorite tunes into downloadable tracks. 🎶🎵
+Welcome to your **Music Downloader!** 🎧
 
-Just a heads up, this service is meant for personal use only. Let's keep those downloaded tracks under wraps, shall we? 😉
+Send me the name of a song or artist, and I'll find and send you the downloadable track. 🎶
 
-So, buckle up and let's rock this music journey together! 🎧
+To see what I can do, type: /help
+Or simply click the Instructions button below. 👇
 """
 
     instruction_message = """
-To begin using this service, please follow these steps:
+🎧 **Music Downloader** 🎧
+——————————————————
+**1.** Share the Spotify song link. 🔗
+**2.** Wait for the download confirmation. 📣
+**3.** I'll send you the song file when ready. 💾
+**4.** You can also send a voice message with a song sample. 
+    I'll find the best match and send you the details. 🎤🔍📩
+**5.** Get music lyrics, artist info, and more! Just ask. 📜👨‍🎤
 
-1. Share the link to the Spotify song you wish to download.🔗
+💡 **Tip**: Search by title, lyrics, or other details too!
 
-2. Await the confirmation message indicating that the download process has commenced.📣
+📸 **Instagram Downloader** 📸
+——————————————————
+**1.** Send the Instagram post, Reel, or IGTV link. 🔗
+**2.** I'll start downloading the content. ⏳
+**3.** I'll send you the file when it's ready. 📤
 
-3. Upon completion of the download, I will promptly send you the downloaded file.💾
+🐦 **TweetCapture** 🐦
+——————————————————
+**1.** Provide the tweet link. 🔗
+**2.** I'll screenshot the tweet and start downloading. 📸
+**3.** I'll send you the screenshot when it's ready. 🖼️
+**4.** To download media content from the tweet,
+    click the "Download Media" button after
+    receiving the screenshot. 📥
 
-UPDATE:
-You now have the option to search the Spotify database by providing the song's title, lyrics, or any other pertinent details.
-
+——————————————————
+Use any service by following the instructions!
+If you have any questions, feel free to ask @adibnikjou. 😊
 """
 
     contact_creator_message = """Should you have any inquiries or require feedback, please do not hesitate to contact me. 🌐
@@ -62,9 +81,8 @@ Please join to continue."""
             
     @staticmethod
     async def edit_quality_setting_message(e):
-        user_settings = await db.get_user_settings(e.sender_id)
-        if user_settings:
-            music_quality = user_settings[0]
+        music_quality = await db.get_user_music_quality(e.sender_id)
+        if music_quality:
             message = f"Your Quality Setting:\nFormat: {music_quality['format']}\nQuality: {music_quality['quality']}\n\nQualities Available :"
         else:
             message = "No quality settings found."
@@ -72,9 +90,8 @@ Please join to continue."""
         
     @staticmethod
     async def edit_core_setting_message(e):
-        user_settings = await db.get_user_settings(e.sender_id)
-        if user_settings:
-            downloading_core = user_settings[1]
+        downloading_core = await db.get_user_downloading_core(e.sender_id)
+        if downloading_core:
             message = BotMessageHandler.core_selection_message + f"\nCore: {downloading_core}"
         else:
             message = BotMessageHandler.core_selection_message + "\nNo core setting found."
@@ -83,6 +100,12 @@ Please join to continue."""
     @staticmethod
     async def edit_subscription_status_message(e):
         is_subscribed = await db.is_user_subscribed(e.sender_id)
-        message = f"Your Subscription Status: {is_subscribed}"
+        message = f"Subscroption settings:\nYour Subscription Status: {is_subscribed}"
         await BotMessageHandler.edit_message(e, message, buttons=Buttons.subscription_setting_buttons)
         
+    @staticmethod
+    async def edit_tweet_capture_setting_message(e):
+        night_mode = await TweetCapture.get_settings(e.sender_id)
+        message = f"Tweet capture settings:\nYour Night Mode: {night_mode['night_mode']}\nHere's the difference between night modes:"
+        await BotMessageHandler.edit_message(e, message, buttons=Buttons.tweet_capture_setting_buttons)
+        await e.respond(file="./repository/ScreenShots/night_modes.png")

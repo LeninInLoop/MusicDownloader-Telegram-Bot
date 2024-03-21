@@ -34,6 +34,7 @@ class db:
             await conn.execute('''CREATE TABLE IF NOT EXISTS user_settings
                                 (user_id INTEGER PRIMARY KEY, music_quality TEXT, downloading_core TEXT,
                                 spotify_link_info TEXT, song_dict TEXT, current_page INTEGER DEFAULT 1 ,tweet_url TEXT ,
+                                tweet_capture_settings TEXT,
                                 is_file_processing BOOLEAN DEFAULT 0,is_user_updated BOOLEAN DEFAULT 1)'''
                                 )
             await conn.execute('''CREATE TABLE IF NOT EXISTS subscriptions
@@ -47,9 +48,10 @@ class db:
         await db.set_defualt_values()
 
     @classmethod
-    async def set_defualt_values(cls, default_downloading_core:str = "Auto", default_music_quality:dict = {'format': 'flac', 'quality': '693'}):
-        cls.default_downloading_core = default_downloading_core
-        cls.default_music_quality = default_music_quality
+    async def set_defualt_values(cls):
+        cls.default_downloading_core:str = "Auto"
+        cls.default_music_quality:dict = {'format': 'flac', 'quality': '693'}
+        cls.default_tweet_capture_setting:dict = {'night_mode': '0'}
         
     @staticmethod
     async def get_connection():
@@ -117,43 +119,48 @@ class db:
         await db.execute_query(trigger_sql)
 
     @staticmethod
-    async def save_user_settings(user_id, music_quality, downloading_core):
-        music_quality_json = json.dumps(music_quality)
-        is_file_processing = await db.get_file_processing_flag(user_id)
-        song_dict = await db.get_user_song_dict(user_id) 
-        song_dict = json.dumps(song_dict) if song_dict else None
-        spotify_link_info = await db.get_user_spotify_link_info(user_id)
-        spotify_link_info = json.dumps(spotify_link_info) if spotify_link_info else None
-        is_user_updated = await db.get_user_updated_flag(user_id)
+    async def create_user_settings(user_id):
+        music_quality_json = json.dumps(db.default_music_quality)
+        tweet_capture_setting_json = json.dumps(db.default_tweet_capture_setting)
         await db.execute_query('''INSERT OR REPLACE INTO user_settings
-                          (user_id, music_quality, downloading_core, spotify_link_info, song_dict, is_file_processing, is_user_updated) VALUES (?, ?, ?, ?, ?, ?, ?)''',
-                         (user_id, music_quality_json, downloading_core, spotify_link_info, song_dict, is_file_processing, is_user_updated))
-
+                          (user_id, music_quality, downloading_core, tweet_capture_settings) VALUES (?, ?, ?, ?)''',
+                         (user_id, music_quality_json, db.default_downloading_core, tweet_capture_setting_json))
+       
     @staticmethod
-    async def get_user_settings(user_id):
-        result = await db.fetch_one('SELECT music_quality, downloading_core FROM user_settings WHERE user_id = ?', (user_id,))
+    async def check_username_in_database(user_id):
+        query = "SELECT COUNT(*) FROM user_settings WHERE user_id = ?"
+        result = await db.fetch_one(query, (user_id,))
+        if result:
+            count = result[0]
+            return count > 0
+        else:
+            return False
+ 
+    @staticmethod
+    async def get_user_music_quality(user_id):
+        result = await db.fetch_one('SELECT music_quality FROM user_settings WHERE user_id = ?', (user_id,))
         if result:
             music_quality = json.loads(result[0])
-            downloading_core = result[1]
-            return music_quality, downloading_core
+            return music_quality
         else:
-            return None, None
+            return None
+        
+    @staticmethod
+    async def get_user_downloading_core(user_id):
+        result = await db.fetch_one('SELECT downloading_core FROM user_settings WHERE user_id = ?', (user_id,))
+        if result:
+            return result[0]
+        else:
+            return None
 
     @staticmethod
-    async def change_music_quality(user_id, new_music_quality):
-        current_music_quality, current_downloading_core = await db.get_user_settings(user_id)
-        if current_music_quality is not None:
-            await db.save_user_settings(user_id, new_music_quality, current_downloading_core)
-        else:
-            await db.save_user_settings(user_id, new_music_quality, db.default_downloading_core)
+    async def set_user_music_quality(user_id, music_quality):
+        serialized_dict = json.dumps(music_quality)
+        await db.execute_query('UPDATE user_settings SET music_quality = ? WHERE user_id = ?', (serialized_dict, user_id))
 
     @staticmethod
-    async def change_downloading_core(user_id, new_downloading_core):
-        current_music_quality, current_downloading_core = await db.get_user_settings(user_id)
-        if current_downloading_core is not None:
-            await db.save_user_settings(user_id, current_music_quality, new_downloading_core)
-        else:
-            await db.save_user_settings(user_id, db.default_music_quality, new_downloading_core)
+    async def set_user_downloading_core(user_id, downloading_core):
+        await db.execute_query('UPDATE user_settings SET downloading_core = ? WHERE user_id = ?', (downloading_core, user_id))
 
     @staticmethod
     async def get_all_user_ids():
@@ -326,3 +333,15 @@ class db:
         if result:
             return result[0]
         return 1  # Return 1 (the default value) if the user is not found or the current_page is not set
+
+    @staticmethod
+    async def set_user_tweet_capture_settings(user_id, tweet_capture_settings):
+        serialized_info = json.dumps(tweet_capture_settings)
+        await db.execute_query('UPDATE user_settings SET tweet_capture_settings = ? WHERE user_id = ?', (serialized_info, user_id))
+        
+    @staticmethod
+    async def get_user_tweet_capture_settings(user_id):
+        result = await db.fetch_one('SELECT tweet_capture_settings FROM user_settings WHERE user_id = ?', (user_id,))
+        if result != None:
+            return json.loads(result[0]) if result[0] else {}
+        return {} # Return an empty dictionary if the user is not found or the Spotify link info is not set
