@@ -9,6 +9,7 @@ Welcome to your **Music Downloader!** 🎧
 Send me the name of a song or artist, and I'll find and send you the downloadable track. 🎶
 
 To see what I can do, type: /help
+Or simply click the Instructions button below. 👇
 """
 
     instruction_message = """
