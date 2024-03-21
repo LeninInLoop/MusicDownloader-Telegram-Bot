@@ -1,4 +1,4 @@
-from run import Button
+from run import Button, BotState
 from utils import lru_cache
 from utils import os, hashlib, re, asyncio
 from utils import db, bs4, aiohttp
@@ -45,14 +45,23 @@ class X:
     async def send_screenshot(client, event, screenshot_path, has_media) -> bool:
         screen_shot_message = await event.respond("Uploading the screenshot. Please stand by...")
         button = Button.inline("Download Media", data=b"@X_download_media") if has_media else None
+        
+        prev_screen_shot = BotState.get_tweet_screenshot(event.sender_id)
         try:
-            await client.send_file(
+            await prev_screen_shot.edit(buttons=None)
+        except:
+            pass
+        
+        try:
+            screen_shot = await client.send_file(
                 event.chat_id,
                 screenshot_path,
                 caption="Here is the requested tweet screenshot.",
                 buttons=button
             )
             await screen_shot_message.delete()
+            
+            BotState.set_tweet_screenshot(event.sender_id, screen_shot)
             return True
         except:
             return False

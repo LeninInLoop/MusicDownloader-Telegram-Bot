@@ -2,7 +2,7 @@ from utils import os, load_dotenv
 from telethon import TelegramClient
 
 class BotState:
-    channel_usernames = ["Spotify_yt_downloader"]
+    channel_usernames = [] #"Spotify_yt_downloader"
     user_states = {}
 
     load_dotenv('config.env')
@@ -26,6 +26,7 @@ class BotState:
                 'send_to_specified_flag': False,
                 'messages': {},
                 'search_result': None,
+                'tweet_screenshot': None,
                 'waiting_message': None
             }
 
@@ -39,9 +40,13 @@ class BotState:
         return BotState.get_user_state(user_id)['admin_message_to_send']
 
     @staticmethod
+    def get_tweet_screenshot(user_id):
+        return BotState.get_user_state(user_id)['tweet_screenshot']
+
+    @staticmethod
     def get_admin_broadcast(user_id):
         return BotState.get_user_state(user_id)['admin_broadcast']
-
+    
     @staticmethod
     def get_send_to_specified_flag(user_id):
         return BotState.get_user_state(user_id)['send_to_specified_flag']
@@ -63,9 +68,13 @@ class BotState:
         BotState.get_user_state(user_id)['admin_message_to_send'] = message
 
     @staticmethod
+    def set_tweet_screenshot(user_id, value):
+        BotState.get_user_state(user_id)['tweet_screenshot'] = value
+
+    @staticmethod
     def set_admin_broadcast(user_id, value):
         BotState.get_user_state(user_id)['admin_broadcast'] = value
-
+        
     @staticmethod
     def set_send_to_specified_flag(user_id, value):
         BotState.get_user_state(user_id)['send_to_specified_flag'] = value
