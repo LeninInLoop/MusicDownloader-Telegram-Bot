@@ -19,7 +19,7 @@ class BotCommandHandler:
         user_id = event.sender_id
         
         user_already_in_db = await db.check_username_in_database(user_id)
-        if not user_already_in_db:
+        if not user_already_in_db :
             await db.create_user_settings(user_id)
         await respond_based_on_channel_membership(event,f"""Hey {sender_name}!👋 \n{BotMessageHandler.start_message}""", buttons=Buttons.main_menu_buttons)
         
@@ -50,35 +50,32 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
         
     @staticmethod
     async def handle_core_command(event):
-        await update_bot_version_user_season(event)
-        user_id = event.sender_id
-        if await db.get_user_updated_flag(user_id):
+        if await update_bot_version_user_season(event):
+            user_id = event.sender_id
             downloading_core = await db.get_user_downloading_core(user_id)
             await respond_based_on_channel_membership(event, BotMessageHandler.core_selection_message+f"\nCore: {downloading_core}",
                             buttons=Buttons.core_setting_buttons)
 
     @staticmethod
     async def handle_quality_command(event):
-        await update_bot_version_user_season(event)
-        user_id = event.sender_id
-        if await db.get_user_updated_flag(user_id):
+        if await update_bot_version_user_season(event):
+            user_id = event.sender_id
             music_quality = await db.get_user_music_quality(user_id)
             await respond_based_on_channel_membership(event, f"Your Quality Setting:\nFormat: {music_quality['format']}\nQuality: {music_quality['quality']}\n\nQualities Available :",
                             buttons=Buttons.quality_setting_buttons)
 
     @staticmethod
     async def handle_help_command(event):
-        await update_bot_version_user_season(event)
-        user_id = event.sender_id
-        if await db.get_user_updated_flag(user_id):
-            await respond_based_on_channel_membership(event,BotMessageHandler.instruction_message, buttons=Buttons.back_button)
-            
+        if await update_bot_version_user_season(event):
+            user_id = event.sender_id
+            if await db.get_user_updated_flag(user_id):
+                await respond_based_on_channel_membership(event,BotMessageHandler.instruction_message, buttons=Buttons.back_button)
+                
     @staticmethod
     async def handle_unsubscribe_command(event):
     # Check if the user is subscribed
-        await update_bot_version_user_season(event)
-        user_id = event.sender_id
-        if await db.get_user_updated_flag(user_id):
+        if await update_bot_version_user_season(event):
+            user_id = event.sender_id
             if not await db.is_user_subscribed(user_id):
                 await respond_based_on_channel_membership(event,"You are not currently subscribed.")
                 return
@@ -88,9 +85,8 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
     @staticmethod
     async def handle_subscribe_command(event):
     # Check if the user is already subscribed
-        await update_bot_version_user_season(event)
-        user_id = event.sender_id
-        if await db.get_user_updated_flag(user_id):
+        if await update_bot_version_user_season(event):
+            user_id = event.sender_id
             if await db.is_user_subscribed(user_id):
                 await respond_based_on_channel_membership(event,"You are already subscribed.")
                 return
@@ -99,8 +95,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
 
     @staticmethod
     async def handle_settings_command(event):
-        await update_bot_version_user_season(event)
-        if await db.get_user_updated_flag(event.sender_id):
+        if await update_bot_version_user_season(event):
             await respond_based_on_channel_membership(event,"Settings :", buttons=Buttons.setting_button)
           
     @staticmethod
@@ -177,9 +172,8 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
         
     @staticmethod
     async def handle_search_command(event):
-        await update_bot_version_user_season(event)
-        user_id = event.sender_id
-        if await db.get_user_updated_flag(user_id):
+        if await update_bot_version_user_season(event):
+            user_id = event.sender_id
             search_query = event.message.text[8:]
             
             if not search_query.strip():
@@ -224,10 +218,8 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
             
     @staticmethod
     async def handle_user_info_command(event):
-        await update_bot_version_user_season(event)
-        
-        user_id = event.sender_id
-        if await db.get_user_updated_flag(user_id):
+        if await update_bot_version_user_season(event):
+            user_id = event.sender_id
             username = f"@{event.sender.username}" if event.sender.username else "No username"
             first_name = event.sender.first_name
             last_name = event.sender.last_name if event.sender.last_name else "No last name"

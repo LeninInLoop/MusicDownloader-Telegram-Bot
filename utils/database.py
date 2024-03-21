@@ -120,11 +120,18 @@ class db:
 
     @staticmethod
     async def create_user_settings(user_id):
-        music_quality_json = json.dumps(db.default_music_quality)
-        tweet_capture_setting_json = json.dumps(db.default_tweet_capture_setting)
+        music_quality = await db.get_user_music_quality(user_id)
+        music_quality = json.dumps(music_quality) if music_quality != {} else json.dumps(db.default_music_quality)
+        
+        downloading_core = await db.get_user_downloading_core(user_id)
+        downloading_core = downloading_core if downloading_core else db.default_downloading_core
+        
+        tweet_capture_setting = await db.get_user_tweet_capture_settings(user_id)
+        tweet_capture_setting = json.dumps(tweet_capture_setting) if tweet_capture_setting != {} else json.dumps(db.default_tweet_capture_setting)
+        
         await db.execute_query('''INSERT OR REPLACE INTO user_settings
                           (user_id, music_quality, downloading_core, tweet_capture_settings) VALUES (?, ?, ?, ?)''',
-                         (user_id, music_quality_json, db.default_downloading_core, tweet_capture_setting_json))
+                         (user_id, music_quality, downloading_core , tweet_capture_setting))
        
     @staticmethod
     async def check_username_in_database(user_id):
@@ -132,7 +139,9 @@ class db:
         result = await db.fetch_one(query, (user_id,))
         if result:
             count = result[0]
-            return count > 0
+            if count > 0 and await db.get_user_downloading_core(user_id) != None:
+                if await db.get_user_music_quality(user_id) != {} and await db.get_user_tweet_capture_settings(user_id) != {}:  
+                    return True
         else:
             return False
  
@@ -143,7 +152,7 @@ class db:
             music_quality = json.loads(result[0])
             return music_quality
         else:
-            return None
+            return {}
         
     @staticmethod
     async def get_user_downloading_core(user_id):
