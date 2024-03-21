@@ -359,7 +359,8 @@ class SpotifyDownloader():
     @staticmethod
     async def send_track_info(client, event, link_info):
         user_id = event.sender_id
-        music_quality, downloading_core = await db.get_user_settings(user_id)
+        music_quality = await db.get_user_music_quality(user_id)
+        downloading_core = await db.get_user_downloading_core(user_id)
         
         if downloading_core == "Auto":
             spotdl = True if (link_info.get('youtube_link') is None) else False
@@ -709,7 +710,8 @@ class SpotifyDownloader():
     @staticmethod
     async def download_track(client, event, spotify_link_info):
         user_id = event.sender_id
-        music_quality, downloading_core = await db.get_user_settings(user_id)
+        music_quality = await db.get_user_music_quality(user_id)
+        downloading_core = await db.get_user_downloading_core(user_id)
         
         if downloading_core == "Auto":
             spotdl = True if (spotify_link_info.get('youtube_link') is None) else False
@@ -790,7 +792,8 @@ class SpotifyDownloader():
         message = "Downloading playlist tracks...\n\n"
         init_message = await event.respond(message)
 
-        music_quality, downloading_core = await db.get_user_settings(user_id)
+        music_quality = await db.get_user_music_quality(user_id)
+        downloading_core = await db.get_user_downloading_core(user_id)
 
         link_info = spotify_link_info['playlist_tracks']
 
