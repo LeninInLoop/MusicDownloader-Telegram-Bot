@@ -117,7 +117,7 @@ class TweetCapture:
                 
                 driver.get(tweet_url)
                 
-                WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "(//ancestor::article)/..")))
+                WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.XPATH, "(//ancestor::article)/..")))
                 main_tweet_element = TweetCapture.find_main_tweet_element(driver)
 
                 if main_tweet_element is None:
