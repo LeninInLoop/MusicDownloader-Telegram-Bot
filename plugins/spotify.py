@@ -519,6 +519,7 @@ class SpotifyDownloader():
         uploaded_thumbnail = await client.upload_file(icon_path)
 
         audio_attributes = DocumentAttributeAudio(
+            duration=0,
             title=f"{spotify_link_info['track_name']} - {spotify_link_info['artist_name']}",
             performer="@Spotify_YT_Downloader_BOT",
             waveform=None,
