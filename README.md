@@ -67,7 +67,7 @@ google-chrome --version
 
 ### Step 5: Set Up Your Environment Variables
 
-Create a `.env` file in the root directory of the project and add the following environment variables:
+Create a `config.env` file in the root directory of the project and add the following environment variables:
 
 - `SPOTIFY_CLIENT_ID=your_spotify_client_id`
 - `SPOTIFY_CLIENT_SECRET=your_spotify_client_secret`
