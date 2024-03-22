@@ -109,10 +109,10 @@ class Bot:
             b"setting/subscription/cancel": lambda e: asyncio.create_task(Bot.cancel_subscription(e)),
             b"setting/subscription/cancel/quite": lambda e: asyncio.create_task(Bot.cancel_subscription(e,quite=True)),
             b"setting/subscription/add": lambda e: asyncio.create_task(Bot.add_subscription(e)),
-            b"setting/TweetCapture": lambda e: asyncio.create_task(BotMessageHandler.edit_tweet_capture_setting_message(Bot.Client,e)),
-            b"setting/TweetCapture/mode_0": lambda e: asyncio.create_task(Bot.change_tweet_capture_night_mode(e,"0")),
-            b"setting/TweetCapture/mode_1": lambda e: asyncio.create_task(Bot.change_tweet_capture_night_mode(e,"1")),
-            b"setting/TweetCapture/mode_2": lambda e: asyncio.create_task(Bot.change_tweet_capture_night_mode(e,"2")),
+            b"setting/TweetCapture": lambda e: asyncio.create_task(BotMessageHandler.edit_tweet_capture_setting_message(e)),
+            b"setting/TweetCapture/mode/0": lambda e: asyncio.create_task(Bot.change_tweet_capture_night_mode(e,"0")),
+            b"setting/TweetCapture/mode/1": lambda e: asyncio.create_task(Bot.change_tweet_capture_night_mode(e,"1")),
+            b"setting/TweetCapture/mode/2": lambda e: asyncio.create_task(Bot.change_tweet_capture_night_mode(e,"2")),
             b"cancel": lambda e: e.delete(),
             b"admin/cancel_broadcast": lambda e: asyncio.create_task(BotState.set_admin_broadcast(e.sender_id,False)),
             b"admin/stats": lambda e: asyncio.create_task(BotCommandHandler.handle_stats_command(e)),
@@ -120,8 +120,8 @@ class Bot:
             b"admin/broadcast/all": lambda e: asyncio.create_task(Bot.handle_broadcast(e,send_to_all=True)),
             b"admin/broadcast/subs": lambda e: asyncio.create_task(Bot.handle_broadcast(e,send_to_subs=True)),
             b"admin/broadcast/specified": lambda e: asyncio.create_task(Bot.handle_broadcast(e,send_to_specified=True)),
-            b"next_page": lambda e: asyncio.create_task(Bot.next_page(e)),
-            b"prev_page": lambda e: asyncio.create_task(Bot.prev_page(e))
+            b"next_page": lambda e: Bot.next_page(e),
+            b"prev_page": lambda e: Bot.prev_page(e)
             # Add other actions here
         }
 
