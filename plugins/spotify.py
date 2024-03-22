@@ -332,7 +332,7 @@ class SpotifyDownloader():
         # Buttons for interactivity
         buttons = [
             [Button.inline("Download Top 10", data=b"@music_playlist_download_10")],
-            [Button.inline("Search Tracks inside", data=b"@unavailable_feature")], #@music_playlist_search
+            [Button.inline("Search Tracks inside", data=b"@music_playlist_search")],
             [Button.inline("Cancel", data=b"cancel")]
         ]
 
@@ -519,7 +519,6 @@ class SpotifyDownloader():
         uploaded_thumbnail = await client.upload_file(icon_path)
 
         audio_attributes = DocumentAttributeAudio(
-            duration=0,  # You need to specify the duration of the audio
             title=f"{spotify_link_info['track_name']} - {spotify_link_info['artist_name']}",
             performer="@Spotify_YT_Downloader_BOT",
             waveform=None,
@@ -928,7 +927,7 @@ class SpotifyDownloader():
             spotify_link = t['external_urls']['spotify']
             song_details = {
                 'track_name': t['name'],
-                'artist': artists,
+                'artist_name': artists,
                 'release_year': t['album']['release_date'][:4],
                 'spotify_link': spotify_link
             }
@@ -1059,11 +1058,13 @@ class SpotifyDownloader():
             for i, chunk in enumerate(lyrics_chunks, start=1):
                 page_header = f"Page {i}/{len(lyrics_chunks)}\n"
                 if chunk == "``````":
+                    await waiting_message.delete() if waiting_message is not None else None
                     error_message = "Sorry, I couldn't find the lyrics for this track."
                     return await event.respond(error_message)
                 message = metadata + chunk + page_header
                 await event.respond(message, buttons=[Button.inline("Remove", data='cancel')])
         else:   
+            await waiting_message.delete()
             error_message = "Sorry, I couldn't find the lyrics for this track."
             return await event.respond(error_message)
         

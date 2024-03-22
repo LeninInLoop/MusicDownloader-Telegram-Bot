@@ -56,6 +56,8 @@ If you have any questions, feel free to ask @adibnikjou. 😊
     JOIN_CHANNEL_MESSAGE = """It seems you are not a member of our channel yet.
 Please join to continue."""
 
+    search_playlist_message = """The playlist contains these songs:"""
+    
     @staticmethod
     async def send_message_and_store_id(event, text, buttons=None):
         chat_id = event.chat_id

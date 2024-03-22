@@ -71,6 +71,7 @@ class Bot:
         cls.search_result_message = BotMessageHandler.search_result_message
         cls.core_selection_message = BotMessageHandler.core_selection_message
         cls.JOIN_CHANNEL_MESSAGE = BotMessageHandler.JOIN_CHANNEL_MESSAGE
+        cls.search_playlist_message = BotMessageHandler.search_playlist_message
 
     @classmethod
     def initialize_buttons(cls):
@@ -373,8 +374,8 @@ class Bot:
         if len(event.message.text) > 33:
             return await event.respond("Your Search Query is too long. :(")
 
-        if BotState.get_search_result(user_id) is not None:
-            search_result = BotState.get_search_result(user_id)
+        search_result = BotState.get_search_result(user_id)
+        if search_result is not None:
             await search_result.delete()
             BotState.set_search_result(user_id, None)
 
@@ -394,7 +395,7 @@ class Bot:
         await db.set_current_page(user_id,1)
         page = 1
         button_list = [
-            [Button.inline(f"🎧 {details['track_name']} - {details['artist']} 🎧 ({details['release_year']})", data=str(idx))]
+            [Button.inline(f"🎧 {details['track_name']} - {details['artist_name']} 🎧 ({details['release_year']})", data=str(idx))]
             for idx, details in enumerate(song_pages[str(page)])
         ]
         if len(song_pages) > 1:
@@ -420,7 +421,7 @@ class Bot:
         await db.set_current_page(user_id,page) # Update the current page
 
         button_list = [
-            [Button.inline(f"🎧 {details['track_name']} - {details['artist']} 🎧 ({details['release_year']})", data=str(idx))]
+            [Button.inline(f"🎧 {details['track_name']} - {details['artist_name']} 🎧 ({details['release_year']})", data=str(idx))]
             for idx, details in enumerate(song_pages[str(page)])
         ]
         if total_pages > 1:
@@ -431,10 +432,10 @@ class Bot:
             search_result = BotState.get_search_result(user_id)
             await search_result.edit(buttons=button_list)
             BotState.set_search_result(user_id,search_result)
-        except KeyError:
+        except AttributeError:
             page = await db.get_current_page(user_id)
             button_list = [
-            [Button.inline(f"🎧 {details['track_name']} - {details['artist']} 🎧 ({details['release_year']})", data=str(idx))]
+            [Button.inline(f"🎧 {details['track_name']} - {details['artist_name']} 🎧 ({details['release_year']})", data=str(idx))]
             for idx, details in enumerate(song_pages[str(page)])
             ]
             if len(song_pages) > 1:
@@ -445,9 +446,9 @@ class Bot:
                 BotState.set_search_result(user_id,await event.respond(Bot.search_result_message, buttons=button_list))
             except Exception as Err:
                 await event.respond(f"Sorry There Was an Error Processing Your Request: {str(Err)}")
-        except:
+        except KeyError:
             pass
-            
+        
     @staticmethod
     async def next_page(event):
         user_id = event.sender_id
@@ -459,7 +460,7 @@ class Bot:
         await db.set_current_page(user_id,page)  # Update the current page
 
         button_list = [
-            [Button.inline(f"🎧 {details['track_name']} - {details['artist']} 🎧 ({details['release_year']})", data=str(idx))]
+            [Button.inline(f"🎧 {details['track_name']} - {details['artist_name']} 🎧 ({details['release_year']})", data=str(idx))]
             for idx, details in enumerate(song_pages[str(page)])
         ]
         if total_pages > 1:
@@ -470,10 +471,10 @@ class Bot:
             search_result = BotState.get_search_result(user_id)
             await search_result.edit(buttons=button_list)
             BotState.set_search_result(user_id,search_result)
-        except KeyError:
+        except AttributeError:
             page = await db.get_current_page(user_id)
             button_list = [
-            [Button.inline(f"🎧 {details['track_name']} - {details['artist']} 🎧 ({details['release_year']})", data=str(idx))]
+            [Button.inline(f"🎧 {details['track_name']} - {details['artist_name']} 🎧 ({details['release_year']})", data=str(idx))]
             for idx, details in enumerate(song_pages[str(page)])
             ]
             if len(song_pages) > 1:
@@ -484,7 +485,7 @@ class Bot:
                 BotState.set_search_result(user_id,await event.respond(Bot.search_result_message, buttons=button_list))
             except Exception as Err:
                 await event.respond(f"Sorry There Was an Error Processing Your Request: {str(Err)}")
-        except:
+        except KeyError:
             pass
         
     @staticmethod
@@ -520,6 +521,68 @@ class Bot:
         await event.answer("not available", alert=True)
 
     @staticmethod
+    async def search_inside_playlist(event):
+        user_id = event.sender_id
+
+        search_result = BotState.get_search_result(user_id)
+        if search_result is not None:
+            await search_result.delete()
+            BotState.set_search_result(user_id, None)
+            
+        waiting_message_search = await event.respond('⏳')
+        spotify_link_info = await db.get_user_spotify_link_info(user_id)
+        link_info = spotify_link_info['playlist_tracks']
+
+        # Initialize an empty dictionary to hold the converted data
+        song_pages = {}
+
+        # Iterate over each track in the original dictionary
+        for index, track_info in enumerate(link_info.values(), start=1):
+            # Calculate the group index (every 10 tracks)
+            group_index = str(index // 10)
+            
+            # Initialize a list for the current group if it doesn't exist
+            if group_index not in song_pages:
+                song_pages[group_index] = []
+            
+            # Create a new dictionary for the current track
+            track_dict = {
+                'track_name': track_info['track_name'],
+                'artist_name': track_info['artist_name'],
+                'release_year': track_info['release_year'],
+                'spotify_link': track_info['track_url']
+            }
+            
+            # Append the new dictionary to the list associated with the current group
+            song_pages[group_index].append(track_dict)
+
+        await db.set_user_song_dict(user_id, song_pages)
+
+        if not song_pages:
+            await waiting_message_search.delete()
+            await event.respond("Sorry, I couldn't there was a problem processing your request.")
+            return
+
+        await db.set_current_page(user_id, 1)
+        page = 1
+        button_list = [
+            [Button.inline(f"🎧 {details['track_name']} - {details['artist_name']} 🎧 ({details['release_year']})", data=str(idx))]
+            for idx, details in enumerate(song_pages[str(page)])
+        ]
+        if len(song_pages) > 1:
+            button_list.append([Button.inline("Previous Page", b"prev_page"), Button.inline("Next Page", b"next_page")])
+        button_list.append([Button.inline("Cancel", b"cancel")])
+
+        try:
+            BotState.set_search_result(user_id, await event.respond(Bot.search_playlist_message, buttons=button_list))
+        except Exception as Err:
+            await event.respond(f"Sorry There Was an Error Processing Your Request: {str(Err)}")
+
+        await asyncio.sleep(1.5)
+        await waiting_message_search.delete()
+
+
+    @staticmethod
     async def handle_music_callback(client, event):
         if event.data == b"@music_info_preview":
             await SpotifyDownloader.send_30s_preview(client, event)
@@ -531,6 +594,8 @@ class Bot:
             await SpotifyDownloader.send_music_lyrics(event)
         elif event.data == b"@music_playlist_download_10":
             await SpotifyDownloader.download_spotify_file_and_send(client, event)
+        elif event.data == b"@music_playlist_search":
+            await Bot.search_inside_playlist(event)
         else:
             send_file_result = await SpotifyDownloader.download_spotify_file_and_send(client, event)
             if not send_file_result:
