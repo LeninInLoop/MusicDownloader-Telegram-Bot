@@ -43,9 +43,9 @@ class Buttons:
     ]
 
     tweet_capture_setting_buttons = [
-        [Button.inline("Mode 0",data=b"setting/TweetCapture/mode_0")],
-        [Button.inline("Mode 1",data=b"setting/TweetCapture/mode_1")],
-        [Button.inline("Mode 2",data=b"setting/TweetCapture/mode_2")],
+        [Button.inline("Light mode",data=b"setting/TweetCapture/mode/0")],
+        [Button.inline("Dark mode",data=b"setting/TweetCapture/mode/1")],
+        [Button.inline("Black mode",data=b"setting/TweetCapture/mode/2")],
         [back_button, back_button_to_setting]
     ]
     
