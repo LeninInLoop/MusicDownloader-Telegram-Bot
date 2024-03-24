@@ -184,13 +184,15 @@ class YoutubeDownloader():
             try:
                 # Indicate ongoing file upload to enhance user experience
                 async with client.action(event.chat_id, 'document'):
-                    uploaded_file = await fast_upload(
+                    
+                    media = await fast_upload(
                     client=client,
                     file_location=path,
                     reply=None,  # No need for a progress bar in this case
                     name=path,
                     progress_bar_function=None
                     )
+                    
                     if extension == "mp4":
                         uploaded_file = await client.upload_file(uploaded_file)
                         # Prepare the video attributes
@@ -201,15 +203,14 @@ class YoutubeDownloader():
                             supports_streaming=True,
                             # Add other attributes as needed
                         )
-                        
-                        # Assuming 'uploaded_file' is the result of your file upload process
-                        # and 'uploaded_thumbnail' is the thumbnail for the video
+
                         media = InputMediaUploadedDocument(
                             file=uploaded_file,
                             thumb=None,
-                            mime_type='video/mp4', # Adjust the MIME type based on your file's format
+                            mime_type='video/mp4',
                             attributes=[video_attributes],
                         )
+                    
                     # Send the downloaded file
                     await client.send_file(event.chat_id, file=media,
                                             caption=f"Thank you for using.\n@Spotify_YT_Downloader_BOT",
