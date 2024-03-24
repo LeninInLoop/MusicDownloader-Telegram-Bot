@@ -17,6 +17,7 @@ You can test this bot at:
 - Screenshot capture of tweets
 - Download twitter media
 - Download Instagram media
+- Download Youtube media
 
 ## Installation
 
