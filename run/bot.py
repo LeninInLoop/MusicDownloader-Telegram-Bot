@@ -1,5 +1,5 @@
 from utils import BroadcastManager, db, asyncio, sanitize_query, is_file_voice, TweetCapture
-from plugins import SpotifyDownloader, ShazamHelper, X, Insta
+from plugins import SpotifyDownloader, ShazamHelper, X, Insta, YoutubeDownloader
 from run import events, Button, MessageMediaDocument, update_bot_version_user_season, is_user_in_channel, handle_continue_in_membership_message
 from run import Buttons, BotMessageHandler, BotState, BotCommandHandler, respond_based_on_channel_membership
 
@@ -14,6 +14,7 @@ class Bot:
             Bot.initialize_shazam()
             Bot.initialize_X()
             Bot.initialize_instagram()
+            Bot.initialize_youtube()
             Bot.initialize_messages()
             Bot.initialize_buttons()
             await Bot.initialize_action_queries()
@@ -62,6 +63,14 @@ class Bot:
         except Exception as e:
             print(f"An error occurred while initializing Instagram: {str(e)}")
 
+    @staticmethod
+    def initialize_youtube():
+        try:
+            YoutubeDownloader.initialize()
+            print("Plugins: Youtube downloader initialized.")
+        except Exception as e:
+            print(f"An error occurred while initializing Youtube downloader: {str(e)}")
+             
     @classmethod
     def initialize_messages(cls):
         # Initialize messages here
@@ -249,8 +258,7 @@ class Bot:
     
     @staticmethod
     async def process_audio_file(event, user_id):
-        await update_bot_version_user_season(event)
-        if not await db.get_user_updated_flag(user_id):
+        if not await update_bot_version_user_season(event):
             return
 
         if BotState.get_messages(user_id) == {}:
@@ -324,8 +332,7 @@ class Bot:
 
     @staticmethod
     async def process_spotify_link(event, user_id):
-        await update_bot_version_user_season(event)
-        if not await db.get_user_updated_flag(user_id):
+        if not await update_bot_version_user_season(event):
             return
 
         if BotState.get_messages(user_id) == {}:
@@ -353,8 +360,7 @@ class Bot:
 
     @staticmethod
     async def process_text_query(event, user_id):
-        await update_bot_version_user_season(event)
-        if not await db.get_user_updated_flag(user_id):
+        if not await update_bot_version_user_season(event):
             return
 
         if BotState.get_messages(user_id) == {}:
@@ -517,6 +523,35 @@ class Bot:
             return await X.send_screenshot(Bot.Client, event, screenshot_path, has_media)
 
     @staticmethod
+    async def process_youtube_link(event, user_id):
+        
+        if not await update_bot_version_user_season(event):
+            return
+
+        if BotState.get_messages(user_id) == {}:
+            BotState.initialize_user_state(user_id)
+
+        channels_user_is_not_in = await is_user_in_channel(event.sender_id)
+        if channels_user_is_not_in != []:
+            return await respond_based_on_channel_membership(event, None, None, channels_user_is_not_in)
+
+        if BotState.get_admin_broadcast(user_id) and BotState.get_send_to_specified_flag(user_id):
+            BotState.set_admin_message_to_send(user_id,event.message)
+            return
+        elif BotState.get_admin_broadcast(user_id):
+            BotState.set_admin_message_to_send(user_id,event.message)
+            return
+
+        BotState.set_waiting_message(user_id,await event.respond('⏳'))
+        
+        youtube_link = YoutubeDownloader.extract_youtube_url(event.message.text)
+        if youtube_link:
+            await YoutubeDownloader.set_youtube_url(user_id,youtube_link)
+        else:
+            return await event.respond("Sorry, Bad Youtube Link.")
+        await YoutubeDownloader.send_youtube_info(Bot.Client, event)
+        
+    @staticmethod
     async def handle_unavailable_feature(event):
         await event.answer("not available", alert=True)
 
@@ -581,7 +616,6 @@ class Bot:
         await asyncio.sleep(1.5)
         await waiting_message_search.delete()
 
-
     @staticmethod
     async def handle_music_callback(client, event):
         if event.data == b"@music_info_preview":
@@ -618,6 +652,8 @@ class Bot:
             await X.download(Bot.Client,event)
         elif event.data.startswith(b"@music"):
             await Bot.handle_music_callback(Bot.Client, event)
+        elif event.data.startswith(b"@yt"):
+            await YoutubeDownloader.download_and_send_yt_file(Bot.Client, event)
         elif event.data.isdigit():
             song_pages = await db.get_user_song_dict(user_id)
             current_page = await db.get_current_page(user_id)
@@ -641,6 +677,8 @@ class Bot:
 
         if isinstance(event.message.media, MessageMediaDocument):
             await Bot.process_audio_file(event, user_id)
+        elif YoutubeDownloader.is_youtube_link(event.message.text):
+            await Bot.process_youtube_link(event, user_id)
         elif SpotifyDownloader.is_spotify_link(event.message.text):
             await Bot.process_spotify_link(event, user_id)
         elif X.contains_x_or_twitter_link(event.message.text):

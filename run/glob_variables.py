@@ -27,6 +27,7 @@ class BotState:
                 'messages': {},
                 'search_result': None,
                 'tweet_screenshot': None,
+                'youtube_search': None,
                 'waiting_message': None
             }
 
@@ -43,6 +44,10 @@ class BotState:
     def get_tweet_screenshot(user_id):
         return BotState.get_user_state(user_id)['tweet_screenshot']
 
+    @staticmethod
+    def get_youtube_search(user_id):
+        return BotState.get_user_state(user_id)['youtube_search']
+    
     @staticmethod
     def get_admin_broadcast(user_id):
         return BotState.get_user_state(user_id)['admin_broadcast']
@@ -71,6 +76,10 @@ class BotState:
     def set_tweet_screenshot(user_id, value):
         BotState.get_user_state(user_id)['tweet_screenshot'] = value
 
+    @staticmethod
+    def set_youtube_search(user_id, value):
+        BotState.get_user_state(user_id)['youtube_search'] = value
+        
     @staticmethod
     def set_admin_broadcast(user_id, value):
         BotState.get_user_state(user_id)['admin_broadcast'] = value
