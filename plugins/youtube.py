@@ -1,5 +1,5 @@
 from utils import YoutubeDL, re, lru_cache, hashlib, InputMediaPhotoExternal, db
-from utils import fast_upload, os, InputMediaUploadedDocument
+from utils import fast_upload, os, InputMediaUploadedDocument, DocumentAttributeVideo
 from run import Button, BotState
 
 class YoutubeDownloader():
@@ -94,6 +94,9 @@ class YoutubeDownloader():
         with YoutubeDL({'quiet': True}) as ydl:
             info = ydl.extract_info(url, download=False)
             thumbnail_url = info['thumbnail']
+            duration = info.get('duration', 'Unknown')
+            width = info.get('width', 'Unknown')
+            height = info.get('height', 'Unknown')
 
         # Create buttons for each format
         video_formats = [f for f in formats if f.get('vcodec') != 'none' and f.get('acodec') != 'none']
@@ -107,7 +110,7 @@ class YoutubeDownloader():
             filesize = f.get('filesize') if f.get('filesize') != None else f.get('filesize_approx')
             if resolution and filesize and counter < 5:
                 filesize = f"{filesize / 1024 / 1024:.2f} MB"
-                button = [Button.inline(f"{extension} - {resolution} - {filesize}", data=f"@yt_download_{extension}_{f['format_id']}_{filesize}")]
+                button = [Button.inline(f"{extension} - {resolution} - {filesize}", data=f"@yt_{width}_{height}_{duration}_{extension}_{f['format_id']}_{filesize}")]
                 if not button in video_buttons:
                     video_buttons.append(button)
                     counter+=1
@@ -120,7 +123,7 @@ class YoutubeDownloader():
             filesize = f.get('filesize') if f.get('filesize') != None else f.get('filesize_approx')
             if resolution and filesize and counter < 5:
                 filesize = f"{filesize / 1024 / 1024:.2f} MB"
-                button = [Button.inline(f"{extension} - {resolution} - {filesize}", data=f"@yt_download_{extension}_{f['format_id']}_{filesize}")]
+                button = [Button.inline(f"{extension} - {resolution} - {filesize}", data=f"@yt_{width}_{height}_{duration}_{extension}_{f['format_id']}_{filesize}")]
                 if not button in audio_buttons:
                     audio_buttons.append(button)
                     counter+=1
@@ -144,10 +147,13 @@ class YoutubeDownloader():
             
         data = event.data.decode('utf-8')
         parts = data.split('_')
-        if len(parts) == 5 and parts[0] == "@yt" and parts[1] == "download":
-            extension = parts[2]
-            format_id = parts[3]
-            filesize = parts[4].replace(" MB", "")
+        if len(parts) == 7 and parts[0] == "@yt":
+            width = parts[1]
+            height = parts[2]
+            duration = parts[3]
+            extension = parts[4]
+            format_id = parts[5]
+            filesize = parts[6].replace(" MB", "")
 
             if float(filesize) > YoutubeDownloader.MAXIMUM_DOWNLOAD_SIZE_MB:
                 return await event.answer(f"Sorry, The file size is more than {YoutubeDownloader.MAXIMUM_DOWNLOAD_SIZE_MB}MB.\nTo proceed with the download, please consider upgrading to a premium account. ", alert=True)
@@ -185,8 +191,27 @@ class YoutubeDownloader():
                     name=path,
                     progress_bar_function=None
                     )
+                    if extension == "mp4":
+                        uploaded_file = await client.upload_file(uploaded_file)
+                        # Prepare the video attributes
+                        video_attributes = DocumentAttributeVideo(
+                            duration=int(duration),
+                            w=int(width),
+                            h=int(height),
+                            supports_streaming=True,
+                            # Add other attributes as needed
+                        )
+                        
+                        # Assuming 'uploaded_file' is the result of your file upload process
+                        # and 'uploaded_thumbnail' is the thumbnail for the video
+                        media = InputMediaUploadedDocument(
+                            file=uploaded_file,
+                            thumb=None,
+                            mime_type='video/mp4', # Adjust the MIME type based on your file's format
+                            attributes=[video_attributes],
+                        )
                     # Send the downloaded file
-                    await client.send_file(event.chat_id, file=uploaded_file,
+                    await client.send_file(event.chat_id, file=media,
                                             caption=f"Thank you for using.\n@Spotify_YT_Downloader_BOT",
                                             force_document=False, # This ensures the file is sent as a video/voice if possible
                                             supports_streaming=True # This enables video streaming
