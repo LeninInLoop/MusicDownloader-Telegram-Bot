@@ -1,6 +1,6 @@
 # Music/Video Downloader Bot
 
-Music/Video Downloader Bot is a Telegram bot that allows users to download music/video from Spotify and YouTube. It provides a convenient way to access and download your favorite tracks directly to your device.
+Music/Video Downloader Bot is a Telegram bot that allows users to download music/video from Spotify and YouTube. It provides a convenient way to access and download your favorite tracks/videos directly to your device.
 
 You can test this bot at:
 ```telegram.me/spotify_yt_downloader_bot```
