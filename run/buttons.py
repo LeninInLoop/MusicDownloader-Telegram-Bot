@@ -2,7 +2,7 @@ from run import Button
 
 class Buttons:
     
-    source_code_button = [Button.url("Source Code", url="https://github.com/AdibNikjou/telegram_spotify_downloader")]
+    source_code_button = [Button.url("Source Code", url="https://github.com/AdibNikjou/telegram_video_music_downloader")]
     
     main_menu_buttons = [
         [Button.inline("Instructions", b"instructions"),Button.inline("Settings", b"setting")],
