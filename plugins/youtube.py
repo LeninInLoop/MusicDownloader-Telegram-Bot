@@ -6,7 +6,7 @@ class YoutubeDownloader():
     
     @classmethod
     def initialize(cls):
-        cls.MAXIMUM_DOWNLOAD_SIZE_MB = 50
+        cls.MAXIMUM_DOWNLOAD_SIZE_MB = 100
         cls.DOWNLOAD_DIR = 'repository/Youtube'
         
         if not os.path.isdir(cls.DOWNLOAD_DIR):
@@ -150,7 +150,7 @@ class YoutubeDownloader():
             filesize = parts[4].replace(" MB", "")
 
             if float(filesize) > YoutubeDownloader.MAXIMUM_DOWNLOAD_SIZE_MB:
-                return await event.answer("Sorry, The file size is more than 50MB.\nTo proceed with the download, please consider upgrading to a premium account. ", alert=True)
+                return await event.answer(f"Sorry, The file size is more than {YoutubeDownloader.MAXIMUM_DOWNLOAD_SIZE_MB}MB.\nTo proceed with the download, please consider upgrading to a premium account. ", alert=True)
                 
             await db.set_file_processing_flag(user_id,is_processing=True)
             
@@ -174,19 +174,23 @@ class YoutubeDownloader():
                 local_availability_message = await event.respond("This file is available locally. Preparing it for you now...")
             
             upload_message = await event.respond("Uploading ... Please hold on.")
-            uploaded_file = await fast_upload(
-                client=client,
-                file_location=path,
-                reply=None,  # No need for a progress bar in this case
-                name=path,
-                progress_bar_function=None
-            )
             
             try:
                 # Indicate ongoing file upload to enhance user experience
                 async with client.action(event.chat_id, 'document'):
+                    uploaded_file = await fast_upload(
+                    client=client,
+                    file_location=path,
+                    reply=None,  # No need for a progress bar in this case
+                    name=path,
+                    progress_bar_function=None
+                    )
                     # Send the downloaded file
-                    await client.send_file(event.chat_id, file=uploaded_file, caption=f"Thank you for using.\n@Spotify_YT_Downloader_BOT")
+                    await client.send_file(event.chat_id, file=uploaded_file,
+                                            caption=f"Thank you for using.\n@Spotify_YT_Downloader_BOT",
+                                            force_document=False, # This ensures the file is sent as a video/voice if possible
+                                            supports_streaming=True # This enables video streaming
+                                            )
                 await upload_message.delete()
                 await local_availability_message.delete() if local_availability_message else None
                 await db.set_file_processing_flag(user_id,is_processing=False)
