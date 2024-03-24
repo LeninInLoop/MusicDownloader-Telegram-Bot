@@ -1,6 +1,7 @@
 from utils import YoutubeDL, re, lru_cache, hashlib, InputMediaPhotoExternal, db
 from utils import fast_upload, os, InputMediaUploadedDocument, DocumentAttributeVideo
-from run import Button, BotState
+from utils import DocumentAttributeAudio
+from run import Button, BotState, Buttons
 
 class YoutubeDownloader():
     
@@ -110,7 +111,7 @@ class YoutubeDownloader():
             filesize = f.get('filesize') if f.get('filesize') != None else f.get('filesize_approx')
             if resolution and filesize and counter < 5:
                 filesize = f"{filesize / 1024 / 1024:.2f} MB"
-                button = [Button.inline(f"{extension} - {resolution} - {filesize}", data=f"@yt_{width}_{height}_{duration}_{extension}_{f['format_id']}_{filesize}")]
+                button = [Button.inline(f"{extension} - {resolution} - {filesize}", data=f"@yt_{width}_{height}_{duration}_{extension}_video_{f['format_id']}_{filesize}")]
                 if not button in video_buttons:
                     video_buttons.append(button)
                     counter+=1
@@ -123,13 +124,14 @@ class YoutubeDownloader():
             filesize = f.get('filesize') if f.get('filesize') != None else f.get('filesize_approx')
             if resolution and filesize and counter < 5:
                 filesize = f"{filesize / 1024 / 1024:.2f} MB"
-                button = [Button.inline(f"{extension} - {resolution} - {filesize}", data=f"@yt_{width}_{height}_{duration}_{extension}_{f['format_id']}_{filesize}")]
+                button = [Button.inline(f"{extension} - {resolution} - {filesize}", data=f"@yt_{width}_{height}_{duration}_{extension}_audio_{f['format_id']}_{filesize}")]
                 if not button in audio_buttons:
                     audio_buttons.append(button)
                     counter+=1
 
         buttons = video_buttons + audio_buttons
-
+        buttons.append(Buttons.cancel_button)
+        
         # Set thumbnail attributes
         thumbnail = InputMediaPhotoExternal(thumbnail_url)
         thumbnail.ttl_seconds = 0
@@ -147,13 +149,14 @@ class YoutubeDownloader():
             
         data = event.data.decode('utf-8')
         parts = data.split('_')
-        if len(parts) == 7 and parts[0] == "@yt":
+        if len(parts) == 8 and parts[0] == "@yt":
             width = parts[1]
             height = parts[2]
             duration = parts[3]
             extension = parts[4]
-            format_id = parts[5]
-            filesize = parts[6].replace(" MB", "")
+            video_or_audio = parts[5]
+            format_id = parts[6]
+            filesize = parts[7].replace(" MB", "")
 
             if float(filesize) > YoutubeDownloader.MAXIMUM_DOWNLOAD_SIZE_MB:
                 return await event.answer(f"Sorry, The file size is more than {YoutubeDownloader.MAXIMUM_DOWNLOAD_SIZE_MB}MB.\nTo proceed with the download, please consider upgrading to a premium account. ", alert=True)
@@ -165,7 +168,7 @@ class YoutubeDownloader():
             
             path = YoutubeDownloader.get_file_path(url, format_id, extension)
             if not os.path.isfile(path):
-                downloading_message = await event.respond("Downloading file for you ...")
+                downloading_message = await event.respond("Downloading the file for you ...")
                 ydl_opts = {
                     'format': format_id,
                     'outtmpl': path,
@@ -175,7 +178,7 @@ class YoutubeDownloader():
                 with YoutubeDL(ydl_opts) as ydl:
                     ydl.extract_info(url)
                     
-                await downloading_message.delete()   
+                await downloading_message.delete()
             else:
                 local_availability_message = await event.respond("This file is available locally. Preparing it for you now...")
             
@@ -186,15 +189,17 @@ class YoutubeDownloader():
                 async with client.action(event.chat_id, 'document'):
                     
                     media = await fast_upload(
-                    client=client,
-                    file_location=path,
-                    reply=None,  # No need for a progress bar in this case
-                    name=path,
-                    progress_bar_function=None
-                    )
-                    
-                    if extension == "mp4":
+                        client=client,
+                        file_location=path,
+                        reply=None,  # No need for a progress bar in this case
+                        name=path,
+                        progress_bar_function=None
+                        )
+                                        
+                    if (extension == "mp4" or extension == "webm") and video_or_audio=="video":
+                        
                         uploaded_file = await client.upload_file(media)
+                        
                         # Prepare the video attributes
                         video_attributes = DocumentAttributeVideo(
                             duration=int(duration),
@@ -207,25 +212,40 @@ class YoutubeDownloader():
                         media = InputMediaUploadedDocument(
                             file=uploaded_file,
                             thumb=None,
-                            mime_type='video/mp4',
+                            mime_type='video/mp4' if extension == "mp4" else 'video/webm',
                             attributes=[video_attributes],
                         )
                     
-                    elif extension == "m4a":
-                        pass
-                    
-                    elif extension == "webm":
-                        pass
+                    elif (extension == "m4a" or extension == "webm") and video_or_audio=="audio":
+                        
+                        uploaded_file = await client.upload_file(media)
+                        
+                        # Prepare the audio attributes
+                        audio_attributes = DocumentAttributeAudio(
+                            duration=int(duration), # Duration in seconds
+                            title="Downloaded Audio", # Replace with actual title
+                            performer="@Spotify_YT_Downloader_BOT", # Replace with actual performer
+                            # Add other attributes as needed
+                        )
+
+                        media = InputMediaUploadedDocument(
+                            file=uploaded_file,
+                            thumb=None, # Assuming you have a thumbnail or will set it later
+                            mime_type='audio/m4a' if extension == "m4a" else 'audio/webm',
+                            attributes=[audio_attributes],
+                        )
                     
                     # Send the downloaded file
                     await client.send_file(event.chat_id, file=media,
-                                            caption=f"Thank you for using.\n@Spotify_YT_Downloader_BOT",
+                                            caption=f"Enjoy!\n@Spotify_YT_Downloader_BOT",
                                             force_document=False, # This ensures the file is sent as a video/voice if possible
                                             supports_streaming=True # This enables video streaming
                                             )
+                    
                 await upload_message.delete()
                 await local_availability_message.delete() if local_availability_message else None
                 await db.set_file_processing_flag(user_id,is_processing=False)
+                
             except Exception as Err:
                 await db.set_file_processing_flag(user_id,is_processing=False)
                 return await event.respond(f"Sorry There was a problem with your request.\nReason:{str(Err)}")

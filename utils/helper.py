@@ -1,8 +1,9 @@
-import asyncio, re
+import asyncio, re, os
 from mutagen import File
 from mutagen.flac import FLAC ,Picture
 from mutagen.id3 import ID3, TIT2, TPE1, TALB, TDRC, TORY, TYER, TXXX, APIC
 from utils.database import db
+from moviepy.editor import VideoFileClip, TextClip, CompositeVideoClip
 
 async def process_flac_music(event,file_info,spotify_link_info,download_message = None) -> bool:
 
@@ -115,3 +116,26 @@ async def is_file_voice(event) -> bool:
             voice = 1
             break
     return voice
+
+
+# def add_telegram_id(video_path, telegram_id):
+#     # Load the video
+#     video = VideoFileClip(video_path)
+
+#     # Create a TextClip object with the desired text
+#     text = TextClip(telegram_id, fontsize=30, color='white')
+#     text = text.set_position(('center', 'bottom'))  # Position the text at the bottom center
+#     text = text.set_duration(video.duration)  # Set the duration of the text clip to match the video
+
+#     # Combine the video and text clips
+#     final_clip = CompositeVideoClip([video, text])
+
+#     # Get the directory and filename from the input video path
+#     _video_path = video_path.split("/")
+#     output_path = f"{_video_path[0]}/{_video_path[1]}/modified_{_video_path[2]}"
+
+#     # Write the final clip to a new file
+#     final_clip.write_videofile(output_path)
+
+#     os.remove(video_path)
+#     return output_path
