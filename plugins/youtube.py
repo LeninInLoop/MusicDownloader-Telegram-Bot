@@ -194,7 +194,7 @@ class YoutubeDownloader():
                     )
                     
                     if extension == "mp4":
-                        uploaded_file = await client.upload_file(uploaded_file)
+                        uploaded_file = await client.upload_file(media)
                         # Prepare the video attributes
                         video_attributes = DocumentAttributeVideo(
                             duration=int(duration),
@@ -211,6 +211,12 @@ class YoutubeDownloader():
                             attributes=[video_attributes],
                         )
                     
+                    elif extension == "m4a":
+                        pass
+                    
+                    elif extension == "webm":
+                        pass
+                    
                     # Send the downloaded file
                     await client.send_file(event.chat_id, file=media,
                                             caption=f"Thank you for using.\n@Spotify_YT_Downloader_BOT",
@@ -220,8 +226,8 @@ class YoutubeDownloader():
                 await upload_message.delete()
                 await local_availability_message.delete() if local_availability_message else None
                 await db.set_file_processing_flag(user_id,is_processing=False)
-            except:
+            except Exception as Err:
                 await db.set_file_processing_flag(user_id,is_processing=False)
-                return await event.respond("Sorry There was a problem with your request.")
+                return await event.respond(f"Sorry There was a problem with your request.\nReason:{str(Err)}")
         else:
             await event.answer("Invalid button data.")
