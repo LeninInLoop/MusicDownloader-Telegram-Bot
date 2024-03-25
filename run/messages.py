@@ -1,6 +1,7 @@
 from .glob_variables import BotState
 from .buttons import Buttons
 from utils import db, TweetCapture
+from telethon.errors.rpcerrorlist import MessageNotModifiedError
 
 class BotMessageHandler:
     start_message = """
@@ -77,7 +78,10 @@ Please join to continue."""
         if message != {}:
             if message.id:
                 BotState.set_messages(user_id,message)
-                await BotState.BOT_CLIENT.edit_message(chat_id, message.id, message_text, buttons=buttons)
+                try:
+                    await BotState.BOT_CLIENT.edit_message(chat_id, message.id, message_text, buttons=buttons)
+                except MessageNotModifiedError:
+                    pass
         else:
             await BotMessageHandler.send_message_and_store_id(event, message_text, buttons=buttons)
             
