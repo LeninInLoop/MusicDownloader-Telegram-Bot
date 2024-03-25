@@ -102,7 +102,7 @@ Please join to continue."""
     @staticmethod
     async def edit_subscription_status_message(e):
         is_subscribed = await db.is_user_subscribed(e.sender_id)
-        message = f"Subscroption settings:\n\nYour Subscription Status: {is_subscribed}"
+        message = f"Subscription settings:\n\nYour Subscription Status: {is_subscribed}"
         await BotMessageHandler.edit_message(e, message, buttons=Buttons.get_subscription_setting_buttons(is_subscribed))
         
     @staticmethod

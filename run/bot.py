@@ -89,13 +89,9 @@ class Bot:
         cls.back_button = Buttons.back_button
         cls.setting_button = Buttons.setting_button
         cls.back_button_to_setting = Buttons.back_button_to_setting
-        cls.quality_setting_buttons = Buttons.quality_setting_buttons
-        cls.core_setting_buttons = Buttons.core_setting_buttons
-        cls.subscription_setting_buttons = Buttons.subscription_setting_buttons
         cls.cancel_broadcast_button = Buttons.cancel_broadcast_button
         cls.admins_buttons  =  Buttons.admins_buttons
         cls.broadcast_options_buttons = Buttons.broadcast_options_buttons
-        # cls.tweet_capture_setting_buttons = Buttons.tweet_capture_setting_buttons
         
     @classmethod
     async def initialize_action_queries(cls):
