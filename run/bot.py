@@ -2,7 +2,7 @@ from utils import BroadcastManager, db, asyncio, sanitize_query, is_file_voice, 
 from plugins import SpotifyDownloader, ShazamHelper, X, Insta, YoutubeDownloader
 from run import events, Button, MessageMediaDocument, update_bot_version_user_season, is_user_in_channel, handle_continue_in_membership_message
 from run import Buttons, BotMessageHandler, BotState, BotCommandHandler, respond_based_on_channel_membership
-
+from run import MessageNotModifiedError
 
 class Bot:
     
@@ -454,7 +454,9 @@ class Bot:
             except Exception as Err:
                 await event.respond(f"Sorry There Was an Error Processing Your Request: {str(Err)}")
         except KeyError:
-            pass
+            await event.answer("⚠️ Not available.")
+        except MessageNotModifiedError:
+            await event.answer("⚠️ Not available.")
         
     @staticmethod
     async def next_page(event):
@@ -493,7 +495,9 @@ class Bot:
             except Exception as Err:
                 await event.respond(f"Sorry There Was an Error Processing Your Request: {str(Err)}")
         except KeyError:
-            pass
+            await event.answer("⚠️ Not available.")
+        except MessageNotModifiedError:
+            await event.answer("⚠️ Not available.")
         
     @staticmethod
     async def process_x_or_twitter_link(event):
