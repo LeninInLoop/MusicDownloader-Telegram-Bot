@@ -108,9 +108,9 @@ class Bot:
             b"setting": lambda e: asyncio.create_task(BotMessageHandler.edit_message(e, "Settings :", buttons=Bot.setting_button)),
             b"setting/back": lambda e: asyncio.create_task(BotMessageHandler.edit_message(e, "Settings :", buttons=Bot.setting_button)),
             b"setting/quality": lambda e: asyncio.create_task(BotMessageHandler.edit_quality_setting_message(e)),
-            b"setting/quality/mp3/320": lambda e: asyncio.create_task(Bot.change_music_quality(e, "mp3",   320)),
-            b"setting/quality/mp3/128": lambda e: asyncio.create_task(Bot.change_music_quality(e, "mp3",   128)),
-            b"setting/quality/flac": lambda e: asyncio.create_task(Bot.change_music_quality(e, "flac",   693)),
+            b"setting/quality/mp3/320": lambda e: asyncio.create_task(Bot.change_music_quality(e, "mp3", "320")),
+            b"setting/quality/mp3/128": lambda e: asyncio.create_task(Bot.change_music_quality(e, "mp3", "128")),
+            b"setting/quality/flac": lambda e: asyncio.create_task(Bot.change_music_quality(e, "flac", "693")),
             b"setting/core": lambda e: asyncio.create_task(BotMessageHandler.edit_core_setting_message(e)),
             b"setting/core/auto": lambda e: asyncio.create_task(Bot.change_downloading_core(e, "Auto")),
             b"setting/core/spotdl": lambda e: asyncio.create_task(Bot.change_downloading_core(e, "SpotDL")),
@@ -140,7 +140,8 @@ class Bot:
         user_id = event.sender_id
         music_quality = {'format': format, 'quality': quality}
         await db.set_user_music_quality(user_id, music_quality)
-        await BotMessageHandler.edit_message(event, f"Quality successfully changed.\n\nFormat: {music_quality['format']}\nQuality: {music_quality['quality']}", buttons=Bot.quality_setting_buttons)
+        await BotMessageHandler.edit_message(event, f"Quality successfully changed.\n\nFormat: {music_quality['format']}\nQuality: {music_quality['quality']}",
+                                            buttons=Buttons.get_quality_setting_buttons(music_quality))
 
     @staticmethod
     async def change_downloading_core(event, downloading_core):

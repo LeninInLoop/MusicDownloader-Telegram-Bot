@@ -21,33 +21,6 @@ class Buttons:
         ]
 
     back_button_to_setting = Button.inline("<< Back", b"setting/back")
-
-    quality_setting_buttons = [
-        [Button.inline("flac", b"setting/quality/flac")],
-        [Button.inline("mp3-320", b"setting/quality/mp3/320")],
-        [Button.inline("mp3-128", b"setting/quality/mp3/128")],
-        [back_button, back_button_to_setting],
-    ]
-
-    core_setting_buttons = [
-        [Button.inline("Auto", data=b"setting/core/auto")],
-        [Button.inline("YoutubeDL", b"setting/core/youtubedl")],
-        [Button.inline("SpotDL", b"setting/core/spotdl")],
-        [back_button, back_button_to_setting],
-    ]
-
-    subscription_setting_buttons = [
-        [Button.inline("Subscribe",data=b"setting/subscription/add")],
-        [Button.inline("Cancel Subscription",data=b"setting/subscription/cancel")],
-        [back_button, back_button_to_setting]
-    ]
-
-    tweet_capture_setting_buttons = [
-        [Button.inline("Light mode",data=b"setting/TweetCapture/mode/0")],
-        [Button.inline("Dark mode",data=b"setting/TweetCapture/mode/1")],
-        [Button.inline("Black mode",data=b"setting/TweetCapture/mode/2")],
-        [back_button, back_button_to_setting]
-    ]
     
     cancel_broadcast_button = [Button.inline("Cancel BroadCast",data=b"admin/cancel_broadcast")]
 
@@ -66,7 +39,7 @@ class Buttons:
     
     continue_button = [Button.inline("Continue",data='membership/continue')]
     
-    cancel_subscription_button_quite = [Button.inline("Cancel Subscription To News", b"setting/subscription/cancel/quite")]
+    cancel_subscription_button_quite = [Button.inline("UnSubscribe", b"setting/subscription/cancel/quite")]
     
     cancel_button = [Button.inline("Cancel", b"cancel")]
     
@@ -135,5 +108,31 @@ class Buttons:
             ]
     
     @staticmethod
-    def get_quality_setting_buttons(quality):
-        pass
+    def get_quality_setting_buttons(music_quality):
+        if isinstance(music_quality['quality'], int):
+            music_quality['quality'] = str(music_quality['quality'])
+        
+        match music_quality:
+            case {'format': 'flac', 'quality': "693"}:
+                return [
+                [Button.inline("◽️ Flac", b"setting/quality/flac")],
+                [Button.inline("Mp3 (320)", b"setting/quality/mp3/320")],
+                [Button.inline("Mp3 (128)", b"setting/quality/mp3/128")],
+                [Buttons.back_button, Buttons.back_button_to_setting],
+            ]
+            
+            case {'format': "mp3", 'quality': "320"}:
+                return [
+                [Button.inline("Flac", b"setting/quality/flac")],
+                [Button.inline("◽️ Mp3 (320)", b"setting/quality/mp3/320")],
+                [Button.inline("Mp3 (128)", b"setting/quality/mp3/128")],
+                [Buttons.back_button, Buttons.back_button_to_setting],
+            ]
+                
+            case {'format': "mp3", 'quality': "128"}:
+                return [
+                [Button.inline("Flac", b"setting/quality/flac")],
+                [Button.inline("Mp3 (320)", b"setting/quality/mp3/320")],
+                [Button.inline("◽️ Mp3 (128)", b"setting/quality/mp3/128")],
+                [Buttons.back_button, Buttons.back_button_to_setting],
+            ]
