@@ -54,7 +54,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
             user_id = event.sender_id
             downloading_core = await db.get_user_downloading_core(user_id)
             await respond_based_on_channel_membership(event, BotMessageHandler.core_selection_message+f"\nCore: {downloading_core}",
-                            buttons=Buttons.core_setting_buttons)
+                            buttons=Buttons.get_core_setting_buttons(downloading_core))
 
     @staticmethod
     async def handle_quality_command(event):
@@ -62,7 +62,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
             user_id = event.sender_id
             music_quality = await db.get_user_music_quality(user_id)
             await respond_based_on_channel_membership(event, f"Your Quality Setting:\nFormat: {music_quality['format']}\nQuality: {music_quality['quality']}\n\nQualities Available :",
-                            buttons=Buttons.quality_setting_buttons)
+                            buttons=Buttons.get_quality_setting_buttons(music_quality))
 
     @staticmethod
     async def handle_help_command(event):
