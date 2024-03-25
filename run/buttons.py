@@ -70,3 +70,28 @@ class Buttons:
     
     cancel_button = [Button.inline("Cancel", b"cancel")]
     
+
+    @staticmethod
+    def get_tweet_capture_setting_buttons(mode):
+        match mode:
+            case "0": 
+                return [
+                [Button.inline("🔹 Light mode",data=b"setting/TweetCapture/mode/0")],
+                [Button.inline("Dark mode",data=b"setting/TweetCapture/mode/1")],
+                [Button.inline("Black mode",data=b"setting/TweetCapture/mode/2")],
+                [Buttons.back_button, Buttons.back_button_to_setting]
+            ]
+            case "1":
+                return [
+                [Button.inline("Light mode",data=b"setting/TweetCapture/mode/0")],
+                [Button.inline("🔹 Dark mode",data=b"setting/TweetCapture/mode/1")],
+                [Button.inline("Black mode",data=b"setting/TweetCapture/mode/2")],
+                [Buttons.back_button, Buttons.back_button_to_setting]
+            ] 
+            case "2": 
+                return [
+                [Button.inline("Light mode",data=b"setting/TweetCapture/mode/0")],
+                [Button.inline("Dark mode",data=b"setting/TweetCapture/mode/1")],
+                [Button.inline("🔹 Black mode",data=b"setting/TweetCapture/mode/2")],
+                [Buttons.back_button, Buttons.back_button_to_setting]
+            ]

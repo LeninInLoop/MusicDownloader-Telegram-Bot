@@ -108,5 +108,10 @@ Please join to continue."""
     @staticmethod
     async def edit_tweet_capture_setting_message(e):
         night_mode = await TweetCapture.get_settings(e.sender_id)
-        message = f"Tweet capture settings:\nYour Night Mode: {night_mode['night_mode']}"
-        await BotMessageHandler.edit_message(e, message, buttons=Buttons.tweet_capture_setting_buttons)
+        mode = night_mode['night_mode']
+        match mode:
+            case "0": mode_to_show = "Light"
+            case "1": mode_to_show = "Dark"
+            case "2": mode_to_show = "Black"
+        message = f"Tweet capture settings:\n\nYour Night Mode: {mode_to_show}"
+        await BotMessageHandler.edit_message(e, message, buttons=Buttons.get_tweet_capture_setting_buttons(mode))
