@@ -3,7 +3,7 @@ from mutagen import File
 from mutagen.flac import FLAC ,Picture
 from mutagen.id3 import ID3, TIT2, TPE1, TALB, TDRC, TORY, TYER, TXXX, APIC
 from utils.database import db
-from moviepy.editor import VideoFileClip, TextClip, CompositeVideoClip
+#from moviepy.editor import VideoFileClip, TextClip, CompositeVideoClip
 
 async def process_flac_music(event,file_info,spotify_link_info,download_message = None) -> bool:
 
