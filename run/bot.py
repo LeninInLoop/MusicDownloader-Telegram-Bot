@@ -180,9 +180,9 @@ class Bot:
             return
         
         if send_to_specified:
-            BotState.set_send_to_specified_flag(user_id , True)
+            await BotState.set_send_to_specified_flag(user_id , True)
             
-        BotState.set_admin_broadcast(user_id, True)
+        await BotState.set_admin_broadcast(user_id, True)
         if send_to_all:
             await BroadcastManager.add_all_users_to_temp()
             
@@ -194,28 +194,28 @@ class Bot:
             for remaining_time in range(time-1, 0, -1):
                 # Edit the message to show the new time
                 await time_to_send.edit(f"You've Got {remaining_time} seconds to send the user ids seperated with:")
-                if BotState.get_admin_broadcast(user_id):
+                if await BotState.get_admin_broadcast(user_id):
                     await time_to_send.edit("BroadCast Cancelled by User.", buttons = None)
-                    BotState.set_send_to_specified_flag(user_id, False)
-                    BotState.set_admin_message_to_send(user_id, None)
-                    BotState.set_admin_broadcast(user_id, False)
+                    await BotState.set_send_to_specified_flag(user_id, False)
+                    await BotState.set_admin_message_to_send(user_id, None)
+                    await BotState.set_admin_broadcast(user_id, False)
                     return
-                elif BotState.get_admin_message_to_send(user_id) != None:
+                elif await BotState.get_admin_message_to_send(user_id) != None:
                     break
                 await asyncio.sleep(1)
-            BotState.set_send_to_specified_flag(user_id, False) 
+            await BotState.set_send_to_specified_flag(user_id, False) 
             try:
-                parts = BotState.get_admin_message_to_send(user_id)
+                parts = await BotState.get_admin_message_to_send(user_id)
                 parts = parts.message.replace(" ","").split(",")
                 user_ids = [int(part) for part in parts] 
                 for user_id in user_ids:
                     await BroadcastManager.add_user_to_temp(user_id)
             except:
                 await time_to_send.edit("Invalid command format. Use user_id1,user_id2,...")
-                BotState.set_admin_message_to_send(user_id, None)
-                BotState.set_admin_broadcast(user_id, False)
+                await BotState.set_admin_message_to_send(user_id, None)
+                await BotState.set_admin_broadcast(user_id, False)
                 return
-            BotState.set_admin_message_to_send(user_id, None)
+            await BotState.set_admin_message_to_send(user_id, None)
             
         time = 60 
         time_to_send = await e.respond(f"You've Got {time} seconds to send your message",buttons=Bot.cancel_broadcast_button)
@@ -223,63 +223,63 @@ class Bot:
         for remaining_time in range(time-1, 0, -1):
             # Edit the message to show the new time
             await time_to_send.edit(f"You've Got {remaining_time} seconds to send your message")
-            if not BotState.get_admin_broadcast(user_id):
+            if not await BotState.get_admin_broadcast(user_id):
                 await time_to_send.edit("BroadCast Cancelled by User.", buttons = None)
                 break
-            elif BotState.get_admin_message_to_send(user_id) != None:
+            elif await BotState.get_admin_message_to_send(user_id) != None:
                 break
             await asyncio.sleep(1)
             
-        if BotState.get_admin_message_to_send(user_id) == None and BotState.get_admin_broadcast(user_id):
+        if await BotState.get_admin_message_to_send(user_id) == None and await BotState.get_admin_broadcast(user_id):
             await e.respond("There is nothing to send")
-            BotState.set_admin_broadcast(user_id, False)
-            BotState.set_admin_message_to_send(user_id, None)
+            await BotState.set_admin_broadcast(user_id, False)
+            await BotState.set_admin_message_to_send(user_id, None)
             await BroadcastManager.remove_all_users_from_temp()
             return
         
         try:
-            if BotState.get_admin_broadcast(user_id) and send_to_specified:
-                await BroadcastManager.broadcast_message_to_temp_members(Bot.Client, BotState.get_admin_message_to_send(user_id))
+            if await BotState.get_admin_broadcast(user_id) and send_to_specified:
+                await BroadcastManager.broadcast_message_to_temp_members(Bot.Client, await BotState.get_admin_message_to_send(user_id))
                 await e.respond("Broadcast initiated.")
-            elif BotState.get_admin_broadcast(user_id) and send_to_subs:
-                await BroadcastManager.broadcast_message_to_sub_members(Bot.Client, BotState.get_admin_message_to_send(user_id), Buttons.cancel_subscription_button_quite)
+            elif await BotState.get_admin_broadcast(user_id) and send_to_subs:
+                await BroadcastManager.broadcast_message_to_sub_members(Bot.Client, await BotState.get_admin_message_to_send(user_id), Buttons.cancel_subscription_button_quite)
                 await e.respond("Broadcast initiated.")
-            elif BotState.get_admin_broadcast(user_id) and send_to_all:
-                await BroadcastManager.broadcast_message_to_temp_members(Bot.Client, BotState.get_admin_message_to_send(user_id))
+            elif await BotState.get_admin_broadcast(user_id) and send_to_all:
+                await BroadcastManager.broadcast_message_to_temp_members(Bot.Client, await BotState.get_admin_message_to_send(user_id))
                 await e.respond("Broadcast initiated.")
         except Exception as e:
             await e.respond(f"Broadcast Failed: {str(e)}")
-            BotState.set_admin_broadcast(user_id, False)
-            BotState.set_admin_message_to_send(user_id, None)
+            await BotState.set_admin_broadcast(user_id, False)
+            await BotState.set_admin_message_to_send(user_id, None)
             await BroadcastManager.remove_all_users_from_temp()
                 
         await BroadcastManager.remove_all_users_from_temp()
-        BotState.set_admin_broadcast(user_id, False)
-        BotState.set_admin_message_to_send(user_id, None)
+        await BotState.set_admin_broadcast(user_id, False)
+        await BotState.set_admin_message_to_send(user_id, None)
     
     @staticmethod
     async def process_audio_file(event, user_id):
         if not await update_bot_version_user_season(event):
             return
 
-        if BotState.get_messages(user_id) == {}:
-            BotState.initialize_user_state(user_id)
+        if await BotState.get_messages(user_id) == {}:
+            await BotState.initialize_user_state(user_id)
 
         channels_user_is_not_in = await is_user_in_channel(event.sender_id)
         if channels_user_is_not_in != []:
             return await respond_based_on_channel_membership(event, None, None, channels_user_is_not_in)
 
-        if BotState.get_admin_broadcast(user_id) and BotState.get_send_to_specified_flag(user_id):
-            BotState.set_admin_message_to_send(user_id,event.message)
+        if await BotState.get_admin_broadcast(user_id) and await BotState.get_send_to_specified_flag(user_id):
+            await BotState.set_admin_message_to_send(user_id,event.message)
             return
-        elif BotState.get_admin_broadcast(user_id):
-            BotState.set_admin_message_to_send(user_id,event.message)
+        elif await BotState.get_admin_broadcast(user_id):
+            await BotState.set_admin_message_to_send(user_id,event.message)
             return
 
-        if BotState.get_search_result(user_id) is not None:
-            message = BotState.get_search_result(user_id)
+        if await BotState.get_search_result(user_id) is not None:
+            message = await BotState.get_search_result(user_id)
             await message.delete()
-            BotState.set_search_result(user_id,None)
+            await BotState.set_search_result(user_id,None)
 
         waiting_message_search = await event.respond('⏳')
         process_file_message = await event.respond("Processing Your File ...")
@@ -324,7 +324,7 @@ class Bot:
         button_list.append([Button.inline("Cancel", b"cancel")])
 
         try:
-            BotState.set_search_result(user_id,await event.respond(Bot.search_result_message, buttons=button_list))
+            await BotState.set_search_result(user_id,await event.respond(Bot.search_result_message, buttons=button_list))
         except Exception as Err:
             await event.respond(f"Sorry There Was an Error Processing Your Request: {str(Err)}")
         
@@ -336,26 +336,26 @@ class Bot:
         if not await update_bot_version_user_season(event):
             return
 
-        if BotState.get_messages(user_id) == {}:
-            BotState.initialize_user_state(user_id)
+        if await BotState.get_messages(user_id) == {}:
+            await BotState.initialize_user_state(user_id)
 
         channels_user_is_not_in = await is_user_in_channel(event.sender_id)
         if channels_user_is_not_in != []:
             return await respond_based_on_channel_membership(event, None, None, channels_user_is_not_in)
 
-        if BotState.get_admin_broadcast(user_id) and BotState.get_send_to_specified_flag(user_id):
-            BotState.set_admin_message_to_send(user_id,event.message)
+        if await BotState.get_admin_broadcast(user_id) and await BotState.get_send_to_specified_flag(user_id):
+            await BotState.set_admin_message_to_send(user_id,event.message)
             return
-        elif BotState.get_admin_broadcast(user_id):
-            BotState.set_admin_message_to_send(user_id,event.message)
+        elif await BotState.get_admin_broadcast(user_id):
+            await BotState.set_admin_message_to_send(user_id,event.message)
             return
 
-        BotState.set_waiting_message(user_id,await event.respond('⏳'))
+        await BotState.set_waiting_message(user_id,await event.respond('⏳'))
         await SpotifyDownloader.extract_data_from_spotify_link(event, str(event.message.text))
         info_tuple = await SpotifyDownloader.download_and_send_spotify_info(Bot.Client, event)
 
         if not info_tuple:  # if getting info of the link failed
-            waiting_message = BotState.get_waiting_message(user_id)
+            waiting_message = await BotState.get_waiting_message(user_id)
             await waiting_message.delete()
             return await event.respond("Sorry, There was a problem processing your request.")
 
@@ -364,27 +364,27 @@ class Bot:
         if not await update_bot_version_user_season(event):
             return
 
-        if BotState.get_messages(user_id) == {}:
-            BotState.initialize_user_state(user_id)
+        if await BotState.get_messages(user_id) == {}:
+            await BotState.initialize_user_state(user_id)
 
         channels_user_is_not_in = await is_user_in_channel(event.sender_id)
         if channels_user_is_not_in != []:
             return await respond_based_on_channel_membership(event, None, None, channels_user_is_not_in)
 
-        if BotState.get_admin_broadcast(user_id) and BotState.get_send_to_specified_flag(user_id):
-            BotState.set_admin_message_to_send(user_id,event.message)
+        if await BotState.get_admin_broadcast(user_id) and await BotState.get_send_to_specified_flag(user_id):
+            await BotState.set_admin_message_to_send(user_id,event.message)
             return
-        elif BotState.get_admin_broadcast(user_id):
-            BotState.set_admin_message_to_send(user_id,event.message)
+        elif await BotState.get_admin_broadcast(user_id):
+            await BotState.set_admin_message_to_send(user_id,event.message)
             return
 
         if len(event.message.text) > 33:
             return await event.respond("Your Search Query is too long. :(")
 
-        search_result = BotState.get_search_result(user_id)
+        search_result = await BotState.get_search_result(user_id)
         if search_result is not None:
             await search_result.delete()
-            BotState.set_search_result(user_id, None)
+            await BotState.set_search_result(user_id, None)
 
         waiting_message_search = await event.respond('⏳')
         sanitized_query = await sanitize_query(event.message.text)
@@ -410,7 +410,7 @@ class Bot:
         button_list.append([Button.inline("Cancel", b"cancel")])
 
         try:
-            BotState.set_search_result(user_id,await event.respond(Bot.search_result_message, buttons=button_list))
+            await BotState.set_search_result(user_id,await event.respond(Bot.search_result_message, buttons=button_list))
         except Exception as Err:
             await event.respond(f"Sorry There Was an Error Processing Your Request: {str(Err)}")
 
@@ -439,9 +439,9 @@ class Bot:
         button_list.append([Button.inline("Cancel", b"cancel")])
 
         try:
-            search_result = BotState.get_search_result(user_id)
+            search_result = await BotState.get_search_result(user_id)
             await search_result.edit(buttons=button_list)
-            BotState.set_search_result(user_id,search_result)
+            await BotState.set_search_result(user_id,search_result)
         except AttributeError:
             page = await db.get_current_page(user_id)
             button_list = [
@@ -453,7 +453,7 @@ class Bot:
             button_list.append([Button.inline("Cancel", b"cancel")])
 
             try:
-                BotState.set_search_result(user_id,await event.respond(Bot.search_result_message, buttons=button_list))
+                await BotState.set_search_result(user_id,await event.respond(Bot.search_result_message, buttons=button_list))
             except Exception as Err:
                 await event.respond(f"Sorry There Was an Error Processing Your Request: {str(Err)}")
         except KeyError:
@@ -489,9 +489,9 @@ class Bot:
             page = min(total_pages, current_page - 1)
             await event.answer("⚠️ Not available.")
         try:
-            search_result = BotState.get_search_result(user_id)
+            search_result = await BotState.get_search_result(user_id)
             await search_result.edit(buttons=button_list)
-            BotState.set_search_result(user_id,search_result)
+            await BotState.set_search_result(user_id,search_result)
         except AttributeError:
             page = await db.get_current_page(user_id)
             button_list = [
@@ -503,7 +503,7 @@ class Bot:
             button_list.append([Button.inline("Cancel", b"cancel")])
 
             try:
-                BotState.set_search_result(user_id,await event.respond(Bot.search_result_message, buttons=button_list))
+                await BotState.set_search_result(user_id,await event.respond(Bot.search_result_message, buttons=button_list))
             except Exception as Err:
                 await event.respond(f"Sorry There Was an Error Processing Your Request: {str(Err)}")
         except KeyError:
@@ -511,7 +511,6 @@ class Bot:
         except MessageNotModifiedError:
             await event.answer("⚠️ Not available.")
         except UnboundLocalError:
-            
             await event.answer("⚠️ Not available.")
         
     @staticmethod
@@ -521,18 +520,18 @@ class Bot:
         if not await db.get_user_updated_flag(user_id):
             return
 
-        if BotState.get_messages(user_id) == {}:
-            BotState.initialize_user_state(user_id)
+        if await BotState.get_messages(user_id) == {}:
+            await BotState.initialize_user_state(user_id)
 
         channels_user_is_not_in = await is_user_in_channel(user_id)
         if channels_user_is_not_in != []:
             return await respond_based_on_channel_membership(event, None, None, channels_user_is_not_in)
 
-        if BotState.get_admin_broadcast(user_id) and BotState.get_send_to_specified_flag(user_id):
-            BotState.set_admin_message_to_send(user_id,event.message)
+        if await BotState.get_admin_broadcast(user_id) and await BotState.get_send_to_specified_flag(user_id):
+            await BotState.set_admin_message_to_send(user_id,event.message)
             return
-        elif BotState.get_admin_broadcast(user_id):
-            BotState.set_admin_message_to_send(user_id,event.message)
+        elif await BotState.get_admin_broadcast(user_id):
+            await BotState.set_admin_message_to_send(user_id,event.message)
             return
         
         x_link = X.find_and_send_x_or_twitter_link(event.message.text)
@@ -548,21 +547,21 @@ class Bot:
         if not await update_bot_version_user_season(event):
             return
 
-        if BotState.get_messages(user_id) == {}:
-            BotState.initialize_user_state(user_id)
+        if await BotState.get_messages(user_id) == {}:
+            await BotState.initialize_user_state(user_id)
 
         channels_user_is_not_in = await is_user_in_channel(event.sender_id)
         if channels_user_is_not_in != []:
             return await respond_based_on_channel_membership(event, None, None, channels_user_is_not_in)
 
-        if BotState.get_admin_broadcast(user_id) and BotState.get_send_to_specified_flag(user_id):
-            BotState.set_admin_message_to_send(user_id,event.message)
+        if await BotState.get_admin_broadcast(user_id) and await BotState.get_send_to_specified_flag(user_id):
+            await BotState.set_admin_message_to_send(user_id,event.message)
             return
-        elif BotState.get_admin_broadcast(user_id):
-            BotState.set_admin_message_to_send(user_id,event.message)
+        elif await BotState.get_admin_broadcast(user_id):
+            await BotState.set_admin_message_to_send(user_id,event.message)
             return
 
-        BotState.set_waiting_message(user_id,await event.respond('⏳'))
+        await BotState.set_waiting_message(user_id,await event.respond('⏳'))
         
         youtube_link = YoutubeDownloader.extract_youtube_url(event.message.text)
         if youtube_link:
@@ -579,10 +578,10 @@ class Bot:
     async def search_inside_playlist(event):
         user_id = event.sender_id
 
-        search_result = BotState.get_search_result(user_id)
+        search_result = await BotState.get_search_result(user_id)
         if search_result is not None:
             await search_result.delete()
-            BotState.set_search_result(user_id, None)
+            await BotState.set_search_result(user_id, None)
             
         waiting_message_search = await event.respond('⏳')
         spotify_link_info = await db.get_user_spotify_link_info(user_id)
@@ -629,7 +628,7 @@ class Bot:
         button_list.append([Button.inline("Cancel", b"cancel")])
 
         try:
-            BotState.set_search_result(user_id, await event.respond(Bot.search_playlist_message, buttons=button_list))
+            await BotState.set_search_result(user_id, await event.respond(Bot.search_playlist_message, buttons=button_list))
         except Exception as Err:
             await event.respond(f"Sorry There Was an Error Processing Your Request: {str(Err)}")
 
@@ -681,13 +680,13 @@ class Bot:
             song_details = song_pages[str(current_page)][int(song_index)]
             spotify_link = song_details.get('spotify_link')
             if spotify_link:
-                BotState.set_waiting_message(user_id,await event.respond('⏳'))
+                await BotState.set_waiting_message(user_id,await event.respond('⏳'))
                 await SpotifyDownloader.extract_data_from_spotify_link(event, spotify_link)
                 send_info_result = await SpotifyDownloader.download_and_send_spotify_info(Bot.Client, event)
                 if not send_info_result:
                     await event.respond(f"Sorry, there was an error downloading the song.\nTry Using a Different Core.\nYou Can Change Your Core in the Settings or Simply Use This command to See Available Cores: /core")
-                if BotState.get_waiting_message(user_id) is not None:
-                    waiting_message = BotState.get_waiting_message(user_id)
+                if await BotState.get_waiting_message(user_id) is not None:
+                    waiting_message = await BotState.get_waiting_message(user_id)
                     await waiting_message.delete()
                 await db.set_file_processing_flag(user_id, 0)
 

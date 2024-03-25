@@ -105,7 +105,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
         if user_id not in ADMIN_USER_IDS:
                     return
 
-        BotState.set_admin_broadcast(user_id, True)
+        await BotState.set_admin_broadcast(user_id, True)
         if event.message.text.startswith('/broadcast_to_all'):
             await BroadcastManager.add_all_users_to_temp()
             
@@ -116,8 +116,8 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
                 pass
             elif len(command_parts) <  2 or not command_parts[1].startswith('(') or not command_parts[1].endswith(')'):
                 await event.respond("Invalid command format. Use /broadcast (user_id1,user_id2,...)")
-                BotState.set_admin_broadcast(user_id, False)
-                BotState.set_admin_message_to_send(user_id, None)
+                await BotState.set_admin_broadcast(user_id, False)
+                await BotState.set_admin_message_to_send(user_id, None)
                 return
 
             if len(command_parts) != 1:
@@ -126,49 +126,49 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
                 specified_user_ids = [int(user_id) for user_id in user_ids_str.split(',')]
                 for user_id in specified_user_ids:
                     await BroadcastManager.add_user_to_temp(user_id)
-            BotState.set_admin_message_to_send(user_id, None)
+            await BotState.set_admin_message_to_send(user_id, None)
         time = 60 
         time_to_send = await event.respond(f"You've Got {time} seconds to send your message",buttons=Buttons.cancel_broadcast_button)
 
         for remaining_time in range(time-1, 0, -1):
             # Edit the message to show the new time
             await time_to_send.edit(f"You've Got {remaining_time} seconds to send your message")
-            if not BotState.get_admin_broadcast(user_id):
+            if not await BotState.get_admin_broadcast(user_id):
                 await time_to_send.edit("BroadCast Cancelled by User.", buttons = None)
                 break
-            elif BotState.get_admin_message_to_send(user_id) != None:
+            elif await BotState.get_admin_message_to_send(user_id) != None:
                 break
             await asyncio.sleep(1)
         
         # Check if the message is "/broadcast_to_all"
-        if BotState.get_admin_message_to_send(user_id) == None and BotState.get_admin_broadcast(user_id):
+        if await BotState.get_admin_message_to_send(user_id) == None and await BotState.get_admin_broadcast(user_id):
             await event.respond("There is nothing to send")
-            BotState.set_admin_broadcast(user_id, False)
-            BotState.set_admin_message_to_send(user_id, None)
+            await BotState.set_admin_broadcast(user_id, False)
+            await BotState.set_admin_message_to_send(user_id, None)
             await BroadcastManager.remove_all_users_from_temp()
             return
         
         try:
-            if BotState.get_admin_broadcast(user_id) and len(command_parts) != 1:
-                await BroadcastManager.broadcast_message_to_temp_members(BOT_CLIENT, BotState.get_admin_message_to_send(user_id))
+            if await BotState.get_admin_broadcast(user_id) and len(command_parts) != 1:
+                await BroadcastManager.broadcast_message_to_temp_members(BOT_CLIENT, await BotState.get_admin_message_to_send(user_id))
                 await event.respond("Broadcast initiated.")
-            elif BotState.get_admin_broadcast(user_id) and len(command_parts) == 1:
-                await BroadcastManager.broadcast_message_to_sub_members(BOT_CLIENT, BotState.get_admin_message_to_send(user_id), Buttons.cancel_subscription_button_quite)
+            elif await BotState.get_admin_broadcast(user_id) and len(command_parts) == 1:
+                await BroadcastManager.broadcast_message_to_sub_members(BOT_CLIENT, await BotState.get_admin_message_to_send(user_id), Buttons.cancel_subscription_button_quite)
                 await event.respond("Broadcast initiated.")
         except:
             try:
-                if BotState.get_admin_broadcast(user_id):
-                    await BroadcastManager.broadcast_message_to_temp_members(BOT_CLIENT, BotState.get_admin_message_to_send(user_id))
+                if await BotState.get_admin_broadcast(user_id):
+                    await BroadcastManager.broadcast_message_to_temp_members(BOT_CLIENT, await BotState.get_admin_message_to_send(user_id))
                     await event.respond("Broadcast initiated.")
             except Exception as e:
                 await event.respond(f"Broadcast Failed: {str(e)}")
-                BotState.set_admin_broadcast(user_id, False)
-                BotState.set_admin_message_to_send(user_id, None)
+                await BotState.set_admin_broadcast(user_id, False)
+                await BotState.set_admin_message_to_send(user_id, None)
                 await BroadcastManager.remove_all_users_from_temp()
                 
         await BroadcastManager.remove_all_users_from_temp()
-        BotState.set_admin_broadcast(user_id, False)
-        BotState.set_admin_message_to_send(user_id, None)  
+        await BotState.set_admin_broadcast(user_id, False)
+        await BotState.set_admin_message_to_send(user_id, None)  
         
     @staticmethod
     async def handle_search_command(event):
@@ -180,10 +180,10 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
                 await event.respond("Please provide a search term after the /search command. \nOr simply send me everything you want to Search for.")
                 return
             
-            if BotState.get_search_result(user_id) is not None:
-                search_result = BotState.get_search_result(user_id)
+            if await BotState.get_search_result(user_id) is not None:
+                search_result = await BotState.get_search_result(user_id)
                 await search_result.delete()
-                BotState.set_search_result(user_id, None)
+                await BotState.set_search_result(user_id, None)
                 
             waiting_message_search = await event.respond('⏳')
             sanitized_query = await sanitize_query(search_query)
@@ -209,7 +209,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
         button_list.append([Button.inline("Cancel", b"cancel")])
 
         try:
-            BotState.set_search_result(user_id,await event.respond(BotMessageHandler.search_result_message, buttons=button_list))
+            await BotState.set_search_result(user_id,await event.respond(BotMessageHandler.search_result_message, buttons=button_list))
         except Exception as Err:
             await event.respond(f"Sorry There Was an Error Processing Your Request: {str(Err)}")
         

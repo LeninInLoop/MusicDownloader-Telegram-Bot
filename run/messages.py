@@ -63,21 +63,21 @@ Please join to continue."""
     async def send_message_and_store_id(event, text, buttons=None):
         chat_id = event.chat_id
         user_id = event.sender_id
-        if BotState.get_messages(user_id):
-            BotState.initialize_user_state(user_id)
+        if await BotState.get_messages(user_id):
+            await BotState.initialize_user_state(user_id)
         message = await BotState.BOT_CLIENT.send_message(chat_id, text, buttons=buttons)
-        BotState.set_messages(user_id,message)
+        await BotState.set_messages(user_id,message)
 
     @staticmethod
     async def edit_message(event, message_text, buttons=None):
         chat_id = event.chat_id
         user_id = event.sender_id
-        if BotState.get_messages(user_id) :
-            BotState.initialize_user_state(user_id)
-        message = BotState.get_messages(user_id)
+        if await BotState.get_messages(user_id) :
+            await BotState.initialize_user_state(user_id)
+        message = await BotState.get_messages(user_id)
         if message != {}:
             if message.id:
-                BotState.set_messages(user_id,message)
+                await BotState.set_messages(user_id,message)
                 try:
                     await BotState.BOT_CLIENT.edit_message(chat_id, message.id, message_text, buttons=buttons)
                 except MessageNotModifiedError:
