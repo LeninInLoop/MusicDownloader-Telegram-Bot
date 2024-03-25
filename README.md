@@ -28,7 +28,7 @@ Follow these steps to set up the `telegram_spotify_downloader` project on your s
 Open a terminal and clone the `telegram_spotify_downloader` repository from GitHub:
 
 ```zsh
-git clone https://github.com/AdibNikjou/telegram_video_music_downloader
+git clone https://github.com/AdibNikjou/telegram_video_music_downloader.git
 ```
 
 ### Step 2: Install Python Dependencies
