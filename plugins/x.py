@@ -46,7 +46,7 @@ class X:
         screen_shot_message = await event.respond("Uploading the screenshot. Please stand by...")
         button = Button.inline("Download Media", data=b"@X_download_media") if has_media else None
         
-        prev_screen_shot = BotState.get_tweet_screenshot(event.sender_id)
+        prev_screen_shot = await BotState.get_tweet_screenshot(event.sender_id)
         try:
             await prev_screen_shot.edit(buttons=None)
         except:
@@ -61,7 +61,7 @@ class X:
             )
             await screen_shot_message.delete()
             
-            BotState.set_tweet_screenshot(event.sender_id, screen_shot)
+            await BotState.set_tweet_screenshot(event.sender_id, screen_shot)
             return True
         except:
             return False

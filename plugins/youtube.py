@@ -87,7 +87,7 @@ class YoutubeDownloader():
         user_id = event.sender_id
         formats = YoutubeDownloader._get_formats(url)
 
-        youtube_search = BotState.get_youtube_search(user_id)
+        youtube_search = await BotState.get_youtube_search(user_id)
         if youtube_search != None:
             await youtube_search.edit(buttons=None)
             
@@ -138,7 +138,7 @@ class YoutubeDownloader():
 
         # Send the thumbnail as a picture with format buttons
         youtube_search = await client.send_file(event.chat_id, file=thumbnail, caption="Select a format to download:", buttons=buttons)
-        BotState.set_youtube_search(user_id,youtube_search)
+        await BotState.set_youtube_search(user_id,youtube_search)
         
     @staticmethod
     async def download_and_send_yt_file(client, event):
