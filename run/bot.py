@@ -164,7 +164,7 @@ class Bot:
         if await db.is_user_subscribed(user_id):
             await db.remove_subscribed_user(user_id)
             if not quite:
-                await BotMessageHandler.edit_message(event, "You have successfully unsubscribed.", buttons=Bot.subscription_setting_buttons)
+                await BotMessageHandler.edit_message(event, "You have successfully unsubscribed.", buttons=Buttons.get_subscription_setting_buttons(subscription = False))
             else:
                 await event.respond("You have successfully unsubscribed.\nYou Can Subscribe Any Time Using /subscribe command. :)")
 
@@ -173,7 +173,7 @@ class Bot:
         user_id = event.sender_id
         if not await db.is_user_subscribed(user_id):
             await db.add_subscribed_user(user_id)
-            await BotMessageHandler.edit_message(event, "You have successfully subscribed.", buttons=Bot.subscription_setting_buttons) 
+            await BotMessageHandler.edit_message(event, "You have successfully subscribed.", buttons=Buttons.get_subscription_setting_buttons(subscription = True)) 
 
     @staticmethod
     async def handle_broadcast(e, send_to_all: bool = False, send_to_subs: bool = False, send_to_specified: bool = False):

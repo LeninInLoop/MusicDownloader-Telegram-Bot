@@ -95,3 +95,16 @@ class Buttons:
                 [Button.inline("🔹 Black mode",data=b"setting/TweetCapture/mode/2")],
                 [Buttons.back_button, Buttons.back_button_to_setting]
             ]
+
+    @staticmethod
+    def get_subscription_setting_buttons(subscription):
+        if subscription:
+            return [
+            [Button.inline("UnSubscribe",data=b"setting/subscription/cancel")],
+            [Buttons.back_button, Buttons.back_button_to_setting]
+        ]
+        else:
+            return [
+            [Button.inline("Subscribe",data=b"setting/subscription/add")],
+            [Buttons.back_button, Buttons.back_button_to_setting]
+        ]
