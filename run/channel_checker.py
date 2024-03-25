@@ -67,6 +67,7 @@ async def handle_continue_in_membership_message(event):
         join_channel_buttons = [[join_channel_button(channel)] for channel in channels_user_is_not_in]
         join_channel_buttons.append(Buttons.continue_button)
         await BotMessageHandler.edit_message(event,f"""Hey {sender_name}!👋 \n{BotMessageHandler.JOIN_CHANNEL_MESSAGE}""", buttons=join_channel_buttons)
+        await event.answer("⚠️ You need to join our channels to continue.")
     else:
         user_already_in_db = await db.check_username_in_database(user_id)
         if not user_already_in_db:
