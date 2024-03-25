@@ -20,13 +20,12 @@ async def is_user_in_channel(user_id, channel_usernames=None):
                     channel,
                     ChannelParticipantsSearch(''),  # Search query, empty for all participants
                     offset=offset,  # Providing the offset
-                    limit=100,  # Adjust the limit as needed
+                    limit=10**9,  # Adjust the limit as needed
                     hash=0
                 ))
             except ChatAdminRequiredError:
                 print(f"ChatAdminRequiredError: Bot does not have admin privileges in {channel_username}.")
                 break
-            
             if not participants.users:
                 break  # No more participants to fetch
             if not any(participant.id == user_id for participant in participants.users):
