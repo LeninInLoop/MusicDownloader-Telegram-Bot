@@ -140,13 +140,13 @@ class Bot:
         user_id = event.sender_id
         music_quality = {'format': format, 'quality': quality}
         await db.set_user_music_quality(user_id, music_quality)
-        await BotMessageHandler.edit_message(event, f"Quality successfully changed. \nFormat: {music_quality['format']}\nQuality: {music_quality['quality']}", buttons=Bot.quality_setting_buttons)
+        await BotMessageHandler.edit_message(event, f"Quality successfully changed.\n\nFormat: {music_quality['format']}\nQuality: {music_quality['quality']}", buttons=Bot.quality_setting_buttons)
 
     @staticmethod
-    async def change_downloading_core(event, core):
+    async def change_downloading_core(event, downloading_core):
         user_id = event.sender_id
-        await db.set_user_downloading_core(user_id, core)
-        await BotMessageHandler.edit_message(event, f"Core successfully changed. \nCore: {core}", buttons=Bot.core_setting_buttons)
+        await db.set_user_downloading_core(user_id, downloading_core)
+        await BotMessageHandler.edit_message(event, f"Core successfully changed.\n\nCore: {downloading_core}", buttons=Buttons.get_core_setting_buttons(downloading_core))
 
     @staticmethod
     async def change_tweet_capture_night_mode(event, mode:str):

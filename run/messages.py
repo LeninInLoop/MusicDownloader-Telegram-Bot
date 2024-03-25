@@ -97,7 +97,7 @@ Please join to continue."""
             message = BotMessageHandler.core_selection_message + f"\nCore: {downloading_core}"
         else:
             message = BotMessageHandler.core_selection_message + "\nNo core setting found."
-        await BotMessageHandler.edit_message(e, message, buttons=Buttons.core_setting_buttons)
+        await BotMessageHandler.edit_message(e, message, buttons=Buttons.get_core_setting_buttons(downloading_core))
 
     @staticmethod
     async def edit_subscription_status_message(e):

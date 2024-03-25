@@ -108,3 +108,32 @@ class Buttons:
             [Button.inline("Subscribe",data=b"setting/subscription/add")],
             [Buttons.back_button, Buttons.back_button_to_setting]
         ]
+            
+    @staticmethod
+    def get_core_setting_buttons(core):
+        match core:
+            case "Auto":
+                return [
+                    [Button.inline("🔸 Auto", data=b"setting/core/auto")],
+                    [Button.inline("YoutubeDL", b"setting/core/youtubedl")],
+                    [Button.inline("SpotDL", b"setting/core/spotdl")],
+                    [Buttons.back_button, Buttons.back_button_to_setting],
+                ]
+            case "SpotDL":
+                return [
+                [Button.inline("Auto", data=b"setting/core/auto")],
+                [Button.inline("YoutubeDL", b"setting/core/youtubedl")],
+                [Button.inline("🔸 SpotDL", b"setting/core/spotdl")],
+                [Buttons.back_button, Buttons.back_button_to_setting],
+            ]
+            case "YoutubeDL":   
+                return [
+                [Button.inline("Auto", data=b"setting/core/auto")],
+                [Button.inline("🔸 YoutubeDL", b"setting/core/youtubedl")],
+                [Button.inline("SpotDL", b"setting/core/spotdl")],
+                [Buttons.back_button, Buttons.back_button_to_setting],
+            ]
+    
+    @staticmethod
+    def get_quality_setting_buttons(quality):
+        pass
