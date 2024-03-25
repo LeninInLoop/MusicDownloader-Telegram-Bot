@@ -424,6 +424,9 @@ class Bot:
         total_pages = len(song_pages)
 
         current_page = await db.get_current_page(user_id)
+        if current_page == "1":
+            return await event.answer("⚠️ Not available.")
+        
         page = max(1, current_page - 1)
         await db.set_current_page(user_id,page) # Update the current page
 
@@ -457,7 +460,9 @@ class Bot:
             await event.answer("⚠️ Not available.")
         except MessageNotModifiedError:
             await event.answer("⚠️ Not available.")
-        
+        except UnboundLocalError:
+            await event.answer("⚠️ Not available.")
+            
     @staticmethod
     async def next_page(event):
         user_id = event.sender_id
@@ -465,17 +470,24 @@ class Bot:
         total_pages = len(song_pages)
 
         current_page = await db.get_current_page(user_id)
+        
+        if str(current_page) == str(total_pages - 1):
+            return await event.answer("⚠️ Not available.")
+        
         page = min(total_pages, current_page + 1)
         await db.set_current_page(user_id,page)  # Update the current page
 
-        button_list = [
-            [Button.inline(f"🎧 {details['track_name']} - {details['artist_name']} 🎧 ({details['release_year']})", data=str(idx))]
-            for idx, details in enumerate(song_pages[str(page)])
-        ]
-        if total_pages > 1:
-            button_list.append([Button.inline("Previous Page", b"prev_page"), Button.inline("Next Page", b"next_page")])
-        button_list.append([Button.inline("Cancel", b"cancel")])
-
+        try:
+            button_list = [
+                [Button.inline(f"🎧 {details['track_name']} - {details['artist_name']} 🎧 ({details['release_year']})", data=str(idx))]
+                for idx, details in enumerate(song_pages[str(page)])
+            ]
+            if total_pages > 1:
+                button_list.append([Button.inline("Previous Page", b"prev_page"), Button.inline("Next Page", b"next_page")])
+            button_list.append([Button.inline("Cancel", b"cancel")])
+        except KeyError:
+            page = min(total_pages, current_page - 1)
+            await event.answer("⚠️ Not available.")
         try:
             search_result = BotState.get_search_result(user_id)
             await search_result.edit(buttons=button_list)
@@ -497,6 +509,9 @@ class Bot:
         except KeyError:
             await event.answer("⚠️ Not available.")
         except MessageNotModifiedError:
+            await event.answer("⚠️ Not available.")
+        except UnboundLocalError:
+            
             await event.answer("⚠️ Not available.")
         
     @staticmethod
