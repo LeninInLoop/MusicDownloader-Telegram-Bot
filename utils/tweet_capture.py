@@ -14,6 +14,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
+from selenium.common.exceptions import WebDriverException
 import queue
 
 class AsyncWebDriver:
@@ -110,31 +111,41 @@ class TweetCapture:
     
     @staticmethod
     async def screenshot(tweet_url, screenshot_path, night_mode):
-        async with await TweetCapture.get_driver() as driver:
-            try:
-                # Set the night mode
-                TweetCapture.set_night_mode(driver, tweet_url, night_mode)
+        max_retries = 3 # Maximum number of retries
+        retries = 0
+
+        while retries < max_retries:
+            async with await TweetCapture.get_driver() as driver:
+                try:
+                    # Set the night mode
+                    TweetCapture.set_night_mode(driver, tweet_url, night_mode)
+                    
+                    driver.get(tweet_url)
+                    
+                    WebDriverWait(driver, 6).until(EC.presence_of_element_located((By.XPATH, "(//ancestor::article)/..")))
+                    main_tweet_element = TweetCapture.find_main_tweet_element(driver)
+
+                    if main_tweet_element is None:
+                        raise Exception("Unable to locate the main tweet element.")
+
+                    # Scroll to the tweet element
+                    driver.execute_script("arguments[0].scrollIntoView(true);", main_tweet_element)
                 
-                driver.get(tweet_url)
-                
-                WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.XPATH, "(//ancestor::article)/..")))
-                main_tweet_element = TweetCapture.find_main_tweet_element(driver)
+                    # Get the dimensions of the tweet element
+                    tweet_rect = main_tweet_element.rect
+                    width = tweet_rect['width']
+                    height = tweet_rect['height']
 
-                if main_tweet_element is None:
-                    raise Exception("Unable to locate the main tweet element.")
+                    # Set the window size to match the tweet dimensions
+                    driver.set_window_size(width, height + 512)
 
-                # Scroll to the tweet element
-                driver.execute_script("arguments[0].scrollIntoView(true);", main_tweet_element)
-
-                # Get the dimensions of the tweet element
-                tweet_rect = main_tweet_element.rect
-                width = tweet_rect['width']
-                height = tweet_rect['height']
-
-                # Set the window size to match the tweet dimensions
-                driver.set_window_size(width, height + 512)
-
-                # Take the screenshot
-                main_tweet_element.screenshot(screenshot_path)
-            except Exception as e:
-                raise(f"Internal Error: {str(e)}")
+                    # Take the screenshot
+                    main_tweet_element.screenshot(screenshot_path)
+                    return # Success, exit the method
+                except WebDriverException as e:
+                    print(f"Attempt {retries + 1} failed: {str(e)}")
+                    retries += 1
+                    if retries >= max_retries:
+                        raise Exception(f"Failed to capture screenshot after {max_retries} attempts.\nPlease try again later.")
+                except Exception as e:
+                    raise Exception(f"Internal Error: {str(e)}\nTry another time.")
