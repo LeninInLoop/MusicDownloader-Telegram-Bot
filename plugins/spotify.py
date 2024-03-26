@@ -152,7 +152,7 @@ class SpotifyDownloader():
 
             else:
                 # Handle unsupported Spotify link types
-                link_info = {}
+                link_info = {'type': link_type }
                 print(f"Unsupported Spotify link type provided: {spotify_url}")
 
             # Store the extracted information in the database
@@ -270,13 +270,13 @@ class SpotifyDownloader():
             )
             return True
 
-        # Determine and handle the type of Spotify link (track or playlist)
+        # If exists, Determine and handle the type of Spotify link (track or playlist)
         if link_info['type'] == "track":
             return await SpotifyDownloader.send_track_info(client, event, link_info)
         elif link_info['type'] == "playlist":
             return await SpotifyDownloader.send_playlist_info(client, event, link_info)
         else:
-            await event.respond("Unsupported Spotify link type. Please try another link.")
+            await event.respond(f"""Unsupported Spotify link type.\n\nThe Bot is currently supports:\n- track \n- playlist\n\nYou requested: {link_info['type']} """)
             return False
 
     @staticmethod
