@@ -1,6 +1,6 @@
 from run import Button
 from utils import asyncio, re, os, load_dotenv, combinations
-from utils import db, fast_upload, concurrent
+from utils import db, fast_upload, concurrent, SpotifyException
 from utils import Image, BytesIO, YoutubeDL, lyricsgenius, aiohttp, InputMediaUploadedDocument
 from utils import SpotifyClientCredentials, spotipy, ThreadPoolExecutor, DocumentAttributeAudio
 
@@ -42,31 +42,19 @@ class SpotifyDownloader():
     
     @staticmethod
     def identify_spotify_link_type(spotify_url) -> str:
-        # Try to get the resource using the ID
-        try:
-            track = SpotifyDownloader.spotify_account.track(spotify_url)
-            return 'track'
-        except Exception as e:
-            pass
+        # Define a list of all primary resource types supported by Spotify
+        resource_types = ['track', 'album', 'artist', 'playlist', 'show', 'episode']
 
-        try:
-            album = SpotifyDownloader.spotify_account.album(spotify_url)
-            return 'album'
-        except Exception as e:
-            pass
+        for resource_type in resource_types:
+            try:
+                # Dynamically call the appropriate method on the Spotify API client
+                resource = getattr(SpotifyDownloader.spotify_account, resource_type)(spotify_url)
+                return resource_type
+            except (SpotifyException, Exception) as e:
+                # Continue to the next resource type if an exception occurs
+                continue
 
-        try:
-            artist = SpotifyDownloader.spotify_account.artist(spotify_url)
-            return 'artist'
-        except Exception as e:
-            pass
-
-        try:
-            playlist = SpotifyDownloader.spotify_account.playlist(spotify_url)
-            return 'playlist'
-        except Exception as e:
-            pass
-        
+        # Return 'none' if no resource type matches
         return 'none'
 
     @staticmethod
