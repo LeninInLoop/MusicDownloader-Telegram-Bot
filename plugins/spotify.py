@@ -1,4 +1,4 @@
-from run import Button
+from run import Button, Buttons
 from utils import asyncio, re, os, load_dotenv, combinations
 from utils import db, fast_upload, concurrent, SpotifyException
 from utils import Image, BytesIO, YoutubeDL, lyricsgenius, aiohttp, InputMediaUploadedDocument
@@ -877,12 +877,7 @@ class SpotifyDownloader():
         video_urls = await asyncio.gather(*[extract_video_url(i,link_info) for i in range(10)])
         icon_paths = await asyncio.gather(*[download_icon(i,link_info) for i in range(10)])
         
-        if downloading_core == "Auto":
-            track_messages = await asyncio.gather(*[process_track(i, icon_paths[i], video_urls[i], "Auto") for i in range(10)])
-        elif downloading_core == "YoutubeDL":
-            track_messages = await asyncio.gather(*[process_track(i, icon_paths[i], video_urls[i], "YoutubeDL") for i in range(10)])
-        elif downloading_core == "SpotDL":
-            track_messages = await asyncio.gather(*[process_track(i, icon_paths[i], video_urls[i], "SpotDL") for i in range(10)])
+        track_messages = await asyncio.gather(*[process_track(i, icon_paths[i], video_urls[i], downloading_core) for i in range(10)])
 
         message += ''.join(track_messages)
         message += "\nDownload process completed. Starting the upload process..."
@@ -903,7 +898,7 @@ class SpotifyDownloader():
 
         await init_message.delete()
         await upload_status_message.delete()
-        await event.respond("Top-10 Has finished. :)\nThank You for using @Spotify_YT_Downloader_Bot\n\nOur bot is OpenSource:\nSource code: [GITHUB LINK](https://github.com/AdibNikjou/telegram_spotify_downloader)")
+        await event.respond("Enjoy!\n\nOur bot is OpenSource.",buttons=Buttons.source_code_button)
      
     @staticmethod
     async def search_spotify_based_on_user_input(event, query, limit=50):
