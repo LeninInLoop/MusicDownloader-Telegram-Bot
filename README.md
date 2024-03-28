@@ -21,11 +21,11 @@ You can test this bot at:
 
 ## Installation
 
-Follow these steps to set up the `telegram_spotify_downloader` project on your system.
+Follow these steps to set up the `telegram_video_music_downloader` project on your system.
 
 ### Step 1: Clone the Repository
 
-Open a terminal and clone the `telegram_spotify_downloader` repository from GitHub:
+Open a terminal and clone the `telegram_video_music_downloader` repository from GitHub:
 
 ```zsh
 git clone https://github.com/AdibNikjou/telegram_video_music_downloader.git
@@ -36,7 +36,7 @@ git clone https://github.com/AdibNikjou/telegram_video_music_downloader.git
 Navigate to the cloned repository's directory and install the required Python dependencies using `pip`:
 
 ```zsh
-cd telegram_spotify_downloader
+cd telegram_video_music_downloader
 pip install -r requirements.txt
 ```
 
