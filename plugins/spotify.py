@@ -319,8 +319,8 @@ class SpotifyDownloader():
 
         # Buttons for interactivity
         buttons = [
-            [Button.inline("Download Top 10", data=b"@music_playlist_download_10")],
-            [Button.inline("Search Tracks inside", data=b"@music_playlist_search")],
+            [Button.inline("Download Top 10", data=b"plugin/spotify/playlist_download_10")],
+            [Button.inline("Search Tracks inside", data=b"plugin/spotify/playlist_search")],
             [Button.inline("Cancel", data=b"cancel")]
         ]
 
@@ -400,13 +400,13 @@ class SpotifyDownloader():
         icon_path = await download_icon(link_info)
 
         SpotifyInfoButtons = [
-            [Button.inline("Download 30s Preview", data=b"@music_info_preview")],
-            [Button.inline("Download Track", data=b"@music")],
-            [Button.inline("Download Icon", data=b"@music_icon")],
-            [Button.inline("Artist Info", data=b"@music_artist_info")],
-            [Button.inline("Lyrics", data=b"@music_lyrics")],
+            [Button.inline("Download 30s Preview", data=b"plugin/spotify/30s_preview")],
+            [Button.inline("Download Track", data=b"plugin/spotify/download_track")],
+            [Button.inline("Download Icon", data=b"plugin/spotify/download_icon")],
+            [Button.inline("Artist Info", data=b"plugin/spotify/artist_info")],
+            [Button.inline("Lyrics", data=b"plugin/spotify/lyrics")],
             [Button.url("Listen On Spotify", url=link_info["track_url"]),
-            Button.url("Listen On Youtube", url=link_info['youtube_link']) if link_info['youtube_link'] else Button.inline("Listen On Youtube", data=b"@unavailable_feature")],
+            Button.url("Listen On Youtube", url=link_info['youtube_link']) if link_info['youtube_link'] else Button.inline("Listen On Youtube", data=b"unavailable_feature")],
             [Button.inline("Cancel", data=b"cancel")]
         ]
 

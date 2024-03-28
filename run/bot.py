@@ -127,7 +127,8 @@ class Bot:
             b"admin/broadcast/subs": lambda e: asyncio.create_task(Bot.handle_broadcast(e,send_to_subs=True)),
             b"admin/broadcast/specified": lambda e: asyncio.create_task(Bot.handle_broadcast(e,send_to_specified=True)),
             b"next_page": lambda e: Bot.next_page(e),
-            b"prev_page": lambda e: Bot.prev_page(e)
+            b"prev_page": lambda e: Bot.prev_page(e),
+            b"unavailable_feature": lambda e: asyncio.create_task(Bot.handle_unavailable_feature(e))
             # Add other actions here
         }
 
@@ -636,18 +637,18 @@ class Bot:
         await waiting_message_search.delete()
 
     @staticmethod
-    async def handle_music_callback(client, event):
-        if event.data == b"@music_info_preview":
+    async def handle_spotify_callback(client, event):
+        if event.data == b"plugin/spotify/30s_preview":
             await SpotifyDownloader.send_30s_preview(client, event)
-        elif event.data == b"@music_artist_info":
+        elif event.data == b"plugin/spotify/artist_info":
             await SpotifyDownloader.send_artists_info(event)
-        elif event.data == b"@music_icon":
+        elif event.data == b"plugin/spotify/download_icon":
             await SpotifyDownloader.send_music_icon(client, event)
-        elif event.data == b"@music_lyrics":
+        elif event.data == b"plugin/spotify/lyrics":
             await SpotifyDownloader.send_music_lyrics(event)
-        elif event.data == b"@music_playlist_download_10":
+        elif event.data == b"plugin/spotify/playlist_download_10":
             await SpotifyDownloader.download_spotify_file_and_send(client, event)
-        elif event.data == b"@music_playlist_search":
+        elif event.data == b"plugin/spotify/playlist_search":
             await Bot.search_inside_playlist(event)
         else:
             send_file_result = await SpotifyDownloader.download_spotify_file_and_send(client, event)
@@ -655,6 +656,17 @@ class Bot:
                 await db.set_file_processing_flag(event.sender_id,0)
                 await event.respond(f"Sorry, there was an error downloading the song.\nTry Using a Different Core.\nYou Can Change Your Core in the Settings or Simply Use This command to See Available Cores: /core")
     
+    @staticmethod
+    async def handle_youtube_callback(client, event):
+        await YoutubeDownloader.download_and_send_yt_file(client, event)
+    
+    @staticmethod 
+    async def handle_x_callback(client,event):
+        if event.data == b"plugin/X/download_media":
+            await X.download(client, event)
+        else:
+            pass # Add another x callbacks here
+        
     @staticmethod
     async def callback_query_handler(event):
         user_id = event.sender_id
@@ -665,14 +677,12 @@ class Bot:
         action = Bot.button_actions.get(event.data)
         if action:
             await action(event)
-        elif event.data == b"@unavailable_feature":
-            await Bot.handle_unavailable_feature(event)
-        elif event.data == b"@X_download_media":
-            await X.download(Bot.Client,event)
-        elif event.data.startswith(b"@music"):
-            await Bot.handle_music_callback(Bot.Client, event)
-        elif event.data.startswith(b"@yt"):
-            await YoutubeDownloader.download_and_send_yt_file(Bot.Client, event)
+        elif event.data.startswith(b"plugin/spotify/"):
+            await Bot.handle_spotify_callback(Bot.Client, event)
+        elif event.data.startswith(b"plugin/youtube/"):
+            await Bot.handle_youtube_callback(Bot.Client, event)
+        elif event.data.startswith(b"plugin/X/"):
+            await Bot.handle_x_callback(Bot.Client, event)
         elif event.data.isdigit():
             song_pages = await db.get_user_song_dict(user_id)
             current_page = await db.get_current_page(user_id)

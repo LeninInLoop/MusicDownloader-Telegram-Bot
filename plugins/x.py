@@ -44,7 +44,7 @@ class X:
     @staticmethod
     async def send_screenshot(client, event, screenshot_path, has_media) -> bool:
         screen_shot_message = await event.respond("Uploading the screenshot. Please stand by...")
-        button = Button.inline("Download Media", data=b"@X_download_media") if has_media else None
+        button = Button.inline("Download Media", data=b"plugin/X/download_media") if has_media else None
         
         prev_screen_shot = await BotState.get_tweet_screenshot(event.sender_id)
         try:

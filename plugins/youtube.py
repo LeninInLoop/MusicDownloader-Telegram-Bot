@@ -111,7 +111,7 @@ class YoutubeDownloader():
             filesize = f.get('filesize') if f.get('filesize') != None else f.get('filesize_approx')
             if resolution and filesize and counter < 5:
                 filesize = f"{filesize / 1024 / 1024:.2f} MB"
-                button = [Button.inline(f"{extension} - {resolution} - {filesize}", data=f"@yt_{width}_{height}_{duration}_{extension}_video_{f['format_id']}_{filesize}")]
+                button = [Button.inline(f"{extension} - {resolution} - {filesize}", data=f"plugin/youtube/_{width}_{height}_{duration}_{extension}_video_{f['format_id']}_{filesize}")]
                 if not button in video_buttons:
                     video_buttons.append(button)
                     counter+=1
@@ -124,7 +124,7 @@ class YoutubeDownloader():
             filesize = f.get('filesize') if f.get('filesize') != None else f.get('filesize_approx')
             if resolution and filesize and counter < 5:
                 filesize = f"{filesize / 1024 / 1024:.2f} MB"
-                button = [Button.inline(f"{extension} - {resolution} - {filesize}", data=f"@yt_{width}_{height}_{duration}_{extension}_audio_{f['format_id']}_{filesize}")]
+                button = [Button.inline(f"{extension} - {resolution} - {filesize}", data=f"plugin/youtube/_{width}_{height}_{duration}_{extension}_audio_{f['format_id']}_{filesize}")]
                 if not button in audio_buttons:
                     audio_buttons.append(button)
                     counter+=1
@@ -149,7 +149,7 @@ class YoutubeDownloader():
             
         data = event.data.decode('utf-8')
         parts = data.split('_')
-        if len(parts) == 8 and parts[0] == "@yt":
+        if len(parts) == 8 and parts[0] == "plugin/youtube/":
             width = parts[1]
             height = parts[2]
             duration = parts[3]
