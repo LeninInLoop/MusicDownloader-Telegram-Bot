@@ -317,7 +317,7 @@ class Bot:
         await db.set_current_page(user_id,1)
         page = 1
         button_list = [
-            [Button.inline(f"🎧 {details['track_name']} - {details['artist']} 🎧 ({details['release_year']})", data=str(idx))]
+            [Button.inline(f"🎧 {details['track_name']} - {details['artist_name']} 🎧 ({details['release_year']})", data=str(idx))]
             for idx, details in enumerate(song_pages[str(page)])
         ]
         if len(song_pages) > 1:
