@@ -16,7 +16,7 @@ import aiohttp
 from telethon import sync
 from telethon.tl.functions.messages import SendMediaRequest
 from telethon.tl.types import InputMediaUploadedDocument, DocumentAttributeAudio, InputMediaPhotoExternal, DocumentAttributeVideo
-#from FastTelethonhelper import fast_upload
+from FastTelethonhelper import fast_upload
 from threading import Thread
 import concurrent 
 from functools import lru_cache, partial
