@@ -1,6 +1,6 @@
 from utils import BroadcastManager, db, asyncio, sanitize_query, TweetCapture
 from plugins import SpotifyDownloader, ShazamHelper, X, Insta, YoutubeDownloader
-from run import events, Button, MessageMediaInvoice, update_bot_version_user_season, is_user_in_channel, \
+from run import events, Button, MessageMediaDocument, update_bot_version_user_season, is_user_in_channel, \
     handle_continue_in_membership_message
 from run import Buttons, BotMessageHandler, BotState, BotCommandHandler, respond_based_on_channel_membership
 from run import MessageNotModifiedError
@@ -355,6 +355,7 @@ class Bot:
             await event.respond(f"Sorry There Was an Error Processing Your Request: {str(Err)}")
 
         await asyncio.sleep(1.5)
+        await process_file_message.delete()
         await waiting_message_search.delete()
 
     @staticmethod
@@ -746,8 +747,11 @@ class Bot:
     async def handle_message(event):
         user_id = event.sender_id
 
-        if isinstance(event.message.media, MessageMediaInvoice):
-            await Bot.process_audio_file(event, user_id)
+        if isinstance(event.message.media, MessageMediaDocument):
+            if event.message.media.voice:
+                await Bot.process_audio_file(event, user_id)
+            else:
+                await event.respond("Sorry, I can only process:\n-Text\n-Voice\n-Link")
         elif YoutubeDownloader.is_youtube_link(event.message.text):
             await Bot.process_youtube_link(event, user_id)
         elif SpotifyDownloader.is_spotify_link(event.message.text):
