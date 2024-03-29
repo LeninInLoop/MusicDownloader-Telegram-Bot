@@ -1,6 +1,6 @@
-# Music/Video Downloader Bot
+# MusicDownloader-Telegram-Bot
 
-Music/Video Downloader Bot is a Telegram bot that allows users to download music/video from Spotify and YouTube. It provides a convenient way to access and download your favorite tracks/videos directly to your device.
+MusicDownloader-Telegram-Bot is a Telegram bot that allows users to download music/video from Spotify and YouTube. It provides a convenient way to access and download your favorite tracks/videos directly to your device.
 
 You can test this bot at:
 ```telegram.me/spotify_yt_downloader_bot```
@@ -21,14 +21,14 @@ You can test this bot at:
 
 ## Installation
 
-Follow these steps to set up the `telegram_video_music_downloader` project on your system.
+Follow these steps to set up the `MusicDownloader-Telegram-Bot` project on your system.
 
 ### Step 1: Clone the Repository
 
-Open a terminal and clone the `telegram_video_music_downloader` repository from GitHub:
+Open a terminal and clone the `MusicDownloader-Telegram-Bot` repository from GitHub:
 
 ```zsh
-git clone https://github.com/AdibNikjou/telegram_video_music_downloader.git
+git clone https://github.com/AdibNikjou/MusicDownloader-Telegram-Bot.git
 ```
 
 ### Step 2: Install Python Dependencies
@@ -36,7 +36,7 @@ git clone https://github.com/AdibNikjou/telegram_video_music_downloader.git
 Navigate to the cloned repository's directory and install the required Python dependencies using `pip`:
 
 ```zsh
-cd telegram_video_music_downloader
+cd MusicDownloader-Telegram-Bot
 pip install -r requirements.txt
 ```
 
