@@ -1,7 +1,7 @@
 from telethon import TelegramClient, events
 from telethon.tl.custom import Button
 from telethon.tl.functions.channels import GetParticipantsRequest
-from telethon.tl.types import ChannelParticipantsSearch, MessageMediaDocument
+from telethon.tl.types import ChannelParticipantsSearch, MessageMediaInvoice
 from telethon.errors import ChatAdminRequiredError
 from telethon.errors.rpcerrorlist import MessageNotModifiedError
 from .buttons import Buttons

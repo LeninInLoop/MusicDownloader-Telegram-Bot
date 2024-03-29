@@ -1,6 +1,6 @@
-from utils import BroadcastManager, db, asyncio, sanitize_query, is_file_voice, TweetCapture
+from utils import BroadcastManager, db, asyncio, sanitize_query, TweetCapture
 from plugins import SpotifyDownloader, ShazamHelper, X, Insta, YoutubeDownloader
-from run import events, Button, MessageMediaDocument, update_bot_version_user_season, is_user_in_channel, handle_continue_in_membership_message
+from run import events, Button, MessageMediaInvoice, update_bot_version_user_season, is_user_in_channel, handle_continue_in_membership_message
 from run import Buttons, BotMessageHandler, BotState, BotCommandHandler, respond_based_on_channel_membership
 from run import MessageNotModifiedError
 
@@ -284,14 +284,6 @@ class Bot:
 
         waiting_message_search = await event.respond('⏳')
         process_file_message = await event.respond("Processing Your File ...")
-
-        voice = await is_file_voice(event)
-        
-        if voice == 0 :
-            await event.respond("Sorry I Can only process Audio/Text.")
-            await waiting_message_search.delete()
-            await process_file_message.delete()
-            return
         
         file_path = await event.message.download_media(file=f"{ShazamHelper.voice_repository_dir}")
         Shazam_recognized = await ShazamHelper.recognize(file_path)
@@ -704,7 +696,7 @@ class Bot:
     async def handle_message(event):
         user_id = event.sender_id
 
-        if isinstance(event.message.media, MessageMediaDocument):
+        if isinstance(event.message.media, MessageMediaInvoice):
             await Bot.process_audio_file(event, user_id)
         elif YoutubeDownloader.is_youtube_link(event.message.text):
             await Bot.process_youtube_link(event, user_id)
@@ -717,6 +709,8 @@ class Bot:
             await Insta.download(Bot.Client, event, link)
         elif not event.message.text.startswith('/'):
             await Bot.process_text_query(event, user_id)
+        else:
+            await event.respond("Sorry, I can only process:\n-Text\n-Voice\n-Link")
 
     @staticmethod
     async def run():
