@@ -1,10 +1,13 @@
+from typing import Tuple, Any
+
 from run import Button, Buttons
 from utils import asyncio, re, os, load_dotenv, combinations
-from utils import db, fast_upload, concurrent, SpotifyException
+from utils import db, concurrent, SpotifyException, fast_upload
 from utils import Image, BytesIO, YoutubeDL, lyricsgenius, aiohttp, InputMediaUploadedDocument
 from utils import SpotifyClientCredentials, spotipy, ThreadPoolExecutor, DocumentAttributeAudio
 
-class SpotifyDownloader():
+
+class SpotifyDownloader:
 
     @classmethod
     def _load_dotenv_and_create_folders(cls):
@@ -15,12 +18,12 @@ class SpotifyDownloader():
             cls.GENIUS_ACCESS_TOKEN = os.getenv("GENIUS_ACCESS_TOKEN")
         except FileNotFoundError:
             print("Failed to Load .env variables")
-        
+
         # Create a directory for the download
         cls.download_directory = "repository/Musics"
         if not os.path.isdir(cls.download_directory):
             os.makedirs(cls.download_directory, exist_ok=True)
-            
+
         cls.download_icon_directory = "repository/Icons"
         if not os.path.isdir(cls.download_icon_directory):
             os.makedirs(cls.download_icon_directory, exist_ok=True)
@@ -31,15 +34,15 @@ class SpotifyDownloader():
         cls.MAXIMUM_DOWNLOAD_SIZE_MB = 50
         cls.Spotify_info = {}
         cls.spotify_account = spotipy.Spotify(client_credentials_manager=
-                SpotifyClientCredentials(client_id=cls.SPOTIFY_CLIENT_ID,
-                                         client_secret=cls.SPOTIFY_CLIENT_SECRET))
+                                              SpotifyClientCredentials(client_id=cls.SPOTIFY_CLIENT_ID,
+                                                                       client_secret=cls.SPOTIFY_CLIENT_SECRET))
         cls.genius = lyricsgenius.Genius(cls.GENIUS_ACCESS_TOKEN)
-             
+
     @staticmethod
     def is_spotify_link(url):
         pattern = r'https?://open\.spotify\.com/.*'
         return re.match(pattern, url) is not None
-    
+
     @staticmethod
     def identify_spotify_link_type(spotify_url) -> str:
         # Define a list of all primary resource types supported by Spotify
@@ -81,7 +84,7 @@ class SpotifyDownloader():
             'track_number': track_info['track_number'],
             'is_explicit': track_info['explicit']
         }
-        
+
     @staticmethod
     async def extract_data_from_spotify_link(event, spotify_url):
         user_id = event.sender_id
@@ -122,7 +125,7 @@ class SpotifyDownloader():
                 # Extract playlist information and compile playlist tracks into a dictionary
                 playlist_info = SpotifyDownloader.spotify_account.playlist(spotify_url)
                 playlist_tracks_info = SpotifyDownloader.spotify_account.playlist_tracks(spotify_url)['items']
-                
+
                 playlist_info_dict = {
                     'type': 'playlist',
                     'playlist_name': playlist_info['name'],
@@ -140,7 +143,7 @@ class SpotifyDownloader():
 
             else:
                 # Handle unsupported Spotify link types
-                link_info = {'type': link_type }
+                link_info = {'type': link_type}
                 print(f"Unsupported Spotify link type provided: {spotify_url}")
 
             # Store the extracted information in the database
@@ -153,7 +156,6 @@ class SpotifyDownloader():
             return False
 
         return True
-
 
     @staticmethod
     async def extract_yt_video_info(spotify_link_info):
@@ -232,7 +234,7 @@ class SpotifyDownloader():
                 return result
 
         return None
-    
+
     @staticmethod
     async def download_and_send_spotify_info(client, event) -> bool:
         user_id = event.sender_id
@@ -264,7 +266,8 @@ class SpotifyDownloader():
         elif link_info['type'] == "playlist":
             return await SpotifyDownloader.send_playlist_info(client, event, link_info)
         else:
-            await event.respond(f"""Unsupported Spotify link type.\n\nThe Bot is currently supports:\n- track \n- playlist\n\nYou requested: {link_info['type']} """)
+            await event.respond(
+                f"""Unsupported Spotify link type.\n\nThe Bot is currently supports:\n- track \n- playlist\n\nYou requested: {link_info['type']} """)
             return False
 
     @staticmethod
@@ -286,7 +289,7 @@ class SpotifyDownloader():
             print(f"Error downloading or saving playlist image: {e}")
 
         return None
-    
+
     @staticmethod
     async def send_playlist_info(client, event, link_info):
         playlist_image_url = link_info.get('playlist_image_url')
@@ -307,7 +310,7 @@ class SpotifyDownloader():
 
             f"  - 👤 Owner: {playlist_owner}\n"
             f"  - 👥 Followers: {followers}\n"
-            
+
             f"  - 🎵 Total Tracks: {total_tracks}\n"
             f"  - 🤝 Collaborative: {collaborative}\n"
             f"  - 🌐 Public: {public}\n"
@@ -343,18 +346,18 @@ class SpotifyDownloader():
         # Store the sent message information
         SpotifyDownloader.Spotify_info[event.sender_id] = sent_message
         return True
-                
+
     @staticmethod
     async def send_track_info(client, event, link_info):
         user_id = event.sender_id
         music_quality = await db.get_user_music_quality(user_id)
         downloading_core = await db.get_user_downloading_core(user_id)
-        
+
         if downloading_core == "Auto":
             spotdl = True if (link_info.get('youtube_link') is None) else False
         else:
             spotdl = downloading_core == "SpotDL"
-        
+
         def build_file_path(artist, track_name, quality_info, format, make_dir=False):
             filename = f"{artist} - {track_name}".replace("/", "")
             if not spotdl:
@@ -363,15 +366,16 @@ class SpotifyDownloader():
             if make_dir and not os.path.exists(directory):
                 os.makedirs(directory)
             return f"{directory}.{quality_info['format']}"
-        
+
         def is_track_local(artist_names, track_name):
             for r in range(1, len(artist_names) + 1):
                 for combination in combinations(artist_names, r):
-                    file_path = build_file_path(", ".join(combination), track_name, music_quality, music_quality['format'])
+                    file_path = build_file_path(", ".join(combination), track_name, music_quality,
+                                                music_quality['format'])
                     if os.path.isfile(file_path):
                         return True, file_path
             return False, None
-        
+
         async def download_icon(link_info):
             track_name = link_info['track_name']
             artist_name = link_info['artist_name']
@@ -389,14 +393,15 @@ class SpotifyDownloader():
                                 img = Image.open(BytesIO(image_data))
                                 img.save(icon_path)
                             else:
-                                print(f"Failed to download track image for {track_name} - {artist_name}. Status code: {response.status}")
+                                print(
+                                    f"Failed to download track image for {track_name} - {artist_name}. Status code: {response.status}")
                 except Exception as e:
                     print(f"Failed to download or save track image for {track_name} - {artist_name}: {e}")
             return icon_path
-         
+
         artist_names = link_info['artist_name'].split(', ')
         is_local, file_path = is_track_local(artist_names, link_info['track_name'])
-        
+
         icon_path = await download_icon(link_info)
 
         SpotifyInfoButtons = [
@@ -406,7 +411,8 @@ class SpotifyDownloader():
             [Button.inline("Artist Info", data=b"plugin/spotify/artist_info")],
             [Button.inline("Lyrics", data=b"plugin/spotify/lyrics")],
             [Button.url("Listen On Spotify", url=link_info["track_url"]),
-            Button.url("Listen On Youtube", url=link_info['youtube_link']) if link_info['youtube_link'] else Button.inline("Listen On Youtube", data=b"unavailable_feature")],
+             Button.url("Listen On Youtube", url=link_info['youtube_link']) if link_info[
+                 'youtube_link'] else Button.inline("Listen On Youtube", data=b"unavailable_feature")],
             [Button.inline("Cancel", data=b"cancel")]
         ]
 
@@ -434,7 +440,7 @@ class SpotifyDownloader():
         except Exception as Err:
             print(f"Failed to send track info: {Err}")
             return False
-                
+
     @staticmethod
     async def send_local_file(client, event, file_info, spotify_link_info, playlist: bool = False) -> bool:
         user_id = event.sender_id
@@ -445,7 +451,8 @@ class SpotifyDownloader():
         # Notify the user about local availability for faster processing, if applicable
         local_availability_message = None
         if was_local and not playlist:
-            local_availability_message = await event.respond("This track is available locally. Preparing it for you now...")
+            local_availability_message = await event.respond(
+                "This track is available locally. Preparing it for you now...")
 
         # Provide feedback to the user during the upload process
         if not playlist:
@@ -455,16 +462,9 @@ class SpotifyDownloader():
             # Indicate ongoing file upload to enhance user experience
             async with client.action(event.chat_id, 'document'):
                 # Use a ThreadPoolExecutor to upload files in parallel
-                with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-                    futures = [
-                        asyncio.create_task(
-                            SpotifyDownloader._upload_file(
-                                client, event, file_info, spotify_link_info, playlist
-                            )
-                        )
-                        for _ in range(1)
-                    ]
-                    await asyncio.gather(*futures)
+                await SpotifyDownloader._upload_file(
+                    client, event, file_info, spotify_link_info, playlist
+                )
 
         except Exception as e:
             # Handle exceptions and provide feedback
@@ -478,7 +478,7 @@ class SpotifyDownloader():
 
         if not playlist:
             await upload_status_message.delete()
-        
+
         # Reset file processing flag after completion
         await db.set_file_processing_flag(user_id, 0)
 
@@ -492,7 +492,7 @@ class SpotifyDownloader():
         file_path = file_info['file_path']
         icon_path = file_info['icon_path']
         video_url = file_info['video_url']
-        
+
         if not playlist:
             # Use fast_upload for faster uploads
             uploaded_file = await fast_upload(
@@ -527,9 +527,9 @@ class SpotifyDownloader():
             event.chat_id,
             media,
             caption=(
-                f"🎵 **{spotify_link_info['track_name']}** by **{spotify_link_info['artist_name']}**\n\n"
-                f"▶️ [Listen on Spotify]({spotify_link_info['track_url']})\n"
-                + (f"🎥 [Watch on YouTube]({video_url})\n" if video_url else "")
+                    f"🎵 **{spotify_link_info['track_name']}** by **{spotify_link_info['artist_name']}**\n\n"
+                    f"▶️ [Listen on Spotify]({spotify_link_info['track_url']})\n"
+                    + (f"🎥 [Watch on YouTube]({video_url})\n" if video_url else "")
             ),
             supports_streaming=True,
             force_document=False,
@@ -537,10 +537,11 @@ class SpotifyDownloader():
         )
 
     @staticmethod
-    async def download_SpotDL(event, music_quality, spotify_link_info, quite:bool = False, initial_message=None, audio_option: str = "piped") -> bool:
+    async def download_spotdl(event, music_quality, spotify_link_info, quite: bool = False, initial_message=None,
+                              audio_option: str = "piped") -> bool | tuple[bool, Any | None] | tuple[bool, bool]:
         user_id = event.sender_id
         command = f'python3 -m spotdl --client-id {SpotifyDownloader.SPOTIFY_CLIENT_ID} --client-secret {SpotifyDownloader.SPOTIFY_CLIENT_SECRET} --format {music_quality["format"]} --audio {audio_option} --output "{SpotifyDownloader.download_directory}" --threads {15} "{spotify_link_info["track_url"]}"'
-        
+
         try:
             # Start the subprocess
             process = await asyncio.create_subprocess_shell(
@@ -551,7 +552,7 @@ class SpotifyDownloader():
             )
         except Exception as e:
             await event.respond(f"Failed to download. Error: {e}")
-            await db.set_file_processing_flag(user_id,0)
+            await db.set_file_processing_flag(user_id, 0)
             return False
 
         if initial_message is None and not quite:
@@ -559,7 +560,7 @@ class SpotifyDownloader():
             initial_message = await event.reply("SpotDL: Downloading...\nApproach: Piped")
         elif quite:
             initial_message = None
-            
+
         # Function to send updates to the user
         async def send_updates(process, message):
             while True:
@@ -574,16 +575,20 @@ class SpotifyDownloader():
                         await message.edit(f"SpotDL: Downloading...\nApproach: SoundCloud\n\n{line}")
                     else:
                         await message.edit(f"SpotDL: Downloading...\nApproach: YouTube\n\n{line}")
-                
+
                 # Check for errors
-                if any(err in line for err in ("LookupError", "FFmpegError", "JSONDecodeError", "ReadTimeout", "KeyError", "Forbidden", "AudioProviderError")):
+                if any(err in line for err in (
+                        "LookupError", "FFmpegError", "JSONDecodeError", "ReadTimeout", "KeyError", "Forbidden",
+                        "AudioProviderError")):
                     if audio_option == "piped":
                         if not quite:
-                            await message.edit(f"SpotDL: Downloading...\nApproach: Piped Failed, Using SoundCloud Approach.\n\n{line}")
+                            await message.edit(
+                                f"SpotDL: Downloading...\nApproach: Piped Failed, Using SoundCloud Approach.\n\n{line}")
                         return False  # Indicate that an error occurred
                     elif audio_option == "soundcloud":
                         if not quite:
-                            await message.edit(f"SpotDL: Downloading...\nApproach: SoundCloud Failed, Using Youtube Approach.\n\n{line}")
+                            await message.edit(
+                                f"SpotDL: Downloading...\nApproach: SoundCloud Failed, Using Youtube Approach.\n\n{line}")
                         return False
                     else:
                         if not quite:
@@ -592,14 +597,16 @@ class SpotifyDownloader():
                 elif not line:
                     return True
 
-        success = await send_updates(process, initial_message)       
+        success = await send_updates(process, initial_message)
         if not success and audio_option == "piped":
             if not quite:
-                await initial_message.edit(f"SpotDL: Downloading...\nApproach: Piped Failed, Using SoundCloud Approach.")       
+                await initial_message.edit(
+                    f"SpotDL: Downloading...\nApproach: Piped Failed, Using SoundCloud Approach.")
             return False, initial_message
         elif not success and audio_option == "soundcloud":
             if not quite:
-                await initial_message.edit(f"SpotDL: Downloading...\nApproach: SoundCloud Failed, Using Youtube Approach.")       
+                await initial_message.edit(
+                    f"SpotDL: Downloading...\nApproach: SoundCloud Failed, Using Youtube Approach.")
             return False, initial_message
         elif not success and audio_option == "youtube":
             return False, False
@@ -609,7 +616,7 @@ class SpotifyDownloader():
         return True, True
 
     @staticmethod
-    async def download_YoutubeDL(event, file_info, music_quality, playlist:bool = False):
+    async def download_YoutubeDL(event, file_info, music_quality, playlist: bool = False):
         user_id = event.sender_id
         video_url = file_info['video_url']
         filename = file_info['file_name']
@@ -647,7 +654,8 @@ class SpotifyDownloader():
                 "prefer_ffmpeg": False,
                 "geo_bypass": True,
                 "nocheckcertificate": True,
-                "postprocessors": [{'key': 'FFmpegExtractAudio', 'preferredcodec': music_quality['format'], 'preferredquality': music_quality['quality']}]
+                "postprocessors": [{'key': 'FFmpegExtractAudio', 'preferredcodec': music_quality['format'],
+                                    'preferredquality': music_quality['quality']}]
             }
 
             with YoutubeDL(ydl_opts) as ydl:
@@ -678,35 +686,35 @@ class SpotifyDownloader():
         return await download_handler()
 
     @staticmethod
-    async def download_spotify_file_and_send(client,event) -> bool:
-           
+    async def download_spotify_file_and_send(client, event) -> bool:
+
         user_id = event.sender_id
 
         if await db.get_file_processing_flag(user_id) == True:
             await event.respond("Sorry,There is already a file being processed for you.")
             return True
-        
+
         spotify_link_info = await db.get_user_spotify_link_info(user_id)
-        
-        await db.set_file_processing_flag(user_id,1)
-        
+
+        await db.set_file_processing_flag(user_id, 1)
+
         if spotify_link_info['type'] == "track":
-            return await SpotifyDownloader.download_track(client,event,spotify_link_info)
+            return await SpotifyDownloader.download_track(client, event, spotify_link_info)
         elif spotify_link_info['type'] == "playlist":
-            return await SpotifyDownloader.download_playlist(client,event,spotify_link_info)
-         
+            return await SpotifyDownloader.download_playlist(client, event, spotify_link_info)
+
     @staticmethod
     async def download_track(client, event, spotify_link_info):
         user_id = event.sender_id
         music_quality = await db.get_user_music_quality(user_id)
         downloading_core = await db.get_user_downloading_core(user_id)
-        
+
         if downloading_core == "Auto":
             spotdl = True if (spotify_link_info.get('youtube_link') is None) else False
         else:
             spotdl = downloading_core == "SpotDL"
 
-        if (spotify_link_info.get('youtube_link',None) is None) and not spotdl:
+        if (spotify_link_info.get('youtube_link', None) is None) and not spotdl:
             await db.set_file_processing_flag(user_id, 0)
             return False
 
@@ -723,37 +731,43 @@ class SpotifyDownloader():
         if is_local:
             return await SpotifyDownloader.send_local_file(client, event, file_info, spotify_link_info)
         else:
-            return await SpotifyDownloader._handle_download(client, event, spotify_link_info, music_quality, file_info, spotdl)
+            return await SpotifyDownloader._handle_download(client, event, spotify_link_info, music_quality, file_info,
+                                                            spotdl)
 
     @staticmethod
     async def _handle_download(client, event, spotify_link_info, music_quality, file_info, spotdl):
         file_path = file_info["file_path"]
-        if spotdl == False:
-            result,download_message = await SpotifyDownloader.download_YoutubeDL(event,file_info,music_quality)
-            
+        if not spotdl:
+            result, download_message = await SpotifyDownloader.download_YoutubeDL(event, file_info, music_quality)
+
             if os.path.isfile(file_path) and result == True:
-                
+
                 download_message = await download_message.edit("Downloading . . . .")
                 download_message = await download_message.edit("Downloading . . . . .")
 
                 await download_message.delete()
-                
-                send_file_result = await SpotifyDownloader.send_local_file(client,event,file_info,spotify_link_info)
+
+                send_file_result = await SpotifyDownloader.send_local_file(client, event, file_info, spotify_link_info)
                 return send_file_result
             else:
                 return False
-            
-        elif spotdl == True:         
-            result, initial_message = await SpotifyDownloader.download_SpotDL(event, music_quality, spotify_link_info)
-            if result == False:
-                result, initial_message = await SpotifyDownloader.download_SpotDL(event, music_quality, spotify_link_info, False, initial_message, audio_option="soundcloud")
-                if result == False:
-                    result, _ = await SpotifyDownloader.download_SpotDL(event, music_quality, spotify_link_info, False, initial_message, audio_option="youtube")
-            if result == True and initial_message == True:
-                return await SpotifyDownloader.send_local_file(client,event,file_info,spotify_link_info) if result else False
+
+        else:
+            result, initial_message = await SpotifyDownloader.download_spotdl(event, music_quality, spotify_link_info)
+            if not result:
+                result, initial_message = await SpotifyDownloader.download_spotdl(event, music_quality,
+                                                                                  spotify_link_info, False,
+                                                                                  initial_message,
+                                                                                  audio_option="soundcloud")
+                if not result:
+                    result, _ = await SpotifyDownloader.download_spotdl(event, music_quality, spotify_link_info, False,
+                                                                        initial_message, audio_option="youtube")
+            if result and initial_message:
+                return await SpotifyDownloader.send_local_file(client, event, file_info,
+                                                               spotify_link_info) if result else False
             else:
                 return False
-            
+
     @staticmethod
     def _get_icon_path(spotify_link_info):
         icon_name = f"{spotify_link_info['track_name']} - {spotify_link_info['artist_name']}.jpeg".replace("/", " ")
@@ -771,12 +785,13 @@ class SpotifyDownloader():
                     return file_path, filename, True
         filename = f"{spotify_link_info['artist_name']} - {spotify_link_info['track_name']}".replace("/", "")
         filename += f"-{music_quality['quality']}" if not spotdl else ""
-        return os.path.join(SpotifyDownloader.download_directory, f"{filename}.{music_quality['format']}"), filename, False
-       
+        return os.path.join(SpotifyDownloader.download_directory,
+                            f"{filename}.{music_quality['format']}"), filename, False
+
     @staticmethod
     async def download_playlist(client, event, spotify_link_info):
         user_id = event.sender_id
-        
+
         message = "Downloading playlist tracks...\n\n"
         init_message = await event.respond(message)
 
@@ -789,31 +804,32 @@ class SpotifyDownloader():
         track_messages = []
 
         for i in range(10):
-            track_name = link_info[str(i+1)]['track_name']
-            artist_name = link_info[str(i+1)]['artist_name']
-            track_messages.append(f"⏳ {track_name} - {artist_name} :\n\t\t(Downloading)\n---------------------------------\n")
+            track_name = link_info[str(i + 1)]['track_name']
+            artist_name = link_info[str(i + 1)]['artist_name']
+            track_messages.append(
+                f"⏳ {track_name} - {artist_name} :\n\t\t(Downloading)\n---------------------------------\n")
 
         message += ''.join(track_messages)
         await init_message.edit(message)
         message = ''
-    
+
         async def extract_video_url(i, link_info):
-            if link_info[str(i+1)]['youtube_link']:
-                return link_info[str(i+1)]['youtube_link']
-            video_url = await SpotifyDownloader.extract_yt_video_info(link_info[str(i+1)])
-            link_info[str(i+1)]['youtube_link'] = video_url
+            if link_info[str(i + 1)]['youtube_link']:
+                return link_info[str(i + 1)]['youtube_link']
+            video_url = await SpotifyDownloader.extract_yt_video_info(link_info[str(i + 1)])
+            link_info[str(i + 1)]['youtube_link'] = video_url
             return video_url
-            
+
         async def download_icon(i, link_info):
-            track_name = link_info[str(i+1)]['track_name']
-            artist_name = link_info[str(i+1)]['artist_name']
+            track_name = link_info[str(i + 1)]['track_name']
+            artist_name = link_info[str(i + 1)]['artist_name']
 
             icon_name = f"{track_name} - {artist_name}.jpeg".replace("/", " ")
             icon_path = os.path.join(SpotifyDownloader.download_icon_directory, icon_name)
 
             if not os.path.isfile(icon_path):
                 try:
-                    image_url = link_info[str(i+1)]["image_url"]
+                    image_url = link_info[str(i + 1)]["image_url"]
                     async with aiohttp.ClientSession() as session:
                         async with session.get(image_url) as response:
                             if response.status == 200:
@@ -821,7 +837,8 @@ class SpotifyDownloader():
                                 img = Image.open(BytesIO(image_data))
                                 img.save(icon_path)
                             else:
-                                print(f"Failed to download track image for {track_name} - {artist_name}. Status code: {response.status}")
+                                print(
+                                    f"Failed to download track image for {track_name} - {artist_name}. Status code: {response.status}")
                 except Exception as e:
                     print(f"Failed to download or save track image for {track_name} - {artist_name}: {e}")
 
@@ -829,19 +846,23 @@ class SpotifyDownloader():
 
         async def process_track(i, icon_path, video_url, downloading_core):
 
-            track_name = link_info[str(i+1)]['track_name']
-            artist_name = link_info[str(i+1)]['artist_name']
+            track_name = link_info[str(i + 1)]['track_name']
+            artist_name = link_info[str(i + 1)]['artist_name']
 
             if downloading_core == "Auto":
                 if video_url:
-                    file_path, filename, is_local = SpotifyDownloader._determine_file_path(link_info[str(i+1)], music_quality, spotdl=False)
+                    file_path, filename, is_local = SpotifyDownloader._determine_file_path(link_info[str(i + 1)],
+                                                                                           music_quality, spotdl=False)
                 else:
-                    file_path, filename, is_local = SpotifyDownloader._determine_file_path(link_info[str(i+1)], music_quality, spotdl=True)
+                    file_path, filename, is_local = SpotifyDownloader._determine_file_path(link_info[str(i + 1)],
+                                                                                           music_quality, spotdl=True)
             elif downloading_core == "YoutubeDL":
-                file_path, filename, is_local = SpotifyDownloader._determine_file_path(link_info[str(i+1)], music_quality, spotdl=False)
+                file_path, filename, is_local = SpotifyDownloader._determine_file_path(link_info[str(i + 1)],
+                                                                                       music_quality, spotdl=False)
             elif downloading_core == "SpotDL":
-                file_path, filename, is_local = SpotifyDownloader._determine_file_path(link_info[str(i+1)], music_quality, spotdl=True)
-            
+                file_path, filename, is_local = SpotifyDownloader._determine_file_path(link_info[str(i + 1)],
+                                                                                       music_quality, spotdl=True)
+
             file_info = {
                 "file_name": filename,
                 "file_path": file_path,
@@ -854,7 +875,8 @@ class SpotifyDownloader():
 
             if not is_local:
                 if video_url:
-                    result, _ = await SpotifyDownloader.download_YoutubeDL(event, file_info, music_quality, playlist=True)
+                    result, _ = await SpotifyDownloader.download_YoutubeDL(event, file_info, music_quality,
+                                                                           playlist=True)
                     if os.path.isfile(file_path) and result:
                         return f"✅ {track_name} - {artist_name} : \n\t\t(Downloaded)\n---------------------------------\n"
                     else:
@@ -862,33 +884,41 @@ class SpotifyDownloader():
                 elif downloading_core == "YoutubeDL":
                     return f"❌ {track_name} - {artist_name} :\n\t\t(Download Failed)\n---------------------------------\n"
                 else:
-                    result, initial_message = await SpotifyDownloader.download_SpotDL(event, music_quality, link_info[str(i+1)], True)
+                    result, initial_message = await SpotifyDownloader.download_spotdl(event, music_quality,
+                                                                                      link_info[str(i + 1)], True)
                     if result == False:
-                        result, initial_message = await SpotifyDownloader.download_SpotDL(event, music_quality, link_info[str(i+1)], True, initial_message, audio_option="soundcloud")
+                        result, initial_message = await SpotifyDownloader.download_spotdl(event, music_quality,
+                                                                                          link_info[str(i + 1)], True,
+                                                                                          initial_message,
+                                                                                          audio_option="soundcloud")
                         if result == False:
-                            result, _ = await SpotifyDownloader.download_SpotDL(event, music_quality, link_info[str(i+1)], True, initial_message, audio_option="youtube")
+                            result, _ = await SpotifyDownloader.download_spotdl(event, music_quality,
+                                                                                link_info[str(i + 1)], True,
+                                                                                initial_message, audio_option="youtube")
                     if result == True and initial_message == True:
                         return f"✅ {track_name} - {artist_name} : \n\t\t(Downloaded)\n---------------------------------\n"
                     else:
                         return f"❌ {track_name} - {artist_name} :\n\t\t(Download Failed)\n---------------------------------\n"
             else:
                 return f"✅ {track_name} - {artist_name} :\n\t\t(Found in DB)\n---------------------------------\n"
-            
-        video_urls = await asyncio.gather(*[extract_video_url(i,link_info) for i in range(10)])
-        icon_paths = await asyncio.gather(*[download_icon(i,link_info) for i in range(10)])
-        
-        track_messages = await asyncio.gather(*[process_track(i, icon_paths[i], video_urls[i], downloading_core) for i in range(10)])
+
+        video_urls = await asyncio.gather(*[extract_video_url(i, link_info) for i in range(10)])
+        icon_paths = await asyncio.gather(*[download_icon(i, link_info) for i in range(10)])
+
+        track_messages = await asyncio.gather(
+            *[process_track(i, icon_paths[i], video_urls[i], downloading_core) for i in range(10)])
 
         message += ''.join(track_messages)
         message += "\nDownload process completed. Starting the upload process..."
         await init_message.edit(message)
-            
+
         upload_status_message = await event.reply("Uploading tracks... Please wait.")
 
         async def upload_tracks(client, event, file_info_list, link_info):
             tasks = [
                 asyncio.create_task(
-                    SpotifyDownloader.send_local_file(client, event, file_info_list[i], link_info[str(i+1)], playlist=True)
+                    SpotifyDownloader.send_local_file(client, event, file_info_list[i], link_info[str(i + 1)],
+                                                      playlist=True)
                 )
                 for i in range(len(file_info_list))
             ]
@@ -898,8 +928,8 @@ class SpotifyDownloader():
 
         await init_message.delete()
         await upload_status_message.delete()
-        await event.respond("Enjoy!\n\nOur bot is OpenSource.",buttons=Buttons.source_code_button)
-     
+        await event.respond("Enjoy!\n\nOur bot is OpenSource.", buttons=Buttons.source_code_button)
+
     @staticmethod
     async def search_spotify_based_on_user_input(event, query, limit=50):
         results = SpotifyDownloader.spotify_account.search(q=query, limit=limit)
@@ -925,7 +955,7 @@ class SpotifyDownloader():
         await db.set_user_song_dict(event.sender_id, song_pages)
 
     @staticmethod
-    async def send_30s_preview(client,event):
+    async def send_30s_preview(client, event):
         user_id = event.sender_id
         spotify_link_info = await db.get_user_spotify_link_info(user_id)
         if spotify_link_info['type'] == "track":
@@ -939,7 +969,7 @@ class SpotifyDownloader():
                 await event.respond("An error occurred while sending the preview.")
         else:
             await event.respond("Sorry, I can only send previews for tracks, not albums or artists.")
-    
+
     @staticmethod
     async def send_artists_info(event):
         user_id = event.sender_id
@@ -955,7 +985,7 @@ class SpotifyDownloader():
                 return f"{number // 1000}.{(number % 1000) // 100}K"
             else:
                 return str(number)
-        
+
         for artist_id in spotify_link_info['artist_ids']:
             artist = SpotifyDownloader.spotify_account.artist(artist_id)
             artist_details.append({
@@ -984,19 +1014,20 @@ class SpotifyDownloader():
             [Button.url(f"🎧 {artist['name']}", artist['external_url'])]
             for artist in artist_details
         ]
-        artist_buttons.append([Button.inline("Remove",data='cancel')])
-        
+        artist_buttons.append([Button.inline("Remove", data='cancel')])
+
         await event.respond(message, parse_mode='html', buttons=artist_buttons)
 
     @staticmethod
     async def send_music_lyrics(event):
         MAX_MESSAGE_LENGTH = 4096  # Telegram's maximum message length
         SECTION_HEADER_PATTERN = r'\[.+?\]'  # Pattern to match section headers
-        
+
         user_id = event.sender_id
         spotify_link_info = await db.get_user_spotify_link_info(user_id)
         waiting_message = await event.respond("Searching For Lyrics in Genius ....")
-        song = SpotifyDownloader.genius.search_song(f""" "{spotify_link_info['track_name']}"+"{spotify_link_info['artist_name']}" """)
+        song = SpotifyDownloader.genius.search_song(
+            f""" "{spotify_link_info['track_name']}"+"{spotify_link_info['artist_name']}" """)
         if song:
             await waiting_message.delete()
             lyrics = song.lyrics
@@ -1004,11 +1035,11 @@ class SpotifyDownloader():
             if not lyrics:
                 error_message = "Sorry, I couldn't find the lyrics for this track."
                 return await event.respond(error_message)
-            
+
             # Remove 'Embed' and the first line of the lyrics
             lyrics = song.lyrics.strip().split('\n', 1)[-1]
             lyrics = lyrics.replace('Embed', '').strip()
-        
+
             metadata = f"**Song:** {spotify_link_info['track_name']}\n**Artist:** {spotify_link_info['artist_name']}\n\n"
 
             # Split the lyrics into multiple messages if necessary
@@ -1027,7 +1058,7 @@ class SpotifyDownloader():
                     section_lines = [line]
                 else:
                     section_lines.append(line)
-            
+
             # Add the last section to the chunks
             if section_lines:
                 section_text = '\n'.join(section_lines)
@@ -1047,11 +1078,11 @@ class SpotifyDownloader():
                     return await event.respond(error_message)
                 message = metadata + chunk + page_header
                 await event.respond(message, buttons=[Button.inline("Remove", data='cancel')])
-        else:   
+        else:
             await waiting_message.delete()
             error_message = "Sorry, I couldn't find the lyrics for this track."
             return await event.respond(error_message)
-        
+
     @staticmethod
     async def send_music_icon(client, event):
         try:

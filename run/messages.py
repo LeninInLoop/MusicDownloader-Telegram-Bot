@@ -3,6 +3,7 @@ from .buttons import Buttons
 from utils import db, TweetCapture
 from telethon.errors.rpcerrorlist import MessageNotModifiedError
 
+
 class BotMessageHandler:
     start_message = """
 Welcome to your **Music Downloader!** 🎧
@@ -58,7 +59,7 @@ If you have any questions, feel free to ask @adibnikjou. 😊
 Please join to continue."""
 
     search_playlist_message = """The playlist contains these songs:"""
-    
+
     @staticmethod
     async def send_message_and_store_id(event, text, buttons=None):
         chat_id = event.chat_id
@@ -66,25 +67,25 @@ Please join to continue."""
         if await BotState.get_messages(user_id):
             await BotState.initialize_user_state(user_id)
         message = await BotState.BOT_CLIENT.send_message(chat_id, text, buttons=buttons)
-        await BotState.set_messages(user_id,message)
+        await BotState.set_messages(user_id, message)
 
     @staticmethod
     async def edit_message(event, message_text, buttons=None):
         chat_id = event.chat_id
         user_id = event.sender_id
-        if await BotState.get_messages(user_id) :
+        if await BotState.get_messages(user_id):
             await BotState.initialize_user_state(user_id)
         message = await BotState.get_messages(user_id)
         if message != {}:
             if message.id:
-                await BotState.set_messages(user_id,message)
+                await BotState.set_messages(user_id, message)
                 try:
                     await BotState.BOT_CLIENT.edit_message(chat_id, message.id, message_text, buttons=buttons)
                 except MessageNotModifiedError:
                     pass
         else:
             await BotMessageHandler.send_message_and_store_id(event, message_text, buttons=buttons)
-            
+
     @staticmethod
     async def edit_quality_setting_message(e):
         music_quality = await db.get_user_music_quality(e.sender_id)
@@ -93,7 +94,7 @@ Please join to continue."""
         else:
             message = "No quality settings found."
         await BotMessageHandler.edit_message(e, message, buttons=Buttons.get_quality_setting_buttons(music_quality))
-        
+
     @staticmethod
     async def edit_core_setting_message(e):
         downloading_core = await db.get_user_downloading_core(e.sender_id)
@@ -107,15 +108,19 @@ Please join to continue."""
     async def edit_subscription_status_message(e):
         is_subscribed = await db.is_user_subscribed(e.sender_id)
         message = f"Subscription settings:\n\nYour Subscription Status: {is_subscribed}"
-        await BotMessageHandler.edit_message(e, message, buttons=Buttons.get_subscription_setting_buttons(is_subscribed))
-        
+        await BotMessageHandler.edit_message(e, message,
+                                             buttons=Buttons.get_subscription_setting_buttons(is_subscribed))
+
     @staticmethod
     async def edit_tweet_capture_setting_message(e):
         night_mode = await TweetCapture.get_settings(e.sender_id)
         mode = night_mode['night_mode']
         match mode:
-            case "0": mode_to_show = "Light"
-            case "1": mode_to_show = "Dark"
-            case "2": mode_to_show = "Black"
+            case "0":
+                mode_to_show = "Light"
+            case "1":
+                mode_to_show = "Dark"
+            case "2":
+                mode_to_show = "Black"
         message = f"Tweet capture settings:\n\nYour Night Mode: {mode_to_show}"
         await BotMessageHandler.edit_message(e, message, buttons=Buttons.get_tweet_capture_setting_buttons(mode))

@@ -9,5 +9,6 @@ from .messages import BotMessageHandler
 from .glob_variables import BotState
 from .commands import BotCommandHandler
 from .version_checker import update_bot_version_user_season
-from .channel_checker import is_user_in_channel, handle_continue_in_membership_message, respond_based_on_channel_membership
+from .channel_checker import is_user_in_channel, handle_continue_in_membership_message, \
+    respond_based_on_channel_membership
 from .bot import Bot

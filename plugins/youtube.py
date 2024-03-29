@@ -1,49 +1,50 @@
 from utils import YoutubeDL, re, lru_cache, hashlib, InputMediaPhotoExternal, db
-from utils import fast_upload, os, InputMediaUploadedDocument, DocumentAttributeVideo
+from utils import os, InputMediaUploadedDocument, DocumentAttributeVideo, fast_upload
 from utils import DocumentAttributeAudio
 from run import Button, BotState, Buttons
 
+
 class YoutubeDownloader():
-    
+
     @classmethod
     def initialize(cls):
         cls.MAXIMUM_DOWNLOAD_SIZE_MB = 100
         cls.DOWNLOAD_DIR = 'repository/Youtube'
-        
+
         if not os.path.isdir(cls.DOWNLOAD_DIR):
             os.mkdir(cls.DOWNLOAD_DIR)
-            
+
     @staticmethod
-    async def set_youtube_url(user_id,url):
-        return await db.set_youtube_url(user_id,url)
-    
-    @staticmethod 
+    async def set_youtube_url(user_id, url):
+        return await db.set_youtube_url(user_id, url)
+
+    @staticmethod
     async def get_youtube_url(user_id):
         return await db.get_youtube_url(user_id)
-    
+
     @lru_cache(maxsize=128)  # Cache the last 128 screenshots
     def get_file_path(url, format_id, extension):
         url = url + format_id + extension
         url_hash = hashlib.blake2b(url.encode()).hexdigest()
         filename = f"{url_hash}.{extension}"
         return os.path.join(YoutubeDownloader.DOWNLOAD_DIR, filename)
-    
+
     @staticmethod
     def is_youtube_link(url):
         youtube_patterns = [
-        r'(https?\:\/\/)?youtube\.com\/shorts\/([a-zA-Z0-9_-]{11}).*',
-        r'(https?\:\/\/)?www\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})(?!.*list=)',
-        r'(https?\:\/\/)?youtu\.be\/([a-zA-Z0-9_-]{11})(?!.*list=)',
-        r'(https?\:\/\/)?www\.youtube\.com\/embed\/([a-zA-Z0-9_-]{11})(?!.*list=)',
-        r'(https?\:\/\/)?www\.youtube\.com\/v\/([a-zA-Z0-9_-]{11})(?!.*list=)',
-        r'(https?\:\/\/)?www\.youtube\.com\/[^\/]+\?v=([a-zA-Z0-9_-]{11})(?!.*list=)',
-        ]   
+            r'(https?\:\/\/)?youtube\.com\/shorts\/([a-zA-Z0-9_-]{11}).*',
+            r'(https?\:\/\/)?www\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})(?!.*list=)',
+            r'(https?\:\/\/)?youtu\.be\/([a-zA-Z0-9_-]{11})(?!.*list=)',
+            r'(https?\:\/\/)?www\.youtube\.com\/embed\/([a-zA-Z0-9_-]{11})(?!.*list=)',
+            r'(https?\:\/\/)?www\.youtube\.com\/v\/([a-zA-Z0-9_-]{11})(?!.*list=)',
+            r'(https?\:\/\/)?www\.youtube\.com\/[^\/]+\?v=([a-zA-Z0-9_-]{11})(?!.*list=)',
+        ]
         for pattern in youtube_patterns:
             match = re.match(pattern, url)
             if match:
                 return True
         return False
-    
+
     @staticmethod
     def extract_youtube_url(text):
         # Regular expression patterns to match different types of YouTube URLs
@@ -66,7 +67,7 @@ class YoutubeDownloader():
                     return f'https://www.youtube.com/watch?v={video_id}'
 
         return None
-        
+
     @staticmethod
     def _get_formats(url):
         ydl_opts = {
@@ -88,9 +89,9 @@ class YoutubeDownloader():
         formats = YoutubeDownloader._get_formats(url)
 
         youtube_search = await BotState.get_youtube_search(user_id)
-        if youtube_search != None:
+        if youtube_search is not None:
             await youtube_search.edit(buttons=None)
-            
+
         # Download the video thumbnail
         with YoutubeDL({'quiet': True}) as ydl:
             info = ydl.extract_info(url, download=False)
@@ -108,45 +109,48 @@ class YoutubeDownloader():
         for f in reversed(video_formats):
             extension = f['ext']
             resolution = f.get('resolution')
-            filesize = f.get('filesize') if f.get('filesize') != None else f.get('filesize_approx')
+            filesize = f.get('filesize') if f.get('filesize') is not None else f.get('filesize_approx')
             if resolution and filesize and counter < 5:
                 filesize = f"{filesize / 1024 / 1024:.2f} MB"
-                button = [Button.inline(f"{extension} - {resolution} - {filesize}", data=f"plugin/youtube/_{width}_{height}_{duration}_{extension}_video_{f['format_id']}_{filesize}")]
+                button = [Button.inline(f"{extension} - {resolution} - {filesize}",
+                                        data=f"plugin/youtube/_{width}_{height}_{duration}_{extension}_video_{f['format_id']}_{filesize}")]
                 if not button in video_buttons:
                     video_buttons.append(button)
-                    counter+=1
+                    counter += 1
 
         audio_buttons = []
         counter = 0
         for f in reversed(audio_formats):
             extension = f['ext']
             resolution = f.get('resolution')
-            filesize = f.get('filesize') if f.get('filesize') != None else f.get('filesize_approx')
+            filesize = f.get('filesize') if f.get('filesize') is not None else f.get('filesize_approx')
             if resolution and filesize and counter < 5:
                 filesize = f"{filesize / 1024 / 1024:.2f} MB"
-                button = [Button.inline(f"{extension} - {resolution} - {filesize}", data=f"plugin/youtube/_{width}_{height}_{duration}_{extension}_audio_{f['format_id']}_{filesize}")]
+                button = [Button.inline(f"{extension} - {resolution} - {filesize}",
+                                        data=f"plugin/youtube/_{width}_{height}_{duration}_{extension}_audio_{f['format_id']}_{filesize}")]
                 if not button in audio_buttons:
                     audio_buttons.append(button)
-                    counter+=1
+                    counter += 1
 
         buttons = video_buttons + audio_buttons
         buttons.append(Buttons.cancel_button)
-        
+
         # Set thumbnail attributes
         thumbnail = InputMediaPhotoExternal(thumbnail_url)
         thumbnail.ttl_seconds = 0
 
         # Send the thumbnail as a picture with format buttons
-        youtube_search = await client.send_file(event.chat_id, file=thumbnail, caption="Select a format to download:", buttons=buttons)
-        await BotState.set_youtube_search(user_id,youtube_search)
-        
+        youtube_search = await client.send_file(event.chat_id, file=thumbnail, caption="Select a format to download:",
+                                                buttons=buttons)
+        await BotState.set_youtube_search(user_id, youtube_search)
+
     @staticmethod
     async def download_and_send_yt_file(client, event):
         user_id = event.sender_id
-        
+
         if await db.get_file_processing_flag(user_id):
             return await event.respond("Sorry, There is already a file being processed for you.")
-            
+
         data = event.data.decode('utf-8')
         parts = data.split('_')
         if len(parts) == 8 and parts[0] == "plugin/youtube/":
@@ -159,13 +163,15 @@ class YoutubeDownloader():
             filesize = parts[7].replace(" MB", "")
 
             if float(filesize) > YoutubeDownloader.MAXIMUM_DOWNLOAD_SIZE_MB:
-                return await event.answer(f"⚠️ The file size is more than {YoutubeDownloader.MAXIMUM_DOWNLOAD_SIZE_MB}MB.\nTo proceed with the download, please consider upgrading to a premium account. ", alert=True)
-                
-            await db.set_file_processing_flag(user_id,is_processing=True)
-            
+                return await event.answer(
+                    f"⚠️ The file size is more than {YoutubeDownloader.MAXIMUM_DOWNLOAD_SIZE_MB}MB.\nTo proceed with the download, please consider upgrading to a premium account. ",
+                    alert=True)
+
+            await db.set_file_processing_flag(user_id, is_processing=True)
+
             local_availability_message = None
             url = await YoutubeDownloader.get_youtube_url(user_id)
-            
+
             path = YoutubeDownloader.get_file_path(url, format_id, extension)
             if not os.path.isfile(path):
                 downloading_message = await event.respond("Downloading the file for you ...")
@@ -177,29 +183,30 @@ class YoutubeDownloader():
 
                 with YoutubeDL(ydl_opts) as ydl:
                     ydl.extract_info(url)
-                    
+
                 await downloading_message.delete()
             else:
-                local_availability_message = await event.respond("This file is available locally. Preparing it for you now...")
-            
+                local_availability_message = await event.respond(
+                    "This file is available locally. Preparing it for you now...")
+
             upload_message = await event.respond("Uploading ... Please hold on.")
-            
+
             try:
                 # Indicate ongoing file upload to enhance user experience
                 async with client.action(event.chat_id, 'document'):
-                    
+
                     media = await fast_upload(
                         client=client,
                         file_location=path,
                         reply=None,  # No need for a progress bar in this case
                         name=path,
                         progress_bar_function=None
-                        )
-                                        
-                    if (extension == "mp4" or extension == "webm") and video_or_audio=="video":
-                        
+                    )
+
+                    if (extension == "mp4" or extension == "webm") and video_or_audio == "video":
+
                         uploaded_file = await client.upload_file(media)
-                        
+
                         # Prepare the video attributes
                         video_attributes = DocumentAttributeVideo(
                             duration=int(duration),
@@ -215,39 +222,40 @@ class YoutubeDownloader():
                             mime_type='video/mp4' if extension == "mp4" else 'video/webm',
                             attributes=[video_attributes],
                         )
-                    
-                    elif (extension == "m4a" or extension == "webm") and video_or_audio=="audio":
-                        
+
+                    elif (extension == "m4a" or extension == "webm") and video_or_audio == "audio":
+
                         uploaded_file = await client.upload_file(media)
-                        
+
                         # Prepare the audio attributes
                         audio_attributes = DocumentAttributeAudio(
-                            duration=int(duration), # Duration in seconds
-                            title="Downloaded Audio", # Replace with actual title
-                            performer="@Spotify_YT_Downloader_BOT", # Replace with actual performer
+                            duration=int(duration),  # Duration in seconds
+                            title="Downloaded Audio",  # Replace with actual title
+                            performer="@Spotify_YT_Downloader_BOT",  # Replace with actual performer
                             # Add other attributes as needed
                         )
 
                         media = InputMediaUploadedDocument(
                             file=uploaded_file,
-                            thumb=None, # Assuming you have a thumbnail or will set it later
+                            thumb=None,  # Assuming you have a thumbnail or will set it later
                             mime_type='audio/m4a' if extension == "m4a" else 'audio/webm',
                             attributes=[audio_attributes],
                         )
-                    
+
                     # Send the downloaded file
                     await client.send_file(event.chat_id, file=media,
-                                            caption=f"Enjoy!\n@Spotify_YT_Downloader_BOT",
-                                            force_document=False, # This ensures the file is sent as a video/voice if possible
-                                            supports_streaming=True # This enables video streaming
-                                            )
-                    
+                                           caption=f"Enjoy!\n@Spotify_YT_Downloader_BOT",
+                                           force_document=False,
+                                           # This ensures the file is sent as a video/voice if possible
+                                           supports_streaming=True  # This enables video streaming
+                                           )
+
                 await upload_message.delete()
                 await local_availability_message.delete() if local_availability_message else None
-                await db.set_file_processing_flag(user_id,is_processing=False)
-                
+                await db.set_file_processing_flag(user_id, is_processing=False)
+
             except Exception as Err:
-                await db.set_file_processing_flag(user_id,is_processing=False)
+                await db.set_file_processing_flag(user_id, is_processing=False)
                 return await event.respond(f"Sorry There was a problem with your request.\nReason:{str(Err)}")
         else:
             await event.answer("Invalid button data.")
