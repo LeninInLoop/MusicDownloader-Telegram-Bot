@@ -40,33 +40,8 @@ cd MusicDownloader-Telegram-Bot
 pip install -r requirements.txt
 ```
 
-### Step 3: Install Google Chrome
 
-Ensure you have Google Chrome version 122 installed on your system. The installation process varies depending on your operating system.
-
-#### For Ubuntu:
-
-```zsh
-sudo apt update
-sudo apt install google-chrome-stable -y
-```
-
-#### For Fedora:
-
-```zsh
-sudo dnf update
-sudo dnf install google-chrome-stable -y
-```
-
-### Step 4: Verify Installation
-
-After completing the installation steps, verify that Google Chrome is installed and that the version is 122. You can check the version by running:
-
-```zsh
-google-chrome --version
-```
-
-### Step 5: Set Up Your Environment Variables
+### Step 3: Set Up Your Environment Variables
 
 Create a `config.env` file in the root directory of the project and add the following environment variables:
 
@@ -77,7 +52,7 @@ Create a `config.env` file in the root directory of the project and add the foll
 - `API_HASH=your_telegram_api_hash`
 - `GENIUS_ACCESS_TOKEN=your_genius_access_token`
 
-### Step 6: Run the Bot
+### Step 4: Run the Bot
 
 With all dependencies installed and environment variables set, you can now run the bot:
 
