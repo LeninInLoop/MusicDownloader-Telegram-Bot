@@ -30,32 +30,28 @@ class X:
 
         screenshot_path = X.get_screenshot_path(tweet_url + night_mode)
 
-        if os.path.exists(screenshot_path):
-            await tweet_message.delete()
-            return screenshot_path
-        try:
-            screenshot_task = asyncio.create_task(TweetCapture.screenshot(tweet_url, screenshot_path, night_mode))
-            await screenshot_task
+        if not os.path.exists(screenshot_path):
+            try:
+                screenshot_task = asyncio.create_task(TweetCapture.screenshot(tweet_url, screenshot_path, night_mode))
+                await screenshot_task
 
-            await tweet_message.delete()
-            return screenshot_path
-
-        except Exception as Err:
-            await tweet_message.edit(
-                f"We apologize for the inconvenience.\nThe requested tweet could not be found. Reason: {str(Err)}")
-            return None
+            except Exception as Err:
+                await tweet_message.edit(
+                    f"We apologize for the inconvenience.\nThe requested tweet could not be found. Reason: {str(Err)}")
+                return None
+        await tweet_message.delete()
+        return screenshot_path
 
     @staticmethod
-    async def send_screenshot(client, event, screenshot_path, has_media) -> bool:
+    async def send_screenshot(client, event, tweet_link) -> bool:
+
+        screenshot_path = await X.take_screenshot_of_tweet(event, tweet_link)
+        has_media = await X.has_media(tweet_link)
+
         screen_shot_message = await event.respond("Uploading the screenshot. Please stand by...")
-        button = Button.inline("Download Media", data=b"plugin/X/download_media") if has_media else None
-
-        prev_screen_shot = await BotState.get_tweet_screenshot(event.sender_id)
-        try:
-            await prev_screen_shot.edit(buttons=None)
-        except:
-            pass
-
+        button = Button.inline("Download Media",
+                               data=f"X/dl/{tweet_link.replace("https://x.com/", "")}"
+                               ) if has_media else None
         try:
             screen_shot = await client.send_file(
                 event.chat_id,
@@ -136,10 +132,11 @@ class X:
 
     @staticmethod
     async def download(client, event):
-        user_id = event.sender_id
-        link = await db.get_tweet_url(user_id)
-        media_url = await X.fetch_media_url(link)
 
+        callback_query = f"{event.data}"
+        link = "https://x.com/" + callback_query.split("X/dl/")[-1][:-1]
+        
+        media_url = await X.fetch_media_url(link)
         if media_url:
             try:
                 upload_message = await event.reply("Uploading Media ... Please hold on.")

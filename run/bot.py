@@ -7,6 +7,8 @@ from run import MessageNotModifiedError
 
 
 class Bot:
+    Client = None
+
     @staticmethod
     async def initialize():
         try:
@@ -94,6 +96,26 @@ class Bot:
         cls.admins_buttons = Buttons.admins_buttons
         cls.broadcast_options_buttons = Buttons.broadcast_options_buttons
 
+    @staticmethod
+    async def process_bot_interaction(user_id, event):
+        if not await update_bot_version_user_season(event):
+            return False
+
+        if await BotState.get_messages(user_id) == {}:
+            await BotState.initialize_user_state(user_id)
+
+        channels_user_is_not_in = await is_user_in_channel(event.sender_id)
+        if channels_user_is_not_in:
+            return await respond_based_on_channel_membership(event, None, None, channels_user_is_not_in)
+
+        if await BotState.get_admin_broadcast(user_id) and await BotState.get_send_to_specified_flag(user_id):
+            await BotState.set_admin_message_to_send(user_id, event.message)
+            return False
+        elif await BotState.get_admin_broadcast(user_id):
+            await BotState.set_admin_message_to_send(user_id, event.message)
+            return False
+        return True
+
     @classmethod
     async def initialize_action_queries(cls):
         # Mapping button actions to functions
@@ -149,7 +171,8 @@ class Bot:
         music_quality = {'format': format, 'quality': quality}
         await db.set_user_music_quality(user_id, music_quality)
         await BotMessageHandler.edit_message(event,
-                                     f"Quality successfully changed.\n\nFormat: {music_quality['format']}\nQuality: {music_quality['quality']}",
+                                             f"Quality successfully changed.\n\nFormat: {music_quality['format']}"
+                                             f"\nQuality: {music_quality['quality']}",
                                              buttons=Buttons.get_quality_setting_buttons(music_quality))
 
     @staticmethod
@@ -163,9 +186,8 @@ class Bot:
     async def change_tweet_capture_night_mode(event, mode: str):
         user_id = event.sender_id
         await TweetCapture.set_settings(user_id, {'night_mode': mode})
+        mode_to_show = "Light"
         match mode:
-            case "0":
-                mode_to_show = "Light"
             case "1":
                 mode_to_show = "Dark"
             case "2":
@@ -291,21 +313,8 @@ class Bot:
 
     @staticmethod
     async def process_audio_file(event, user_id):
-        if not await update_bot_version_user_season(event):
-            return
 
-        if await BotState.get_messages(user_id) == {}:
-            await BotState.initialize_user_state(user_id)
-
-        channels_user_is_not_in = await is_user_in_channel(event.sender_id)
-        if channels_user_is_not_in != []:
-            return await respond_based_on_channel_membership(event, None, None, channels_user_is_not_in)
-
-        if await BotState.get_admin_broadcast(user_id) and await BotState.get_send_to_specified_flag(user_id):
-            await BotState.set_admin_message_to_send(user_id, event.message)
-            return
-        elif await BotState.get_admin_broadcast(user_id):
-            await BotState.set_admin_message_to_send(user_id, event.message)
+        if not await Bot.process_bot_interaction(user_id, event):
             return
 
         if await BotState.get_search_result(user_id) is not None:
@@ -321,13 +330,13 @@ class Bot:
         if not Shazam_recognized:
             await waiting_message_search.delete()
             await process_file_message.delete()
-            await event.respond("Sorry I Couldnt find any song that matches your Voice.")
+            await event.respond("Sorry I Couldn't find any song that matches your Voice.")
             return
 
         sanitized_query = await sanitize_query(Shazam_recognized)
         if not sanitized_query:
             await waiting_message_search.delete()
-            await event.respond("Sorry I Couldnt find any song that matches your Voice.")
+            await event.respond("Sorry I Couldn't find any song that matches your Voice.")
             return
 
         await SpotifyDownloader.search_spotify_based_on_user_input(event, sanitized_query)
@@ -360,21 +369,7 @@ class Bot:
 
     @staticmethod
     async def process_spotify_link(event, user_id):
-        if not await update_bot_version_user_season(event):
-            return
-
-        if await BotState.get_messages(user_id) == {}:
-            await BotState.initialize_user_state(user_id)
-
-        channels_user_is_not_in = await is_user_in_channel(event.sender_id)
-        if channels_user_is_not_in != []:
-            return await respond_based_on_channel_membership(event, None, None, channels_user_is_not_in)
-
-        if await BotState.get_admin_broadcast(user_id) and await BotState.get_send_to_specified_flag(user_id):
-            await BotState.set_admin_message_to_send(user_id, event.message)
-            return
-        elif await BotState.get_admin_broadcast(user_id):
-            await BotState.set_admin_message_to_send(user_id, event.message)
+        if not await Bot.process_bot_interaction(user_id, event):
             return
 
         await BotState.set_waiting_message(user_id, await event.respond('⏳'))
@@ -388,21 +383,7 @@ class Bot:
 
     @staticmethod
     async def process_text_query(event, user_id):
-        if not await update_bot_version_user_season(event):
-            return
-
-        if await BotState.get_messages(user_id) == {}:
-            await BotState.initialize_user_state(user_id)
-
-        channels_user_is_not_in = await is_user_in_channel(event.sender_id)
-        if channels_user_is_not_in != []:
-            return await respond_based_on_channel_membership(event, None, None, channels_user_is_not_in)
-
-        if await BotState.get_admin_broadcast(user_id) and await BotState.get_send_to_specified_flag(user_id):
-            await BotState.set_admin_message_to_send(user_id, event.message)
-            return
-        elif await BotState.get_admin_broadcast(user_id):
-            await BotState.set_admin_message_to_send(user_id, event.message)
+        if not await Bot.process_bot_interaction(user_id, event):
             return
 
         if len(event.message.text) > 33:
@@ -554,49 +535,17 @@ class Bot:
     @staticmethod
     async def process_x_or_twitter_link(event):
         user_id = event.sender_id
-        await update_bot_version_user_season(event)
-        if not await db.get_user_updated_flag(user_id):
-            return
-
-        if await BotState.get_messages(user_id) == {}:
-            await BotState.initialize_user_state(user_id)
-
-        channels_user_is_not_in = await is_user_in_channel(user_id)
-        if channels_user_is_not_in != []:
-            return await respond_based_on_channel_membership(event, None, None, channels_user_is_not_in)
-
-        if await BotState.get_admin_broadcast(user_id) and await BotState.get_send_to_specified_flag(user_id):
-            await BotState.set_admin_message_to_send(user_id, event.message)
-            return
-        elif await BotState.get_admin_broadcast(user_id):
-            await BotState.set_admin_message_to_send(user_id, event.message)
+        if not await Bot.process_bot_interaction(user_id, event):
             return
 
         x_link = X.find_and_send_x_or_twitter_link(event.message.text)
         if x_link:
-            await db.set_tweet_url(user_id, x_link)
-            screenshot_path = await X.take_screenshot_of_tweet(event, x_link)
-            has_media = await X.has_media(x_link)
-            return await X.send_screenshot(Bot.Client, event, screenshot_path, has_media)
+            return await X.send_screenshot(Bot.Client, event, x_link)
 
     @staticmethod
     async def process_youtube_link(event, user_id):
 
-        if not await update_bot_version_user_season(event):
-            return
-
-        if await BotState.get_messages(user_id) == {}:
-            await BotState.initialize_user_state(user_id)
-
-        channels_user_is_not_in = await is_user_in_channel(event.sender_id)
-        if channels_user_is_not_in != []:
-            return await respond_based_on_channel_membership(event, None, None, channels_user_is_not_in)
-
-        if await BotState.get_admin_broadcast(user_id) and await BotState.get_send_to_specified_flag(user_id):
-            await BotState.set_admin_message_to_send(user_id, event.message)
-            return
-        elif await BotState.get_admin_broadcast(user_id):
-            await BotState.set_admin_message_to_send(user_id, event.message)
+        if not await Bot.process_bot_interaction(user_id, event):
             return
 
         await BotState.set_waiting_message(user_id, await event.respond('⏳'))
@@ -703,7 +652,7 @@ class Bot:
 
     @staticmethod
     async def handle_x_callback(client, event):
-        if event.data == b"plugin/X/download_media":
+        if event.data.startswith(b"X/dl/"):
             await X.download(client, event)
         else:
             pass  # Add another x callbacks here
@@ -722,7 +671,7 @@ class Bot:
             await Bot.handle_spotify_callback(Bot.Client, event)
         elif event.data.startswith(b"plugin/youtube/"):
             await Bot.handle_youtube_callback(Bot.Client, event)
-        elif event.data.startswith(b"plugin/X/"):
+        elif event.data.startswith(b"X"):
             await Bot.handle_x_callback(Bot.Client, event)
         elif event.data.isdigit():
             song_pages = await db.get_user_song_dict(user_id)

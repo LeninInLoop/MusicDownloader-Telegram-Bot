@@ -20,20 +20,22 @@ class Insta:
 
     @staticmethod
     def is_instagram_url(text) -> bool:
-        pattern = r'(?:https?:\/\/)?(?:www\.)?(?:instagram\.com|instagr\.am)(?:\/(?:p|reel|tv|stories)\/(?:[^\s\/]+)|\/([\w-]+)(?:\/(?:[^\s\/]+))?)'
+        pattern = (r'(?:https?:\/\/)?(?:www\.)?(?:instagram\.com|instagr\.am)(?:\/(?:p|reel|tv|stories)\/(?:['
+                   r'^\s\/]+)|\/([\w-]+)(?:\/(?:[^\s\/]+))?)')
         match = re.search(pattern, text)
         return bool(match)
 
     @staticmethod
     def extract_url(text) -> str | None:
-        pattern = r'(?:https?:\/\/)?(?:www\.)?(?:instagram\.com|instagr\.am)(?:\/(?:p|reel|tv|stories)\/(?:[^\s\/]+)|\/([\w-]+)(?:\/(?:[^\s\/]+))?)'
+        pattern = (r'(?:https?:\/\/)?(?:www\.)?(?:instagram\.com|instagr\.am)(?:\/(?:p|reel|tv|stories)\/(?:['
+                   r'^\s\/]+)|\/([\w-]+)(?:\/(?:[^\s\/]+))?)')
         match = re.search(pattern, text)
         if match:
             return match.group()
         return None
 
     @staticmethod
-    def determine_content_type(text) -> str:
+    def determine_content_type(text) -> str | None:
         content_types = {
             '/p/': 'post',
             '/reel/': 'reel',
@@ -90,7 +92,7 @@ class Insta:
                 await event.reply("Sorry, unable to find the requested content. Please ensure it's publicly available.")
                 await start_message.delete()
                 return False
-    
+
     @staticmethod
     async def download_reel(client, event, link):
         try:
@@ -105,6 +107,7 @@ class Insta:
         else:
             await event.reply("Oops, something went wrong")
 
+    @staticmethod
     async def download_post(client, event, link):
         meta_tags = await Insta.search_saveig(link)
         if meta_tags:
@@ -114,6 +117,7 @@ class Insta:
         else:
             await event.reply("Oops, something went wrong")
 
+    @staticmethod
     async def download_story(client, event, link):
         meta_tag = await Insta.search_saveig(link)
         if meta_tag:
