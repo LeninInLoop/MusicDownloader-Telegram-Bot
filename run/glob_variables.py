@@ -22,16 +22,29 @@ class BotState:
     load_dotenv('config.env')
 
     BOT_TOKEN = os.getenv('BOT_TOKEN')
-    API_ID = os.getenv("API_ID")
+    API_ID = int(os.getenv("API_ID"))
     API_HASH = os.getenv("API_HASH")
 
-    ADMIN_USER_IDS = os.getenv('ADMIN_USER_IDS').split(',')
+    ADMIN_USER_IDS = [int(id) for id in os.getenv('ADMIN_USER_IDS').split(',')]
 
     if not all([BOT_TOKEN, API_ID, API_HASH, ADMIN_USER_IDS]):
         raise ValueError("Required environment variables are missing.")
 
-    ADMIN_USER_IDS = [int(id) for id in ADMIN_USER_IDS]
-    BOT_CLIENT = TelegramClient('bot', int(API_ID), API_HASH)
+    BOT_CLIENT = TelegramClient('bot', API_ID, API_HASH)
+
+    # @staticmethod #[DEPRECATED]
+    # def initialize_user_state(user_id):
+    #     if user_id not in BotState.user_states:
+    #         BotState.user_states[user_id] = {
+    #             'admin_message_to_send': None,
+    #             'admin_broadcast': False,
+    #             'send_to_specified_flag': False,
+    #             'messages': {},no
+    #             'search_result': None,
+    #             'tweet_screenshot': None,
+    #             'youtube_search': None,
+    #             'waiting_message': None
+    #         }
 
     @staticmethod
     async def initialize_user_state(user_id):
