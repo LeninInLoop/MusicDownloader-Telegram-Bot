@@ -14,14 +14,6 @@ class YoutubeDownloader():
         if not os.path.isdir(cls.DOWNLOAD_DIR):
             os.mkdir(cls.DOWNLOAD_DIR)
 
-    @staticmethod
-    async def set_youtube_url(user_id, url):
-        return await db.set_youtube_url(user_id, url)
-
-    @staticmethod
-    async def get_youtube_url(user_id):
-        return await db.get_youtube_url(user_id)
-
     @lru_cache(maxsize=128)  # Cache the last 128 screenshots
     def get_file_path(url, format_id, extension):
         url = url + format_id + extension
@@ -83,14 +75,11 @@ class YoutubeDownloader():
         return formats
 
     @staticmethod
-    async def send_youtube_info(client, event):
-        url = event.message.text
+    async def send_youtube_info(client, event, youtube_link):
+        url = youtube_link
+        video_id = youtube_link.replace("https://www.youtube.com/watch?v=", "")
         user_id = event.sender_id
         formats = YoutubeDownloader._get_formats(url)
-
-        youtube_search = await BotState.get_youtube_search(user_id)
-        if youtube_search is not None:
-            await youtube_search.edit(buttons=None)
 
         # Download the video thumbnail
         with YoutubeDL({'quiet': True}) as ydl:
@@ -113,7 +102,7 @@ class YoutubeDownloader():
             if resolution and filesize and counter < 5:
                 filesize = f"{filesize / 1024 / 1024:.2f} MB"
                 button = [Button.inline(f"{extension} - {resolution} - {filesize}",
-                                        data=f"plugin/youtube/_{width}_{height}_{duration}_{extension}_video_{f['format_id']}_{filesize}")]
+                                        data=f"yt/dl/{video_id}/_{width}_{height}_{duration}_{extension}_video_{f['format_id']}_{filesize}")]
                 if not button in video_buttons:
                     video_buttons.append(button)
                     counter += 1
@@ -127,7 +116,7 @@ class YoutubeDownloader():
             if resolution and filesize and counter < 5:
                 filesize = f"{filesize / 1024 / 1024:.2f} MB"
                 button = [Button.inline(f"{extension} - {resolution} - {filesize}",
-                                        data=f"plugin/youtube/_{width}_{height}_{duration}_{extension}_audio_{f['format_id']}_{filesize}")]
+                                        data=f"yt/dl/{video_id}/_{width}_{height}_{duration}_{extension}_audio_{f['format_id']}_{filesize}")]
                 if not button in audio_buttons:
                     audio_buttons.append(button)
                     counter += 1
@@ -153,7 +142,7 @@ class YoutubeDownloader():
 
         data = event.data.decode('utf-8')
         parts = data.split('_')
-        if len(parts) == 8 and parts[0] == "plugin/youtube/":
+        if len(parts) == 8:
             width = parts[1]
             height = parts[2]
             duration = parts[3]
@@ -161,6 +150,7 @@ class YoutubeDownloader():
             video_or_audio = parts[5]
             format_id = parts[6]
             filesize = parts[7].replace(" MB", "")
+            video_id = parts[0].split("/")[-2]
 
             if float(filesize) > YoutubeDownloader.MAXIMUM_DOWNLOAD_SIZE_MB:
                 return await event.answer(
@@ -170,9 +160,10 @@ class YoutubeDownloader():
             await db.set_file_processing_flag(user_id, is_processing=True)
 
             local_availability_message = None
-            url = await YoutubeDownloader.get_youtube_url(user_id)
+            url = "https://www.youtube.com/watch?v=" + video_id
 
             path = YoutubeDownloader.get_file_path(url, format_id, extension)
+
             if not os.path.isfile(path):
                 downloading_message = await event.respond("Downloading the file for you ...")
                 ydl_opts = {

@@ -9,8 +9,8 @@ class UserState:
     send_to_specified_flag: bool = False
     messages: dict = field(default_factory=dict)
     search_result: str = None
-    youtube_search: str = None
     waiting_message: str = None
+
 
 class BotState:
     channel_usernames = ["Spotify_yt_downloader"]
@@ -62,16 +62,6 @@ class BotState:
         return user_state.admin_message_to_send
 
     @staticmethod
-    async def get_tweet_screenshot(user_id):
-        user_state = await BotState.get_user_state(user_id)
-        return user_state.tweet_screenshot
-
-    @staticmethod
-    async def get_youtube_search(user_id):
-        user_state = await BotState.get_user_state(user_id)
-        return user_state.youtube_search
-
-    @staticmethod
     async def get_admin_broadcast(user_id):
         user_state = await BotState.get_user_state(user_id)
         return user_state.admin_broadcast
@@ -100,11 +90,6 @@ class BotState:
     async def set_admin_message_to_send(user_id, message):
         user_state = await BotState.get_user_state(user_id)
         user_state.admin_message_to_send = message
-
-    @staticmethod
-    async def set_youtube_search(user_id, value):
-        user_state = await BotState.get_user_state(user_id)
-        user_state.youtube_search = value
 
     @staticmethod
     async def set_admin_broadcast(user_id, value):

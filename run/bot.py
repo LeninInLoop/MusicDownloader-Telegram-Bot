@@ -536,7 +536,7 @@ class Bot:
         if not await Bot.process_bot_interaction(event):
             return
 
-        x_link = X.find_and_send_x_or_twitter_link(event.message.text)
+        x_link = X.find_and_return_x_or_twitter_link(event.message.text)
         if x_link:
             return await X.send_screenshot(Bot.Client, event, x_link)
 
@@ -548,11 +548,9 @@ class Bot:
         await BotState.set_waiting_message(user_id, await event.respond('⏳'))
 
         youtube_link = YoutubeDownloader.extract_youtube_url(event.message.text)
-        if youtube_link:
-            await YoutubeDownloader.set_youtube_url(user_id, youtube_link)
-        else:
+        if not youtube_link:
             return await event.respond("Sorry, Bad Youtube Link.")
-        await YoutubeDownloader.send_youtube_info(Bot.Client, event)
+        await YoutubeDownloader.send_youtube_info(Bot.Client, event, youtube_link)
 
     @staticmethod
     async def handle_unavailable_feature(event):
@@ -645,7 +643,8 @@ class Bot:
 
     @staticmethod
     async def handle_youtube_callback(client, event):
-        await YoutubeDownloader.download_and_send_yt_file(client, event)
+        if event.data.startswith(b"yt/dl/"):
+            await YoutubeDownloader.download_and_send_yt_file(client, event)
 
     @staticmethod
     async def handle_x_callback(client, event):
@@ -666,7 +665,7 @@ class Bot:
             await action(event)
         elif event.data.startswith(b"plugin/spotify/"):
             await Bot.handle_spotify_callback(Bot.Client, event)
-        elif event.data.startswith(b"plugin/youtube/"):
+        elif event.data.startswith(b"yt"):
             await Bot.handle_youtube_callback(Bot.Client, event)
         elif event.data.startswith(b"X"):
             await Bot.handle_x_callback(Bot.Client, event)

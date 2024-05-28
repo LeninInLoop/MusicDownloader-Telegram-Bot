@@ -76,7 +76,7 @@ class X:
         return bool(re.search(pattern, text))
 
     @staticmethod
-    def find_and_send_x_or_twitter_link(text):
+    def find_and_return_x_or_twitter_link(text):
         pattern = r'(https?://(?:www\.)?twitter\.com/[^/\s]+/status/\d+|https?://(?:www\.)?x\.com/[^?\s]+)'
         match = re.search(pattern, text)
         return match.group(0) if match else None
