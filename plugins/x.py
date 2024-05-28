@@ -46,29 +46,29 @@ class X:
             return None
 
     @staticmethod
-    async def send_screenshot(client, event, screenshot_path, has_media) -> bool:
+    async def send_screenshot(client, event, tweet_url) -> bool:
+
+        screenshot_path = await X.take_screenshot_of_tweet(event, tweet_url)
+        has_media = await X.has_media(tweet_url)
+
         screen_shot_message = await event.respond("Uploading the screenshot. Please stand by...")
-        button = Button.inline("Download Media", data=b"plugin/X/download_media") if has_media else None
 
-        prev_screen_shot = await BotState.get_tweet_screenshot(event.sender_id)
+        button = Button.inline("Download Media",
+                               data=f"X/dl/{tweet_url.replace("https://x.com/", "")}"
+                               ) if has_media else None
         try:
-            await prev_screen_shot.edit(buttons=None)
-        except:
-            pass
-
-        try:
-            screen_shot = await client.send_file(
+            await client.send_file(
                 event.chat_id,
                 screenshot_path,
                 caption="Here is the requested tweet screenshot.",
                 buttons=button
             )
-            await screen_shot_message.delete()
-
-            await BotState.set_tweet_screenshot(event.sender_id, screen_shot)
-            return True
-        except:
+        except Exception as Err:
+            await screen_shot_message.edit(f"Error:\n{str(Err)}")
             return False
+
+        await screen_shot_message.delete()
+        return True
 
     @staticmethod
     def contains_x_or_twitter_link(text):
@@ -136,8 +136,9 @@ class X:
 
     @staticmethod
     async def download(client, event):
-        user_id = event.sender_id
-        link = await db.get_tweet_url(user_id)
+
+        query_data = f"{event.data}"
+        link = "https://x.com/" + query_data.split("X/dl/")[-1][:-1]
         media_url = await X.fetch_media_url(link)
 
         if media_url:
