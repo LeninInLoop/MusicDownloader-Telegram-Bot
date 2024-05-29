@@ -621,17 +621,17 @@ class Bot:
 
     @staticmethod
     async def handle_spotify_callback(client, event):
-        if event.data == b"plugin/spotify/30s_preview":
-            await SpotifyDownloader.send_30s_preview(client, event)
-        elif event.data == b"plugin/spotify/artist_info":
-            await SpotifyDownloader.send_artists_info(event)
-        elif event.data == b"plugin/spotify/download_icon":
+        if event.data.startswith(b"spotify/dl/icon/"):
             await SpotifyDownloader.send_music_icon(client, event)
-        elif event.data == b"plugin/spotify/lyrics":
+        elif event.data.startswith(b"spotify/dl/30s_preview"):
+            await SpotifyDownloader.send_30s_preview(client, event)
+        elif event.data.startswith(b"spotify/artist/"):
+            await SpotifyDownloader.send_artists_info(event)
+        elif event.data == b"spotify/lyrics":
             await SpotifyDownloader.send_music_lyrics(event)
-        elif event.data == b"plugin/spotify/playlist_download_10":
+        elif event.data == b"spotify/playlist_download_10":
             await SpotifyDownloader.download_spotify_file_and_send(client, event)
-        elif event.data == b"plugin/spotify/playlist_search":
+        elif event.data == b"spotify/playlist_search":
             await Bot.search_inside_playlist(event)
         else:
             send_file_result = await SpotifyDownloader.download_spotify_file_and_send(client, event)
@@ -663,7 +663,7 @@ class Bot:
         action = Bot.button_actions.get(event.data)
         if action:
             await action(event)
-        elif event.data.startswith(b"plugin/spotify/"):
+        elif event.data.startswith(b"spotify"):
             await Bot.handle_spotify_callback(Bot.Client, event)
         elif event.data.startswith(b"yt"):
             await Bot.handle_youtube_callback(Bot.Client, event)

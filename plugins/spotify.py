@@ -404,12 +404,17 @@ class SpotifyDownloader:
 
         icon_path = await download_icon(link_info)
 
+        max_artist_ids = 2
+        artist_ids = ",".join(link_info["artist_ids"][:max_artist_ids])
+
         SpotifyInfoButtons = [
-            [Button.inline("Download 30s Preview", data=b"plugin/spotify/30s_preview")],
-            [Button.inline("Download Track", data=b"plugin/spotify/download_track")],
-            [Button.inline("Download Icon", data=b"plugin/spotify/download_icon")],
-            [Button.inline("Artist Info", data=b"plugin/spotify/artist_info")],
-            [Button.inline("Lyrics", data=b"plugin/spotify/lyrics")],
+            [Button.inline("Download 30s Preview", data=f"spotify/dl/30s_preview/{link_info['preview_url']
+                           .split("?cid")[0].replace('https://p.scdn.co/mp3-preview/', '')}")],
+            [Button.inline("Download Track", data=b"spotify/download_track")],
+            [Button.inline("Download Icon", data=f"spotify/dl/icon/{link_info["image_url"].replace(
+                'https://i.scdn.co/image/', '')}")],
+            [Button.inline("Artist Info", data=f"spotify/artist/{artist_ids}")],
+            [Button.inline("Lyrics", data=b"spotify/lyrics")],
             [Button.url("Listen On Spotify", url=link_info["track_url"]),
              Button.url("Listen On Youtube", url=link_info['youtube_link']) if link_info[
                  'youtube_link'] else Button.inline("Listen On Youtube", data=b"unavailable_feature")],
@@ -956,25 +961,18 @@ class SpotifyDownloader:
 
     @staticmethod
     async def send_30s_preview(client, event):
-        user_id = event.sender_id
-        spotify_link_info = await db.get_user_spotify_link_info(user_id)
-        if spotify_link_info['type'] == "track":
-            try:
-                preview_url = spotify_link_info['preview_url']
-                if preview_url:
-                    await client.send_file(event.chat_id, preview_url, voice=True)
-                else:
-                    await event.respond("Sorry, the preview URL for this track is not available.")
-            except Exception:
-                await event.respond("An error occurred while sending the preview.")
-        else:
-            await event.respond("Sorry, I can only send previews for tracks, not albums or artists.")
+        try:
+            query_data = str(event.data)
+            preview_url = "https://p.scdn.co/mp3-preview/" + query_data.split("/")[-1][:-1]
+            await client.send_file(event.chat_id, preview_url)
+        except Exception as Err:
+            await event.respond(f"Sorry, Something went wrong:\nError\n{str(Err)}")
 
     @staticmethod
     async def send_artists_info(event):
-        user_id = event.sender_id
+        query_data = str(event.data)
+        artist_ids = query_data.split("/")[-1].split(",")
         artist_details = []
-        spotify_link_info = await db.get_user_spotify_link_info(user_id)
 
         def format_number(number):
             if number >= 1000000000:
@@ -986,8 +984,8 @@ class SpotifyDownloader:
             else:
                 return str(number)
 
-        for artist_id in spotify_link_info['artist_ids']:
-            artist = SpotifyDownloader.spotify_account.artist(artist_id)
+        for artist_id in artist_ids:
+            artist = SpotifyDownloader.spotify_account.artist(artist_id.replace("'", ""))
             artist_details.append({
                 'name': artist['name'],
                 'followers': format_number(artist['followers']['total']),
@@ -1086,24 +1084,8 @@ class SpotifyDownloader:
     @staticmethod
     async def send_music_icon(client, event):
         try:
-            user_id = event.sender_id
-            spotify_link_info = await db.get_user_spotify_link_info(user_id)
-
-            if spotify_link_info:
-                track_name = spotify_link_info['track_name']
-                artist_name = spotify_link_info['artist_name']
-                icon_name = f"{track_name} - {artist_name}.jpeg".replace("/", " ")
-                icon_path = os.path.join(SpotifyDownloader.download_icon_directory, icon_name)
-
-                if os.path.isfile(icon_path):
-                    async with client.action(event.chat_id, 'document'):
-                        await client.send_file(
-                            event.chat_id,
-                            icon_path,
-                            caption=f"{track_name} - {artist_name}",
-                            force_document=True
-                        )
-                else:
-                    await event.reply("Sorry, the music icon is currently unavailable.")
+            query_data = str(event.data)
+            image_url = "https://i.scdn.co/image/" + query_data.split("/")[-1][:-1]
+            await client.send_file(event.chat_id, image_url)
         except Exception:
             await event.reply("An error occurred while processing your request. Please try again later.")
