@@ -404,17 +404,15 @@ class SpotifyDownloader:
 
         icon_path = await download_icon(link_info)
 
-        max_artist_ids = 2
-        artist_ids = ",".join(link_info["artist_ids"][:max_artist_ids])
-
+        print(link_info)
         SpotifyInfoButtons = [
             [Button.inline("Download 30s Preview", data=f"spotify/dl/30s_preview/{link_info['preview_url']
                            .split("?cid")[0].replace('https://p.scdn.co/mp3-preview/', '')}")],
             [Button.inline("Download Track", data=b"spotify/download_track")],
             [Button.inline("Download Icon", data=f"spotify/dl/icon/{link_info["image_url"].replace(
                 'https://i.scdn.co/image/', '')}")],
-            [Button.inline("Artist Info", data=f"spotify/artist/{artist_ids}")],
-            [Button.inline("Lyrics", data=b"spotify/lyrics")],
+            [Button.inline("Artist Info", data=f"spotify/artist/{link_info["track_id"]}")],
+            [Button.inline("Lyrics", data=f"spotify/lyrics/{link_info["track_id"]}")],
             [Button.url("Listen On Spotify", url=link_info["track_url"]),
              Button.url("Listen On Youtube", url=link_info['youtube_link']) if link_info[
                  'youtube_link'] else Button.inline("Listen On Youtube", data=b"unavailable_feature")],
@@ -971,7 +969,9 @@ class SpotifyDownloader:
     @staticmethod
     async def send_artists_info(event):
         query_data = str(event.data)
-        artist_ids = query_data.split("/")[-1].split(",")
+        track_id = query_data.split("/")[-1][:-1]
+        track_info = SpotifyDownloader.spotify_account.track(track_id=track_id)
+        artist_ids = [artist["id"] for artist in track_info['artists']]
         artist_details = []
 
         def format_number(number):
@@ -1021,11 +1021,14 @@ class SpotifyDownloader:
         MAX_MESSAGE_LENGTH = 4096  # Telegram's maximum message length
         SECTION_HEADER_PATTERN = r'\[.+?\]'  # Pattern to match section headers
 
-        user_id = event.sender_id
-        spotify_link_info = await db.get_user_spotify_link_info(user_id)
+        query_data = str(event.data)
+        track_id = query_data.split("/")[-1][:-1]
+        track_info = SpotifyDownloader.spotify_account.track(track_id=track_id)
+        artist_names = ",".join(artist['name'] for artist in track_info['artists'])
+
         waiting_message = await event.respond("Searching For Lyrics in Genius ....")
         song = SpotifyDownloader.genius.search_song(
-            f""" "{spotify_link_info['track_name']}"+"{spotify_link_info['artist_name']}" """)
+            f""" "{track_info['name']}"+"{artist_names}" """)
         if song:
             await waiting_message.delete()
             lyrics = song.lyrics
@@ -1038,7 +1041,7 @@ class SpotifyDownloader:
             lyrics = song.lyrics.strip().split('\n', 1)[-1]
             lyrics = lyrics.replace('Embed', '').strip()
 
-            metadata = f"**Song:** {spotify_link_info['track_name']}\n**Artist:** {spotify_link_info['artist_name']}\n\n"
+            metadata = f"**Song:** {track_info['name']}\n**Artist:** {artist_names}\n\n"
 
             # Split the lyrics into multiple messages if necessary
             lyrics_chunks = []

@@ -627,7 +627,7 @@ class Bot:
             await SpotifyDownloader.send_30s_preview(client, event)
         elif event.data.startswith(b"spotify/artist/"):
             await SpotifyDownloader.send_artists_info(event)
-        elif event.data == b"spotify/lyrics":
+        elif event.data.startswith(b"spotify/lyrics"):
             await SpotifyDownloader.send_music_lyrics(event)
         elif event.data == b"spotify/playlist_download_10":
             await SpotifyDownloader.download_spotify_file_and_send(client, event)
