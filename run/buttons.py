@@ -8,7 +8,7 @@ class Buttons:
     main_menu_buttons = [
         [Button.inline("Instructions", b"instructions"), Button.inline("Settings", b"setting")],
         source_code_button,
-        [Button.inline("Contact Creator", b"contact_creator")],
+        [Button.url("Contact Creator", url="telegram.me/adibnikjou")],
     ]
 
     back_button = Button.inline("<< Back To Main Menu", b"back")

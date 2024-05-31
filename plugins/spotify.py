@@ -109,7 +109,7 @@ class SpotifyDownloader:
                     'image_url': album['images'][0]['url'],
                     'track_id': track_info['id'],
                     'isrc': track_info['external_ids']['isrc'],
-                    'track_url': spotify_url,
+                    'track_url': track_info['external_urls']['spotify'],
                     'youtube_link': None,  # Placeholder, will be resolved below
                     'preview_url': track_info.get('preview_url'),
                     'duration_ms': track_info['duration_ms'],
@@ -167,17 +167,11 @@ class SpotifyDownloader:
         release_year = spotify_link_info["release_year"]
         track_duration = spotify_link_info.get("duration_ms", 0) / 1000
         album_name = spotify_link_info.get("album_name", "")
-        track_number = spotify_link_info.get("track_number", "")
-        is_explicit = spotify_link_info.get("is_explicit", False)
 
         queries = [
             f'"{artist_name}" "{track_name}" lyrics {release_year}',
-            f'"{artist_name}" "{track_name}" audio {release_year}',
-            f'"{artist_name}" "{track_name}" official music video {release_year}',
             f'"{track_name}" by "{artist_name}" {release_year}',
             f'"{artist_name}" "{track_name}" "{album_name}" {release_year}',
-            f'"{artist_name}" "{track_name}" "{album_name}" track {track_number} {release_year}',
-            f'"{artist_name}" "{track_name}" {"explicit" if is_explicit else ""} {release_year}'
         ]
 
         ydl_opts = {
@@ -333,6 +327,30 @@ class SpotifyDownloader:
         return True
 
     @staticmethod
+    async def download_icon(link_info):
+        track_name = link_info['track_name']
+        artist_name = link_info['artist_name']
+        image_url = link_info["image_url"]
+
+        icon_name = f"{track_name} - {artist_name}.jpeg".replace("/", " ")
+        icon_path = os.path.join(SpotifyDownloader.download_icon_directory, icon_name)
+
+        if not os.path.isfile(icon_path):
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(image_url) as response:
+                        if response.status == 200:
+                            image_data = await response.read()
+                            img = Image.open(BytesIO(image_data))
+                            img.save(icon_path)
+                        else:
+                            print(
+                                f"Failed to download track image for {track_name} - {artist_name}. Status code: {response.status}")
+            except Exception as e:
+                print(f"Failed to download or save track image for {track_name} - {artist_name}: {e}")
+        return icon_path
+
+    @staticmethod
     async def send_track_info(client, event, link_info):
         user_id = event.sender_id
         music_quality = await db.get_user_music_quality(user_id)
@@ -361,42 +379,19 @@ class SpotifyDownloader:
                         return True, file_path
             return False, None
 
-        async def download_icon(link_info):
-            track_name = link_info['track_name']
-            artist_name = link_info['artist_name']
-            image_url = link_info["image_url"]
-
-            icon_name = f"{track_name} - {artist_name}.jpeg".replace("/", " ")
-            icon_path = os.path.join(SpotifyDownloader.download_icon_directory, icon_name)
-
-            if not os.path.isfile(icon_path):
-                try:
-                    async with aiohttp.ClientSession() as session:
-                        async with session.get(image_url) as response:
-                            if response.status == 200:
-                                image_data = await response.read()
-                                img = Image.open(BytesIO(image_data))
-                                img.save(icon_path)
-                            else:
-                                print(
-                                    f"Failed to download track image for {track_name} - {artist_name}. Status code: {response.status}")
-                except Exception as e:
-                    print(f"Failed to download or save track image for {track_name} - {artist_name}: {e}")
-            return icon_path
-
         artist_names = link_info['artist_name'].split(', ')
         is_local, file_path = is_track_local(artist_names, link_info['track_name'])
 
-        icon_path = await download_icon(link_info)
+        icon_path = await SpotifyDownloader.download_icon(link_info)
 
         SpotifyInfoButtons = [
-            [Button.inline("Download 30s Preview", data=f"spotify/dl/30s_preview/{link_info['preview_url']
-                           .split("?cid")[0].replace('https://p.scdn.co/mp3-preview/', '')}")],
-            [Button.inline("Download Track", data=f"spotify/dl/music/{link_info["track_id"]}")],
-            [Button.inline("Download Icon", data=f"spotify/dl/icon/{link_info["image_url"].replace(
-                'https://i.scdn.co/image/', '')}")],
-            [Button.inline("Artist Info", data=f"spotify/artist/{link_info["track_id"]}")],
-            [Button.inline("Lyrics", data=f"spotify/lyrics/{link_info["track_id"]}")],
+            [Button.inline("Download 30s Preview",
+                           data=f"spotify/dl/30s_preview/{link_info['preview_url'].split('?cid')[0].replace('https://p.scdn.co/mp3-preview/', '')}")],
+            [Button.inline("Download Track", data=f"spotify/dl/music/{link_info['track_id']}")],
+            [Button.inline("Download Icon",
+                           data=f"spotify/dl/icon/{link_info['image_url'].replace('https://i.scdn.co/image/', '')}")],
+            [Button.inline("Artist Info", data=f"spotify/artist/{link_info['track_id']}")],
+            [Button.inline("Lyrics", data=f"spotify/lyrics/{link_info['track_id']}")],
             [Button.url("Listen On Spotify", url=link_info["track_url"]),
              Button.url("Listen On Youtube", url=link_info['youtube_link']) if link_info[
                  'youtube_link'] else Button.inline("Listen On Youtube", data=b"unavailable_feature")],
@@ -475,6 +470,10 @@ class SpotifyDownloader:
 
     @staticmethod
     async def _upload_file(event, file_info, spotify_link_info, playlist: bool = False):
+
+        if not os.path.exists(file_info['icon_path']):
+            await SpotifyDownloader.download_icon(spotify_link_info)
+
         # Unpack file_info for clarity
         file_path = file_info['file_path']
         icon_path = file_info['icon_path']
@@ -680,13 +679,15 @@ class SpotifyDownloader:
         query_data = str(event.data)
         spotify_link = query_data.split("/")[-1][:-1]
 
+        fetch_message = await event.respond(" --> Fetching track information ......")
         spotify_link_info = await SpotifyDownloader.extract_data_from_spotify_link(event, spotify_link)
-        if await db.get_file_processing_flag(user_id):
 
+        if await db.get_file_processing_flag(user_id):
             await event.respond("Sorry,There is already a file being processed for you.")
             return True
 
         await db.set_file_processing_flag(user_id, 1)
+        await fetch_message.delete()
 
         if spotify_link_info['type'] == "track":
             return await SpotifyDownloader.download_track(event, spotify_link_info)

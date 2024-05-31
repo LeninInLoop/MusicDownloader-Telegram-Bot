@@ -79,7 +79,6 @@ class Bot:
         # Initialize messages here
         cls.start_message = BotMessageHandler.start_message
         cls.instruction_message = BotMessageHandler.instruction_message
-        cls.contact_creator_message = BotMessageHandler.contact_creator_message
         cls.search_result_message = BotMessageHandler.search_result_message
         cls.core_selection_message = BotMessageHandler.core_selection_message
         cls.JOIN_CHANNEL_MESSAGE = BotMessageHandler.JOIN_CHANNEL_MESSAGE
@@ -103,8 +102,6 @@ class Bot:
             b"membership/continue": lambda e: asyncio.create_task(handle_continue_in_membership_message(e)),
             b"instructions": lambda e: asyncio.create_task(
                 BotMessageHandler.edit_message(e, Bot.instruction_message, buttons=Bot.back_button)),
-            b"contact_creator": lambda e: asyncio.create_task(
-                BotMessageHandler.edit_message(e, Bot.contact_creator_message, buttons=Bot.back_button)),
             b"back": lambda e: asyncio.create_task(
                 BotMessageHandler.edit_message(e, f"Hey {e.sender.first_name}!👋\n {Bot.start_message}",
                                                buttons=Bot.main_menu_buttons)),
