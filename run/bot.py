@@ -8,6 +8,7 @@ from run import MessageNotModifiedError
 
 class Bot:
     Client = None
+
     @staticmethod
     async def initialize():
         try:
@@ -150,7 +151,7 @@ class Bot:
         music_quality = {'format': format, 'quality': quality}
         await db.set_user_music_quality(user_id, music_quality)
         await BotMessageHandler.edit_message(event,
-                                     f"Quality successfully changed.\n\nFormat: {music_quality['format']}\nQuality: {music_quality['quality']}",
+                                             f"Quality successfully changed.\n\nFormat: {music_quality['format']}\nQuality: {music_quality['quality']}",
                                              buttons=Buttons.get_quality_setting_buttons(music_quality))
 
     @staticmethod
@@ -200,9 +201,6 @@ class Bot:
         await update_bot_version_user_season(event)
         if not await db.get_user_updated_flag(user_id):
             return False
-
-        if await BotState.get_messages(user_id) == {}:
-            await BotState.initialize_user_state(user_id)
 
         channels_user_is_not_in = await is_user_in_channel(user_id)
         if channels_user_is_not_in != []:
@@ -372,7 +370,6 @@ class Bot:
             return
 
         await BotState.set_waiting_message(user_id, await event.respond('⏳'))
-        await SpotifyDownloader.extract_data_from_spotify_link(event, str(event.message.text))
         info_tuple = await SpotifyDownloader.download_and_send_spotify_info(Bot.Client, event)
 
         if not info_tuple:  # if getting info of the link failed
@@ -620,26 +617,23 @@ class Bot:
         await waiting_message_search.delete()
 
     @staticmethod
-    async def handle_spotify_callback(client, event):
-        if event.data.startswith(b"spotify/dl/icon/"):
-            await SpotifyDownloader.send_music_icon(client, event)
-        elif event.data.startswith(b"spotify/dl/30s_preview"):
-            await SpotifyDownloader.send_30s_preview(client, event)
-        elif event.data.startswith(b"spotify/artist/"):
-            await SpotifyDownloader.send_artists_info(event)
-        elif event.data.startswith(b"spotify/lyrics"):
-            await SpotifyDownloader.send_music_lyrics(event)
-        elif event.data == b"spotify/playlist_download_10":
-            await SpotifyDownloader.download_spotify_file_and_send(client, event)
-        elif event.data == b"spotify/playlist_search":
-            await Bot.search_inside_playlist(event)
+    async def handle_spotify_callback(event):
+        handlers = {
+            "spotify/dl/icon/": SpotifyDownloader.send_music_icon,
+            "spotify/dl/30s_preview": SpotifyDownloader.send_30s_preview,
+            "spotify/artist/": SpotifyDownloader.send_artists_info,
+            "spotify/lyrics": SpotifyDownloader.send_music_lyrics,
+            "spotify/playlist_download_10": SpotifyDownloader.download_spotify_file_and_send,
+            "spotify/playlist_search": Bot.search_inside_playlist,
+            "spotify/dl/music/": SpotifyDownloader.download_spotify_file_and_send,
+        }
+
+        for key, handler in handlers.items():
+            if event.data.startswith(key.encode()):
+                await handler(event)
+                break
         else:
-            send_file_result = await SpotifyDownloader.download_spotify_file_and_send(client, event)
-            if not send_file_result:
-                await db.set_file_processing_flag(event.sender_id, 0)
-                await event.respond(
-                    f"Sorry, there was an error downloading the song.\nTry Using a Different Core.\nYou Can Change "
-                    f"Your Core in the Settings or Simply Use This command to See Available Cores: /core")
+            pass
 
     @staticmethod
     async def handle_youtube_callback(client, event):
@@ -664,7 +658,7 @@ class Bot:
         if action:
             await action(event)
         elif event.data.startswith(b"spotify"):
-            await Bot.handle_spotify_callback(Bot.Client, event)
+            await Bot.handle_spotify_callback(event)
         elif event.data.startswith(b"yt"):
             await Bot.handle_youtube_callback(Bot.Client, event)
         elif event.data.startswith(b"X"):
@@ -704,8 +698,7 @@ class Bot:
         elif X.contains_x_or_twitter_link(event.message.text):
             await Bot.process_x_or_twitter_link(event)
         elif Insta.is_instagram_url(event.message.text):
-            link = Insta.extract_url(event.message.text)
-            await Insta.download(Bot.Client, event, link)
+            await Insta.download(Bot.Client, event)
         elif not event.message.text.startswith('/'):
             await Bot.process_text_query(event, user_id)
 

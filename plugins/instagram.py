@@ -59,7 +59,9 @@ class Insta:
             return False
 
     @staticmethod
-    async def download(client, event, link) -> bool:
+    async def download(client, event) -> bool:
+        link = Insta.extract_url(event.message.text)
+
         start_message = await event.respond("Processing Your insta link ....")
         try:
             url = link.replace("instagram.com", "ddinstagram.com").replace("==", "%3D%3D")
@@ -105,6 +107,7 @@ class Insta:
         else:
             await event.reply("Oops, something went wrong")
 
+    @staticmethod
     async def download_post(client, event, link):
         meta_tags = await Insta.search_saveig(link)
         if meta_tags:
@@ -114,6 +117,7 @@ class Insta:
         else:
             await event.reply("Oops, something went wrong")
 
+    @staticmethod
     async def download_story(client, event, link):
         meta_tag = await Insta.search_saveig(link)
         if meta_tag:

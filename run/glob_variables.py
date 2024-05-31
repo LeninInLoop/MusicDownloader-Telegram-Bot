@@ -7,7 +7,6 @@ class UserState:
     admin_message_to_send: str = None
     admin_broadcast: bool = False
     send_to_specified_flag: bool = False
-    messages: dict = field(default_factory=dict)
     search_result: str = None
     waiting_message: str = None
 
@@ -72,11 +71,6 @@ class BotState:
         return user_state.send_to_specified_flag
 
     @staticmethod
-    async def get_messages(user_id):
-        user_state = await BotState.get_user_state(user_id)
-        return user_state.messages
-
-    @staticmethod
     async def get_search_result(user_id):
         user_state = await BotState.get_user_state(user_id)
         return user_state.search_result
@@ -100,11 +94,6 @@ class BotState:
     async def set_send_to_specified_flag(user_id, value):
         user_state = await BotState.get_user_state(user_id)
         user_state.send_to_specified_flag = value
-
-    @staticmethod
-    async def set_messages(user_id, messages):
-        user_state = await BotState.get_user_state(user_id)
-        user_state.messages = messages
 
     @staticmethod
     async def set_search_result(user_id, result):

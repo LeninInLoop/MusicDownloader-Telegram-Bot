@@ -87,7 +87,6 @@ class SpotifyDownloader:
 
     @staticmethod
     async def extract_data_from_spotify_link(event, spotify_url):
-        user_id = event.sender_id
 
         # Identify the type of Spotify link to handle the data extraction accordingly
         link_type = SpotifyDownloader.identify_spotify_link_type(spotify_url)
@@ -120,6 +119,7 @@ class SpotifyDownloader:
 
                 # Attempt to enhance track info with additional external data (e.g., YouTube link)
                 link_info['youtube_link'] = await SpotifyDownloader.extract_yt_video_info(link_info)
+                return link_info
 
             elif link_type == "playlist":
                 # Extract playlist information and compile playlist tracks into a dictionary
@@ -139,23 +139,19 @@ class SpotifyDownloader:
                     'playlist_tracks': {i + 1: SpotifyDownloader.compile_track_info(track['track'])
                                         for i, track in enumerate(playlist_tracks_info)}
                 }
-                link_info = playlist_info_dict
+                return playlist_info_dict
 
             else:
                 # Handle unsupported Spotify link types
                 link_info = {'type': link_type}
                 print(f"Unsupported Spotify link type provided: {spotify_url}")
-
-            # Store the extracted information in the database
-            await db.set_user_spotify_link_info(user_id, link_info)
+                return link_info
 
         except Exception as e:
             # Log and handle any errors encountered during information extraction
             print(f"Error extracting Spotify information: {e}")
             await event.respond("An error occurred while processing the Spotify link. Please try again.")
-            return False
-
-        return True
+            return {}
 
     @staticmethod
     async def extract_yt_video_info(spotify_link_info):
@@ -239,19 +235,7 @@ class SpotifyDownloader:
     async def download_and_send_spotify_info(client, event) -> bool:
         user_id = event.sender_id
 
-        # Initialize user's Spotify info if not already present
-        SpotifyDownloader.Spotify_info.setdefault(user_id, None)
-
-        # Retrieve user's Spotify link info from the database
-        link_info = await db.get_user_spotify_link_info(user_id)
-
-        # Dismiss any previous Spotify info buttons, if applicable
-        previous_info = SpotifyDownloader.Spotify_info.get(user_id)
-        if previous_info is not None:
-            try:
-                await previous_info.edit(buttons=None)
-            except Exception as e:
-                print(f"Failed to edit previous message for user {user_id}: {e}")
+        spotify_link = str(event.message.text)
 
         # Ensure the user's data is up to date
         if not await db.get_user_updated_flag(user_id):
@@ -260,14 +244,15 @@ class SpotifyDownloader:
             )
             return True
 
-        # If exists, Determine and handle the type of Spotify link (track or playlist)
-        if link_info['type'] == "track":
+        link_info = await SpotifyDownloader.extract_data_from_spotify_link(event,spotify_url=spotify_link)
+        if link_info["type"] == "track":
             return await SpotifyDownloader.send_track_info(client, event, link_info)
-        elif link_info['type'] == "playlist":
+        elif link_info["type"] == "playlist":
             return await SpotifyDownloader.send_playlist_info(client, event, link_info)
         else:
             await event.respond(
-                f"""Unsupported Spotify link type.\n\nThe Bot is currently supports:\n- track \n- playlist\n\nYou requested: {link_info['type']} """)
+                f"""Unsupported Spotify link type.\n\nThe Bot is currently supports:\n- track \n- playlist\n\nYou 
+                requested: {link_info["type"]} """)
             return False
 
     @staticmethod
@@ -404,11 +389,10 @@ class SpotifyDownloader:
 
         icon_path = await download_icon(link_info)
 
-        print(link_info)
         SpotifyInfoButtons = [
             [Button.inline("Download 30s Preview", data=f"spotify/dl/30s_preview/{link_info['preview_url']
                            .split("?cid")[0].replace('https://p.scdn.co/mp3-preview/', '')}")],
-            [Button.inline("Download Track", data=b"spotify/download_track")],
+            [Button.inline("Download Track", data=f"spotify/dl/music/{link_info["track_id"]}")],
             [Button.inline("Download Icon", data=f"spotify/dl/icon/{link_info["image_url"].replace(
                 'https://i.scdn.co/image/', '')}")],
             [Button.inline("Artist Info", data=f"spotify/artist/{link_info["track_id"]}")],
@@ -889,16 +873,16 @@ class SpotifyDownloader:
                 else:
                     result, initial_message = await SpotifyDownloader.download_spotdl(event, music_quality,
                                                                                       link_info[str(i + 1)], True)
-                    if result == False:
+                    if not result:
                         result, initial_message = await SpotifyDownloader.download_spotdl(event, music_quality,
                                                                                           link_info[str(i + 1)], True,
                                                                                           initial_message,
                                                                                           audio_option="soundcloud")
-                        if result == False:
+                        if not result:
                             result, _ = await SpotifyDownloader.download_spotdl(event, music_quality,
                                                                                 link_info[str(i + 1)], True,
                                                                                 initial_message, audio_option="youtube")
-                    if result == True and initial_message == True:
+                    if result and initial_message:
                         return f"✅ {track_name} - {artist_name} : \n\t\t(Downloaded)\n---------------------------------\n"
                     else:
                         return f"❌ {track_name} - {artist_name} :\n\t\t(Download Failed)\n---------------------------------\n"
@@ -958,11 +942,11 @@ class SpotifyDownloader:
         await db.set_user_song_dict(event.sender_id, song_pages)
 
     @staticmethod
-    async def send_30s_preview(client, event):
+    async def send_30s_preview(event):
         try:
             query_data = str(event.data)
             preview_url = "https://p.scdn.co/mp3-preview/" + query_data.split("/")[-1][:-1]
-            await client.send_file(event.chat_id, preview_url)
+            await event.respond(file=preview_url)
         except Exception as Err:
             await event.respond(f"Sorry, Something went wrong:\nError\n{str(Err)}")
 
@@ -1085,10 +1069,10 @@ class SpotifyDownloader:
             return await event.respond(error_message)
 
     @staticmethod
-    async def send_music_icon(client, event):
+    async def send_music_icon(event):
         try:
             query_data = str(event.data)
             image_url = "https://i.scdn.co/image/" + query_data.split("/")[-1][:-1]
-            await client.send_file(event.chat_id, image_url)
+            await event.respond(file=image_url)
         except Exception:
             await event.reply("An error occurred while processing your request. Please try again later.")

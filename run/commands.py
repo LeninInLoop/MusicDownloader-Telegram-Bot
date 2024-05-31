@@ -40,7 +40,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
     async def handle_admin_command(event):
         if event.sender_id not in ADMIN_USER_IDS:
             return
-        await BotMessageHandler.send_message_and_store_id(event, "Admin commands:", buttons=Buttons.admins_buttons)
+        await BotMessageHandler.send_message(event, "Admin commands:", buttons=Buttons.admins_buttons)
 
     @staticmethod
     async def handle_ping_command(event):

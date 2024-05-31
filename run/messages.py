@@ -61,30 +61,21 @@ Please join to continue."""
     search_playlist_message = """The playlist contains these songs:"""
 
     @staticmethod
-    async def send_message_and_store_id(event, text, buttons=None):
+    async def send_message(event, text, buttons=None):
         chat_id = event.chat_id
         user_id = event.sender_id
-        if await BotState.get_messages(user_id):
-            await BotState.initialize_user_state(user_id)
-        message = await BotState.BOT_CLIENT.send_message(chat_id, text, buttons=buttons)
-        await BotState.set_messages(user_id, message)
+        await BotState.initialize_user_state(user_id)
+        await BotState.BOT_CLIENT.send_message(chat_id, text, buttons=buttons)
 
     @staticmethod
     async def edit_message(event, message_text, buttons=None):
-        chat_id = event.chat_id
         user_id = event.sender_id
-        if await BotState.get_messages(user_id):
-            await BotState.initialize_user_state(user_id)
-        message = await BotState.get_messages(user_id)
-        if message != {}:
-            if message.id:
-                await BotState.set_messages(user_id, message)
-                try:
-                    await BotState.BOT_CLIENT.edit_message(chat_id, message.id, message_text, buttons=buttons)
-                except MessageNotModifiedError:
-                    pass
-        else:
-            await BotMessageHandler.send_message_and_store_id(event, message_text, buttons=buttons)
+
+        await BotState.initialize_user_state(user_id)
+        try:
+            await event.edit(message_text, buttons=buttons)
+        except MessageNotModifiedError:
+            pass
 
     @staticmethod
     async def edit_quality_setting_message(e):
@@ -115,9 +106,8 @@ Please join to continue."""
     async def edit_tweet_capture_setting_message(e):
         night_mode = await TweetCapture.get_settings(e.sender_id)
         mode = night_mode['night_mode']
+        mode_to_show = "Light"
         match mode:
-            case "0":
-                mode_to_show = "Light"
             case "1":
                 mode_to_show = "Dark"
             case "2":
