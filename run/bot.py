@@ -348,11 +348,10 @@ class Bot:
         if not await Bot.process_bot_interaction(event):
             return
 
-        await BotState.set_waiting_message(user_id, await event.respond('⏳'))
+        waiting_message = await event.respond('⏳')
         info_tuple = await SpotifyDownloader.download_and_send_spotify_info(event, is_query=False)
 
         if not info_tuple:  # if getting info of the link failed
-            waiting_message = await BotState.get_waiting_message(user_id)
             await waiting_message.delete()
             return await event.respond("Sorry, There was a problem processing your request.")
 
@@ -420,12 +419,13 @@ class Bot:
         if not await Bot.process_bot_interaction(event):
             return
 
-        await BotState.set_waiting_message(user_id, await event.respond('⏳'))
+        waiting_message = await event.respond('⏳')
 
         youtube_link = YoutubeDownloader.extract_youtube_url(event.message.text)
         if not youtube_link:
             return await event.respond("Sorry, Bad Youtube Link.")
         await YoutubeDownloader.send_youtube_info(Bot.Client, event, youtube_link)
+        await waiting_message.delete()
 
     @staticmethod
     async def handle_unavailable_feature(event):

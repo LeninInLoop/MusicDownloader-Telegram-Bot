@@ -8,7 +8,6 @@ class UserState:
     admin_broadcast: bool = False
     send_to_specified_flag: bool = False
     search_result: str = None
-    waiting_message: str = None
 
 
 class BotState:
@@ -71,16 +70,6 @@ class BotState:
         return user_state.send_to_specified_flag
 
     @staticmethod
-    async def get_search_result(user_id):
-        user_state = await BotState.get_user_state(user_id)
-        return user_state.search_result
-
-    @staticmethod
-    async def get_waiting_message(user_id):
-        user_state = await BotState.get_user_state(user_id)
-        return user_state.waiting_message
-
-    @staticmethod
     async def set_admin_message_to_send(user_id, message):
         user_state = await BotState.get_user_state(user_id)
         user_state.admin_message_to_send = message
@@ -94,13 +83,3 @@ class BotState:
     async def set_send_to_specified_flag(user_id, value):
         user_state = await BotState.get_user_state(user_id)
         user_state.send_to_specified_flag = value
-
-    @staticmethod
-    async def set_search_result(user_id, result):
-        user_state = await BotState.get_user_state(user_id)
-        user_state.search_result = result
-
-    @staticmethod
-    async def set_waiting_message(user_id, message):
-        user_state = await BotState.get_user_state(user_id)
-        user_state.waiting_message = message

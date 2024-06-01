@@ -279,7 +279,8 @@ class SpotifyDownloader:
 
         # Buttons for interactivity
         buttons = [
-            [Button.inline("Download Top 10", data=f"spotify/dl/playlist/{playlist_id}")],
+            [Button.inline("Download All Tracks Inside [mp3]", data=f"spotify/dl/playlist/{playlist_id}/all")],
+            [Button.inline("Download Top 10", data=f"spotify/dl/playlist/{playlist_id}/10")],
             [Button.inline("Search Tracks inside", data=f"spotify/s/playlist/{playlist_id}")],
             [Button.inline("Cancel", data=b"cancel")]
         ]
@@ -437,8 +438,8 @@ class SpotifyDownloader:
         if not is_playlist:
             await upload_status_message.delete()
 
-        # Reset file processing flag after completion
-        await db.set_file_processing_flag(user_id, 0)
+            # Reset file processing flag after completion
+            await db.set_file_processing_flag(user_id, 0)
 
         await db.add_or_increment_song(spotify_link_info['track_name'])
         # Indicate successful upload operation
@@ -653,7 +654,12 @@ class SpotifyDownloader:
         user_id = event.sender_id
 
         query_data = str(event.data)
-        spotify_link = query_data.split("/")[-1][:-1]
+        is_playlist = True if query_data.split("/")[-3] == "playlist" else False
+
+        if is_playlist:
+            spotify_link = query_data.split("/")[-2]
+        else:
+            spotify_link = query_data.split("/")[-1][:-1]
 
         if await db.get_file_processing_flag(user_id):
             await event.respond("Sorry,There is already a file being processed for you.")
@@ -668,7 +674,7 @@ class SpotifyDownloader:
         if spotify_link_info['type'] == "track":
             return await SpotifyDownloader.download_track(event, spotify_link_info)
         elif spotify_link_info['type'] == "playlist":
-            return await SpotifyDownloader.download_playlist(event, spotify_link_info)
+            return await SpotifyDownloader.download_playlist(event, spotify_link_info, number_of_downloads=query_data.split("/")[-1][:-1])
 
     @staticmethod
     async def download_track(event, spotify_link_info, is_playlist: bool = False):
@@ -761,23 +767,44 @@ class SpotifyDownloader:
                             f"{filename}.{music_quality['format']}"), filename, False
 
     @staticmethod
-    async def download_playlist(event, spotify_link_info):
+    async def download_playlist(event, spotify_link_info, number_of_downloads: str):
         playlist_id = spotify_link_info["playlist_id"]
-        tracks_info = await SpotifyDownloader.get_playlist_tracks(playlist_id)
+        music_quality = None
+
+        if number_of_downloads == "10":
+            tracks_info = await SpotifyDownloader.get_playlist_tracks(playlist_id)
+        elif number_of_downloads == "all":
+            music_quality = await db.get_user_music_quality(event.sender_id)
+            new_music_quality = {'format': "mp3", 'quality': 320}
+            await db.set_user_music_quality(event.sender_id, new_music_quality)
+            tracks_info = await SpotifyDownloader.get_playlist_tracks(playlist_id, get_all=True)
+        else:
+            return await event.respond("Sorry, Something went wrong.\ntry again later.")
 
         start_message = await event.respond("Checking the playlist ....")
 
-        for index, track in enumerate(tracks_info):
+        batch_size = 10
+        track_batches = [tracks_info[i:i + batch_size] for i in range(0, len(tracks_info), batch_size)]
+        download_tasks = []
 
-            if index == 0:
-                await start_message.edit("Sending musics .... Please wait.")
-            if index == 5:
-                await start_message.edit("Sending the remaining musics .... ")
+        await start_message.edit("Sending musics.... Please wait.")
 
-            spotify_link_info = await SpotifyDownloader.extract_data_from_spotify_link(event, track["track_id"])
-            await SpotifyDownloader.download_track(event, spotify_link_info, is_playlist=True)
+        for batch in track_batches:
+            # Download tracks in the current batch concurrently
+            download_tasks.extend([SpotifyDownloader.download_track(event,
+                                    await SpotifyDownloader.extract_data_from_spotify_link(
+                                    event, track["track_id"]), is_playlist=True) for
+                                    track in batch])
 
-        await event.respond("Enjoy!\n\nOur bot is OpenSource.", buttons=Buttons.source_code_button)
+            # Wait for all downloads in the batch to complete before proceeding to the next batch
+            await asyncio.gather(*download_tasks)
+            download_tasks.clear()  # Clear completed tasks
+
+        await start_message.delete()
+        if music_quality is not None:
+            await db.set_user_music_quality(event.sender_id, music_quality)
+        await db.set_file_processing_flag(event.sender_id, 0)
+        return await event.respond("Enjoy!\n\nOur bot is OpenSource.", buttons=Buttons.source_code_button)
 
     @staticmethod
     async def search_spotify_based_on_user_input(query, limit=10):
@@ -939,10 +966,13 @@ class SpotifyDownloader:
             await event.reply("An error occurred while processing your request. Please try again later.")
 
     @staticmethod
-    async def get_playlist_tracks(playlist_id, limit: int = 10):
+    async def get_playlist_tracks(playlist_id, limit: int = 10, get_all: bool = False):
 
         # Retrieve playlist tracks
-        results = SpotifyDownloader.spotify_account.playlist_items(playlist_id, limit=limit)
+        if get_all:
+            results = SpotifyDownloader.spotify_account.playlist_items(playlist_id)
+        else:
+            results = SpotifyDownloader.spotify_account.playlist_items(playlist_id, limit=limit)
 
         extracted_details = []
         for item in results['items']:

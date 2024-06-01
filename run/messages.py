@@ -79,7 +79,8 @@ Please join to continue."""
     async def edit_quality_setting_message(e):
         music_quality = await db.get_user_music_quality(e.sender_id)
         if music_quality:
-            message = f"Your Quality Setting:\nFormat: {music_quality['format']}\nQuality: {music_quality['quality']}\n\nAvailable Qualities :"
+            message = (f"Your Quality Setting:\nFormat: {music_quality['format']}\nQuality: {music_quality['quality']}"
+                       f"\n\nAvailable Qualities :")
         else:
             message = "No quality settings found."
         await BotMessageHandler.edit_message(e, message, buttons=Buttons.get_quality_setting_buttons(music_quality))
