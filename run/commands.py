@@ -202,7 +202,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
             await event.respond("Your input was not valid. Please try again with a valid search term.")
             return
 
-        search_result = await SpotifyDownloader.search_spotify_based_on_user_input(event, sanitized_query)
+        search_result = await SpotifyDownloader.search_spotify_based_on_user_input(sanitized_query)
         if all(not value for value in search_result.values()):
             await waiting_message_search.delete()
             await event.respond("Sorry, I couldnt Find any music that matches your Search query.")
