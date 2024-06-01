@@ -717,7 +717,8 @@ class SpotifyDownloader:
 
                     await download_message.delete()
 
-                send_file_result = await SpotifyDownloader.send_local_file(event, file_info, spotify_link_info)
+                send_file_result = await SpotifyDownloader.send_local_file(event, file_info, spotify_link_info,
+                                                                           is_playlist)
                 return send_file_result
             else:
                 return False
@@ -726,15 +727,16 @@ class SpotifyDownloader:
             result, initial_message = await SpotifyDownloader.download_spotdl(event, music_quality, spotify_link_info)
             if not result:
                 result, initial_message = await SpotifyDownloader.download_spotdl(event, music_quality,
-                                                                                  spotify_link_info, False,
+                                                                                  spotify_link_info, not is_playlist,
                                                                                   initial_message,
                                                                                   audio_option="soundcloud")
                 if not result:
-                    result, _ = await SpotifyDownloader.download_spotdl(event, music_quality, spotify_link_info, False,
+                    result, _ = await SpotifyDownloader.download_spotdl(event, music_quality, spotify_link_info,
+                                                                        not is_playlist,
                                                                         initial_message, audio_option="youtube")
             if result and initial_message:
                 return await SpotifyDownloader.send_local_file(event, file_info,
-                                                               spotify_link_info) if result else False
+                                                               spotify_link_info, is_playlist) if result else False
             else:
                 return False
 
