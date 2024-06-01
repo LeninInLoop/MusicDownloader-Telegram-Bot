@@ -136,3 +136,34 @@ class Buttons:
                     [Button.inline("◽️ Mp3 (128)", b"setting/quality/mp3/128")],
                     [Buttons.back_button, Buttons.back_button_to_setting],
                 ]
+
+    @staticmethod
+    def get_search_result_buttons(sanitized_query, search_result, page=1) -> list:
+
+        button_list = [
+            [Button.inline(f"🎧 {details['track_name']} - {details['artist_name']} 🎧 ({details['release_year']})",
+                           data=f"spotify/info/{details['track_id']}")]
+            for details in search_result[(page-1) * 10:]
+        ]
+
+        if len(search_result) > 1:
+            button_list.append([Button.inline("Previous Page", f"prev_page/s/{sanitized_query}/page/{page - 1}"),
+                                Button.inline("Next Page", f"next_page/s/{sanitized_query}/page/{page + 1}")])
+        button_list.append([Button.inline("Cancel", b"cancel")])
+
+        return button_list
+
+    @staticmethod
+    def get_playlist_search_buttons(playlist_id, search_result, page=1) -> list:
+        button_list = [
+            [Button.inline(f"🎧 {details['track_name']} - {details['artist_name']} 🎧 ({details['release_year']})",
+                           data=f"spotify/info/{details['track_id']}")]
+            for details in search_result[(page-1) * 10:]
+        ]
+
+        if len(search_result) > 1:
+            button_list.append([Button.inline("Previous Page", f"prev_page/p/{playlist_id}/page/{page - 1}"),
+                                Button.inline("Next Page", f"next_page/p/{playlist_id}/page/{page + 1}")])
+        button_list.append([Button.inline("Cancel", b"cancel")])
+
+        return button_list

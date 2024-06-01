@@ -3,7 +3,6 @@ from plugins import SpotifyDownloader, ShazamHelper, X, Insta, YoutubeDownloader
 from run import events, Button, MessageMediaDocument, update_bot_version_user_season, is_user_in_channel, \
     handle_continue_in_membership_message
 from run import Buttons, BotMessageHandler, BotState, BotCommandHandler, respond_based_on_channel_membership
-from run import MessageNotModifiedError
 
 
 class Bot:
@@ -136,8 +135,6 @@ class Bot:
             b"admin/broadcast/subs": lambda e: asyncio.create_task(Bot.handle_broadcast(e, send_to_subs=True)),
             b"admin/broadcast/specified": lambda e: asyncio.create_task(
                 Bot.handle_broadcast(e, send_to_specified=True)),
-            b"next_page": lambda e: Bot.next_page(e),
-            b"prev_page": lambda e: Bot.prev_page(e),
             b"unavailable_feature": lambda e: asyncio.create_task(Bot.handle_unavailable_feature(e))
             # Add other actions here
         }
@@ -148,7 +145,8 @@ class Bot:
         music_quality = {'format': format, 'quality': quality}
         await db.set_user_music_quality(user_id, music_quality)
         await BotMessageHandler.edit_message(event,
-                                             f"Quality successfully changed.\n\nFormat: {music_quality['format']}\nQuality: {music_quality['quality']}",
+                                             f"Quality successfully changed.\n\nFormat: {music_quality['format']}"
+                                             f"\nQuality: {music_quality['quality']}",
                                              buttons=Buttons.get_quality_setting_buttons(music_quality))
 
     @staticmethod
@@ -320,40 +318,24 @@ class Bot:
         process_file_message = await event.respond("Processing Your File ...")
 
         file_path = await event.message.download_media(file=f"{ShazamHelper.voice_repository_dir}")
-        Shazam_recognized = await ShazamHelper.recognize(file_path)
-        if not Shazam_recognized:
+        shazam_recognized = await ShazamHelper.recognize(file_path)
+        if not shazam_recognized:
             await waiting_message_search.delete()
             await process_file_message.delete()
             await event.respond("Sorry I Couldnt find any song that matches your Voice.")
             return
 
-        sanitized_query = await sanitize_query(Shazam_recognized)
+        sanitized_query = await sanitize_query(shazam_recognized)
         if not sanitized_query:
             await waiting_message_search.delete()
             await event.respond("Sorry I Couldnt find any song that matches your Voice.")
             return
 
-        await SpotifyDownloader.search_spotify_based_on_user_input(event, sanitized_query)
-        song_pages = await db.get_user_song_dict(user_id)
-        if all(not value for value in song_pages.values()):
-            await waiting_message_search.delete()
-            await event.respond("Sorry, I couldnt Find any music that matches your Search query.")
-            return
-
-        await db.set_current_page(user_id, 1)
-        page = 1
-        button_list = [
-            [Button.inline(f"🎧 {details['track_name']} - {details['artist_name']} 🎧 ({details['release_year']})",
-                           data=str(idx))]
-            for idx, details in enumerate(song_pages[str(page)])
-        ]
-        if len(song_pages) > 1:
-            button_list.append([Button.inline("Previous Page", b"prev_page"), Button.inline("Next Page", b"next_page")])
-        button_list.append([Button.inline("Cancel", b"cancel")])
+        search_result = await SpotifyDownloader.search_spotify_based_on_user_input(sanitized_query, limit=10)
+        button_list = Buttons.get_search_result_buttons(sanitized_query, search_result)
 
         try:
-            await BotState.set_search_result(user_id,
-                                             await event.respond(Bot.search_result_message, buttons=button_list))
+            await event.respond(Bot.search_result_message, buttons=button_list)
         except Exception as Err:
             await event.respond(f"Sorry There Was an Error Processing Your Request: {str(Err)}")
 
@@ -367,7 +349,7 @@ class Bot:
             return
 
         await BotState.set_waiting_message(user_id, await event.respond('⏳'))
-        info_tuple = await SpotifyDownloader.download_and_send_spotify_info(Bot.Client, event)
+        info_tuple = await SpotifyDownloader.download_and_send_spotify_info(event, is_query=False)
 
         if not info_tuple:  # if getting info of the link failed
             waiting_message = await BotState.get_waiting_message(user_id)
@@ -375,17 +357,12 @@ class Bot:
             return await event.respond("Sorry, There was a problem processing your request.")
 
     @staticmethod
-    async def process_text_query(event, user_id):
+    async def process_text_query(event):
         if not await Bot.process_bot_interaction(event):
             return
 
         if len(event.message.text) > 33:
             return await event.respond("Your Search Query is too long. :(")
-
-        search_result = await BotState.get_search_result(user_id)
-        if search_result is not None:
-            await search_result.delete()
-            await BotState.set_search_result(user_id, None)
 
         waiting_message_search = await event.respond('⏳')
         sanitized_query = await sanitize_query(event.message.text)
@@ -393,27 +370,11 @@ class Bot:
             await event.respond("Your input was not valid. Please try again with a valid search term.")
             return
 
-        await SpotifyDownloader.search_spotify_based_on_user_input(event, sanitized_query)
-        song_pages = await db.get_user_song_dict(user_id)
-        if not song_pages:
-            await waiting_message_search.delete()
-            await event.respond("Sorry, I couldnt Find any music that matches your Search query.")
-            return
-
-        await db.set_current_page(user_id, 1)
-        page = 1
-        button_list = [
-            [Button.inline(f"🎧 {details['track_name']} - {details['artist_name']} 🎧 ({details['release_year']})",
-                           data=str(idx))]
-            for idx, details in enumerate(song_pages[str(page)])
-        ]
-        if len(song_pages) > 1:
-            button_list.append([Button.inline("Previous Page", b"prev_page"), Button.inline("Next Page", b"next_page")])
-        button_list.append([Button.inline("Cancel", b"cancel")])
+        search_result = await SpotifyDownloader.search_spotify_based_on_user_input(sanitized_query, limit=10)
+        button_list = Buttons.get_search_result_buttons(sanitized_query, search_result)
 
         try:
-            await BotState.set_search_result(user_id,
-                                             await event.respond(Bot.search_result_message, buttons=button_list))
+            await event.respond(Bot.search_result_message, buttons=button_list)
         except Exception as Err:
             await event.respond(f"Sorry There Was an Error Processing Your Request: {str(Err)}")
 
@@ -421,108 +382,28 @@ class Bot:
         await waiting_message_search.delete()
 
     @staticmethod
-    async def prev_page(event):
-        user_id = event.sender_id
-        song_pages = await db.get_user_song_dict(user_id)
-        total_pages = len(song_pages)
+    async def handle_next_prev_page(event):
+        query_data = str(event.data)
+        is_playlist = True if query_data.split("/")[1] == "p" else False
+        current_page = query_data.split("/page/")[-1][:-1]
 
-        current_page = await db.get_current_page(user_id)
-        if current_page == "1":
+        search_query = query_data.split("/")[2]
+
+        if current_page == "0" or (current_page == "6" and is_playlist):
             return await event.answer("⚠️ Not available.")
 
-        page = max(1, current_page - 1)
-        await db.set_current_page(user_id, page)  # Update the current page
-
-        button_list = [
-            [Button.inline(f"🎧 {details['track_name']} - {details['artist_name']} 🎧 ({details['release_year']})",
-                           data=str(idx))]
-            for idx, details in enumerate(song_pages[str(page)])
-        ]
-        if total_pages > 1:
-            button_list.append([Button.inline("Previous Page", b"prev_page"), Button.inline("Next Page", b"next_page")])
-        button_list.append([Button.inline("Cancel", b"cancel")])
+        if is_playlist:
+            search_result = await SpotifyDownloader.get_playlist_tracks(search_query,
+                                                                        limit=int(current_page) * 10)
+            button_list = Buttons.get_playlist_search_buttons(search_query, search_result, page=int(current_page))
+        else:
+            search_result = await SpotifyDownloader.search_spotify_based_on_user_input(search_query,
+                                                                                       limit=int(current_page) * 10)
+            button_list = Buttons.get_search_result_buttons(search_query, search_result, page=int(current_page))
 
         try:
-            search_result = await BotState.get_search_result(user_id)
-            await search_result.edit(buttons=button_list)
-            await BotState.set_search_result(user_id, search_result)
-        except AttributeError:
-            page = await db.get_current_page(user_id)
-            button_list = [
-                [Button.inline(f"🎧 {details['track_name']} - {details['artist_name']} 🎧 ({details['release_year']})",
-                               data=str(idx))]
-                for idx, details in enumerate(song_pages[str(page)])
-            ]
-            if len(song_pages) > 1:
-                button_list.append(
-                    [Button.inline("Previous Page", b"prev_page"), Button.inline("Next Page", b"next_page")])
-            button_list.append([Button.inline("Cancel", b"cancel")])
-
-            try:
-                await BotState.set_search_result(user_id,
-                                                 await event.respond(Bot.search_result_message, buttons=button_list))
-            except Exception as Err:
-                await event.respond(f"Sorry There Was an Error Processing Your Request: {str(Err)}")
-        except KeyError:
-            await event.answer("⚠️ Not available.")
-        except MessageNotModifiedError:
-            await event.answer("⚠️ Not available.")
-        except UnboundLocalError:
-            await event.answer("⚠️ Not available.")
-
-    @staticmethod
-    async def next_page(event):
-        user_id = event.sender_id
-        song_pages = await db.get_user_song_dict(user_id)
-        total_pages = len(song_pages)
-
-        current_page = await db.get_current_page(user_id)
-
-        if str(current_page) == str(total_pages - 1):
-            return await event.answer("⚠️ Not available.")
-
-        page = min(total_pages, current_page + 1)
-        await db.set_current_page(user_id, page)  # Update the current page
-
-        try:
-            button_list = [
-                [Button.inline(f"🎧 {details['track_name']} - {details['artist_name']} 🎧 ({details['release_year']})",
-                               data=str(idx))]
-                for idx, details in enumerate(song_pages[str(page)])
-            ]
-            if total_pages > 1:
-                button_list.append(
-                    [Button.inline("Previous Page", b"prev_page"), Button.inline("Next Page", b"next_page")])
-            button_list.append([Button.inline("Cancel", b"cancel")])
-        except KeyError:
-            page = min(total_pages, current_page - 1)
-            await event.answer("⚠️ Not available.")
-        try:
-            search_result = await BotState.get_search_result(user_id)
-            await search_result.edit(buttons=button_list)
-            await BotState.set_search_result(user_id, search_result)
-        except AttributeError:
-            page = await db.get_current_page(user_id)
-            button_list = [
-                [Button.inline(f"🎧 {details['track_name']} - {details['artist_name']} 🎧 ({details['release_year']})",
-                               data=str(idx))]
-                for idx, details in enumerate(song_pages[str(page)])
-            ]
-            if len(song_pages) > 1:
-                button_list.append(
-                    [Button.inline("Previous Page", b"prev_page"), Button.inline("Next Page", b"next_page")])
-            button_list.append([Button.inline("Cancel", b"cancel")])
-
-            try:
-                await BotState.set_search_result(user_id,
-                                                 await event.respond(Bot.search_result_message, buttons=button_list))
-            except Exception as Err:
-                await event.respond(f"Sorry There Was an Error Processing Your Request: {str(Err)}")
-        except KeyError:
-            await event.answer("⚠️ Not available.")
-        except MessageNotModifiedError:
-            await event.answer("⚠️ Not available.")
-        except UnboundLocalError:
+            await event.edit(buttons=button_list)
+        except:
             await event.answer("⚠️ Not available.")
 
     @staticmethod
@@ -552,61 +433,16 @@ class Bot:
 
     @staticmethod
     async def search_inside_playlist(event):
-        user_id = event.sender_id
 
-        search_result = await BotState.get_search_result(user_id)
-        if search_result is not None:
-            await search_result.delete()
-            await BotState.set_search_result(user_id, None)
+        query_data = str(event.data)
+        playlist_id = query_data.split("/playlist/")[-1][:-1]
 
         waiting_message_search = await event.respond('⏳')
-        spotify_link_info = await db.get_user_spotify_link_info(user_id)
-        link_info = spotify_link_info['playlist_tracks']
-
-        # Initialize an empty dictionary to hold the converted data
-        song_pages = {}
-
-        # Iterate over each track in the original dictionary
-        for index, track_info in enumerate(link_info.values(), start=1):
-            # Calculate the group index (every 10 tracks)
-            group_index = str(index // 10)
-
-            # Initialize a list for the current group if it doesn't exist
-            if group_index not in song_pages:
-                song_pages[group_index] = []
-
-            # Create a new dictionary for the current track
-            track_dict = {
-                'track_name': track_info['track_name'],
-                'artist_name': track_info['artist_name'],
-                'release_year': track_info['release_year'],
-                'spotify_link': track_info['track_url']
-            }
-
-            # Append the new dictionary to the list associated with the current group
-            song_pages[group_index].append(track_dict)
-
-        await db.set_user_song_dict(user_id, song_pages)
-
-        if not song_pages:
-            await waiting_message_search.delete()
-            await event.respond("Sorry, I couldn't there was a problem processing your request.")
-            return
-
-        await db.set_current_page(user_id, 1)
-        page = 1
-        button_list = [
-            [Button.inline(f"🎧 {details['track_name']} - {details['artist_name']} 🎧 ({details['release_year']})",
-                           data=str(idx))]
-            for idx, details in enumerate(song_pages[str(page)])
-        ]
-        if len(song_pages) > 1:
-            button_list.append([Button.inline("Previous Page", b"prev_page"), Button.inline("Next Page", b"next_page")])
-        button_list.append([Button.inline("Cancel", b"cancel")])
+        search_result = await SpotifyDownloader.get_playlist_tracks(playlist_id)
+        button_list = Buttons.get_playlist_search_buttons(playlist_id, search_result)
 
         try:
-            await BotState.set_search_result(user_id,
-                                             await event.respond(Bot.search_playlist_message, buttons=button_list))
+            await event.respond(Bot.search_result_message, buttons=button_list)
         except Exception as Err:
             await event.respond(f"Sorry There Was an Error Processing Your Request: {str(Err)}")
 
@@ -620,9 +456,10 @@ class Bot:
             "spotify/dl/30s_preview": SpotifyDownloader.send_30s_preview,
             "spotify/artist/": SpotifyDownloader.send_artists_info,
             "spotify/lyrics": SpotifyDownloader.send_music_lyrics,
-            "spotify/playlist_download_10": SpotifyDownloader.download_spotify_file_and_send,
-            "spotify/playlist_search": Bot.search_inside_playlist,
+            "spotify/dl/playlist/": SpotifyDownloader.download_spotify_file_and_send,
+            "spotify/s/playlist/": Bot.search_inside_playlist,
             "spotify/dl/music/": SpotifyDownloader.download_spotify_file_and_send,
+            "spotify/info/": SpotifyDownloader.download_and_send_spotify_info,
         }
 
         for key, handler in handlers.items():
@@ -660,24 +497,10 @@ class Bot:
             await Bot.handle_youtube_callback(Bot.Client, event)
         elif event.data.startswith(b"X"):
             await Bot.handle_x_callback(Bot.Client, event)
-        elif event.data.isdigit():
-            song_pages = await db.get_user_song_dict(user_id)
-            current_page = await db.get_current_page(user_id)
-            song_index = str(event.data.decode('utf-8'))
-            song_details = song_pages[str(current_page)][int(song_index)]
-            spotify_link = song_details.get('spotify_link')
-            if spotify_link:
-                await BotState.set_waiting_message(user_id, await event.respond('⏳'))
-                await SpotifyDownloader.extract_data_from_spotify_link(event, spotify_link)
-                send_info_result = await SpotifyDownloader.download_and_send_spotify_info(Bot.Client, event)
-                if not send_info_result:
-                    await event.respond(
-                        f"Sorry, there was an error downloading the song.\nTry Using a Different Core.\nYou Can "
-                        f"Change Your Core in the Settings or Simply Use This command to See Available Cores: /core")
-                if await BotState.get_waiting_message(user_id) is not None:
-                    waiting_message = await BotState.get_waiting_message(user_id)
-                    await waiting_message.delete()
-                await db.set_file_processing_flag(user_id, 0)
+        elif event.data.startswith(b"next_page") or event.data.startswith(b"prev_page"):
+            await Bot.handle_next_prev_page(event)
+        else:
+            pass
 
     @staticmethod
     async def handle_message(event):
@@ -697,7 +520,7 @@ class Bot:
         elif Insta.is_instagram_url(event.message.text):
             await Insta.download(Bot.Client, event)
         elif not event.message.text.startswith('/'):
-            await Bot.process_text_query(event, user_id)
+            await Bot.process_text_query(event)
 
     @staticmethod
     async def run():

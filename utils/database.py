@@ -34,7 +34,6 @@ class db:
         try:
             await conn.execute('''CREATE TABLE IF NOT EXISTS user_settings
                                 (user_id INTEGER PRIMARY KEY, music_quality TEXT, downloading_core TEXT,
-                                song_dict TEXT, current_page INTEGER DEFAULT 1 ,
                                 tweet_capture_settings TEXT,
                                 is_file_processing BOOLEAN DEFAULT 0,is_user_updated BOOLEAN DEFAULT 1)'''
                                )
@@ -226,20 +225,8 @@ class db:
         return result is not None and result[0] == 1
 
     @staticmethod
-    async def set_user_song_dict(user_id, song_dict):
-        serialized_dict = json.dumps(song_dict)
-        await db.execute_query('UPDATE user_settings SET song_dict = ? WHERE user_id = ?', (serialized_dict, user_id))
-
-    @staticmethod
     async def update_user_is_admin(user_id, is_admin):
         await db.execute_query('UPDATE user_settings SET is_admin = ? WHERE user_id = ?', (is_admin, user_id))
-
-    @staticmethod
-    async def get_user_song_dict(user_id):
-        result = await db.fetch_one('SELECT song_dict FROM user_settings WHERE user_id = ?', (user_id,))
-        if result:
-            return json.loads(result[0]) if result[0] else {}
-        return {}
 
     @staticmethod
     async def is_user_admin(user_id):
@@ -315,17 +302,6 @@ class db:
     async def get_song_downloads(filename):
         result = await db.fetch_one('SELECT downloads FROM musics WHERE filename = ?', (filename,))
         return result[0] if result else 0
-
-    @staticmethod
-    async def set_current_page(user_id, page):
-        await db.execute_query('UPDATE user_settings SET current_page = ? WHERE user_id = ?', (page, user_id))
-
-    @staticmethod
-    async def get_current_page(user_id):
-        result = await db.fetch_one('SELECT current_page FROM user_settings WHERE user_id = ?', (user_id,))
-        if result:
-            return result[0]
-        return 1  # Return 1 (the default value) if the user is not found or the current_page is not set
 
     @staticmethod
     async def set_user_tweet_capture_settings(user_id, tweet_capture_settings):
