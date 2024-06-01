@@ -1,4 +1,3 @@
-from run import Button
 from plugins import SpotifyDownloader
 from utils import db, asyncio, BroadcastManager, time
 from utils import sanitize_query
@@ -185,48 +184,34 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
 
     @staticmethod
     async def handle_search_command(event):
-        if await update_bot_version_user_season(event):
-            user_id = event.sender_id
-            search_query = event.message.text[8:]
+        if not await update_bot_version_user_season(event):
+            return event.respond("We have updated the bot.\n"
+                                 "please start over using /start command.")
 
-            if not search_query.strip():
-                await event.respond(
-                    "Please provide a search term after the /search command. \nOr simply send me everything you want "
-                    "to Search for.")
-                return
+        search_query = event.message.text[8:]
 
-            if await BotState.get_search_result(user_id) is not None:
-                search_result = await BotState.get_search_result(user_id)
-                await search_result.delete()
-                await BotState.set_search_result(user_id, None)
+        if not search_query.strip():
+            await event.respond(
+                "Please provide a search term after the /search command. \nOr simply send me everything you want "
+                "to Search for.")
+            return
 
-            waiting_message_search = await event.respond('⏳')
-            sanitized_query = await sanitize_query(search_query)
-            if not sanitized_query:
-                await event.respond("Your input was not valid. Please try again with a valid search term.")
-                return
+        waiting_message_search = await event.respond('⏳')
+        sanitized_query = await sanitize_query(search_query)
+        if not sanitized_query:
+            await event.respond("Your input was not valid. Please try again with a valid search term.")
+            return
 
-        await SpotifyDownloader.search_spotify_based_on_user_input(event, sanitized_query)
-        song_pages = await db.get_user_song_dict(user_id)
-        if all(not value for value in song_pages.values()):
+        search_result = await SpotifyDownloader.search_spotify_based_on_user_input(event, sanitized_query)
+        if all(not value for value in search_result.values()):
             await waiting_message_search.delete()
             await event.respond("Sorry, I couldnt Find any music that matches your Search query.")
             return
 
-        await db.set_current_page(user_id, 1)
-        page = 1
-        button_list = [
-            [Button.inline(f"🎧 {details['track_name']} - {details['artist_name']} 🎧 ({details['release_year']})",
-                           data=str(idx))]
-            for idx, details in enumerate(song_pages[str(page)])
-        ]
-        if len(song_pages) > 1:
-            button_list.append([Button.inline("Previous Page", b"prev_page"), Button.inline("Next Page", b"next_page")])
-        button_list.append([Button.inline("Cancel", b"cancel")])
+        button_list = Buttons.get_search_result_buttons(sanitized_query, search_result)
 
         try:
-            await BotState.set_search_result(user_id, await event.respond(BotMessageHandler.search_result_message,
-                                                                          buttons=button_list))
+            await event.respond(BotMessageHandler.search_result_message, buttons=button_list)
         except Exception as Err:
             await event.respond(f"Sorry There Was an Error Processing Your Request: {str(Err)}")
 
