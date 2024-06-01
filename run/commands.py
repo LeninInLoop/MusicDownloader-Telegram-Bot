@@ -203,7 +203,7 @@ Number of Unsubscribed Users: {number_of_unsubscribed}""")
             return
 
         search_result = await SpotifyDownloader.search_spotify_based_on_user_input(sanitized_query)
-        if all(not value for value in search_result.values()):
+        if len(search_result) == 0:
             await waiting_message_search.delete()
             await event.respond("Sorry, I couldnt Find any music that matches your Search query.")
             return
