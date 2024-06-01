@@ -680,6 +680,7 @@ class SpotifyDownloader:
     async def download_track(event, spotify_link_info, is_playlist: bool = False):
 
         user_id = event.sender_id
+
         music_quality = await db.get_user_music_quality(user_id)
         downloading_core = await db.get_user_downloading_core(user_id)
 
@@ -771,6 +772,8 @@ class SpotifyDownloader:
         playlist_id = spotify_link_info["playlist_id"]
         music_quality = None
 
+        await db.set_file_processing_flag(event.sender_id, 1)
+
         if number_of_downloads == "10":
             tracks_info = await SpotifyDownloader.get_playlist_tracks(playlist_id)
         elif number_of_downloads == "all":
@@ -779,6 +782,7 @@ class SpotifyDownloader:
             await db.set_user_music_quality(event.sender_id, new_music_quality)
             tracks_info = await SpotifyDownloader.get_playlist_tracks(playlist_id, get_all=True)
         else:
+            await db.set_file_processing_flag(event.sender_id, 0)
             return await event.respond("Sorry, Something went wrong.\ntry again later.")
 
         start_message = await event.respond("Checking the playlist ....")
@@ -787,7 +791,7 @@ class SpotifyDownloader:
         track_batches = [tracks_info[i:i + batch_size] for i in range(0, len(tracks_info), batch_size)]
         download_tasks = []
 
-        await start_message.edit("Sending musics.... Please wait.")
+        await start_message.edit("Sending musics.... Please Hold on.")
 
         for batch in track_batches:
             # Download tracks in the current batch concurrently
