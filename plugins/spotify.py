@@ -1,8 +1,6 @@
-from typing import Tuple, Any
-
 from run import Button, Buttons
 from utils import asyncio, re, os, load_dotenv, combinations
-from utils import db, concurrent, SpotifyException, fast_upload
+from utils import db, SpotifyException, fast_upload, Any
 from utils import Image, BytesIO, YoutubeDL, lyricsgenius, aiohttp, InputMediaUploadedDocument
 from utils import SpotifyClientCredentials, spotipy, ThreadPoolExecutor, DocumentAttributeAudio
 
@@ -98,7 +96,6 @@ class SpotifyDownloader:
             elif link_type == "playlist":
                 # Extract playlist information and compile playlist tracks into a dictionary
                 playlist_info = SpotifyDownloader.spotify_account.playlist(spotify_url)
-                playlist_tracks_info = SpotifyDownloader.spotify_account.playlist_tracks(spotify_url)['items']
 
                 playlist_info_dict = {
                     'type': 'playlist',

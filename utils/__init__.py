@@ -26,3 +26,4 @@ import io
 import sys
 from dataclasses import dataclass, field
 from spotipy.exceptions import SpotifyException
+from typing import Tuple, Any
