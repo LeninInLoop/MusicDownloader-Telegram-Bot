@@ -45,7 +45,7 @@ class SpotifyDownloader:
     @staticmethod
     def identify_spotify_link_type(spotify_url) -> str:
         # Define a list of all primary resource types supported by Spotify
-        resource_types = ['track', 'album', 'artist', 'playlist', 'show', 'episode']
+        resource_types = ['track', 'playlist', 'album', 'artist', 'show', 'episode']
 
         for resource_type in resource_types:
             try:
@@ -202,12 +202,13 @@ class SpotifyDownloader:
         user_id = event.sender_id
 
         if is_query:
+            waiting_message = await event.respond('⏳')
             query_data = str(event.data)
             spotify_link = query_data.split("/")[-1][:-1]
         else:
             spotify_link = str(event.message.text)
 
-        # Ensure the user's data is up to date
+        # Ensure the user's data is up-to-date
         if not await db.get_user_updated_flag(user_id):
             await event.respond(
                 "Our bot has been updated. Please restart the bot with the /start command."
@@ -216,6 +217,7 @@ class SpotifyDownloader:
 
         link_info = await SpotifyDownloader.extract_data_from_spotify_link(event, spotify_url=spotify_link)
         if link_info["type"] == "track":
+            await waiting_message.delete() if is_query else None
             return await SpotifyDownloader.send_track_info(event.client, event, link_info)
         elif link_info["type"] == "playlist":
             return await SpotifyDownloader.send_playlist_info(event.client, event, link_info)
@@ -653,7 +655,7 @@ class SpotifyDownloader:
         query_data = str(event.data)
         spotify_link = query_data.split("/")[-1][:-1]
 
-        fetch_message = await event.respond(" Fetching information ......")
+        fetch_message = await event.respond("Fetching information... Please wait.")
         spotify_link_info = await SpotifyDownloader.extract_data_from_spotify_link(event, spotify_link)
 
         if await db.get_file_processing_flag(user_id):
@@ -709,10 +711,11 @@ class SpotifyDownloader:
 
             if os.path.isfile(file_path) and result:
 
-                download_message = await download_message.edit("Downloading . . . .")
-                download_message = await download_message.edit("Downloading . . . . .")
+                if is_playlist:
+                    download_message = await download_message.edit("Downloading . . . .") if is_playlist else None
+                    download_message = await download_message.edit("Downloading . . . . .") if is_playlist else None
 
-                await download_message.delete()
+                    await download_message.delete()
 
                 send_file_result = await SpotifyDownloader.send_local_file(event, file_info, spotify_link_info)
                 return send_file_result
