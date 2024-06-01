@@ -711,9 +711,9 @@ class SpotifyDownloader:
 
             if os.path.isfile(file_path) and result:
 
-                if is_playlist:
-                    download_message = await download_message.edit("Downloading . . . .") if is_playlist else None
-                    download_message = await download_message.edit("Downloading . . . . .") if is_playlist else None
+                if not is_playlist:
+                    download_message = await download_message.edit("Downloading . . . .")
+                    download_message = await download_message.edit("Downloading . . . . .")
 
                     await download_message.delete()
 
