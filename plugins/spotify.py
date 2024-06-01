@@ -655,12 +655,12 @@ class SpotifyDownloader:
         query_data = str(event.data)
         spotify_link = query_data.split("/")[-1][:-1]
 
-        fetch_message = await event.respond("Fetching information... Please wait.")
-        spotify_link_info = await SpotifyDownloader.extract_data_from_spotify_link(event, spotify_link)
-
         if await db.get_file_processing_flag(user_id):
             await event.respond("Sorry,There is already a file being processed for you.")
             return True
+
+        fetch_message = await event.respond("Fetching information... Please wait.")
+        spotify_link_info = await SpotifyDownloader.extract_data_from_spotify_link(event, spotify_link)
 
         await db.set_file_processing_flag(user_id, 1)
         await fetch_message.delete()
@@ -765,7 +765,15 @@ class SpotifyDownloader:
         playlist_id = spotify_link_info["playlist_id"]
         tracks_info = await SpotifyDownloader.get_playlist_tracks(playlist_id)
 
-        for track in tracks_info:
+        start_message = await event.respond("Checking the playlist ....")
+
+        for index, track in enumerate(tracks_info):
+
+            if index == 0:
+                await start_message.edit("Sending musics .... Please wait.")
+            if index == 5:
+                await start_message.edit("Sending the remaining musics .... ")
+
             spotify_link_info = await SpotifyDownloader.extract_data_from_spotify_link(event, track["track_id"])
             await SpotifyDownloader.download_track(event, spotify_link_info, is_playlist=True)
 
