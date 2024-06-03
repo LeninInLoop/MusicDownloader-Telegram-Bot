@@ -360,7 +360,8 @@ class SpotifyDownloader:
 
         SpotifyInfoButtons = [
             [Button.inline("Download 30s Preview",
-                           data=f"spotify/dl/30s_preview/{link_info['preview_url'].split('?cid')[0].replace('https://p.scdn.co/mp3-preview/', '')}")],
+                           data=f"spotify/dl/30s_preview/{link_info['preview_url'].split('?cid')[0].replace('https://p.scdn.co/mp3-preview/', '')}")
+            if link_info['preview_url'] is not None else Button.inline("Download 30s Preview", data=b"unavailable_feature")],
             [Button.inline("Download Track", data=f"spotify/dl/music/{link_info['track_id']}")],
             [Button.inline("Download Icon",
                            data=f"spotify/dl/icon/{link_info['image_url'].replace('https://i.scdn.co/image/', '')}")],
