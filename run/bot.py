@@ -309,11 +309,6 @@ class Bot:
         if not await Bot.process_bot_interaction(event):
             return
 
-        if await BotState.get_search_result(user_id) is not None:
-            message = await BotState.get_search_result(user_id)
-            await message.delete()
-            await BotState.set_search_result(user_id, None)
-
         waiting_message_search = await event.respond('⏳')
         process_file_message = await event.respond("Processing Your File ...")
 
@@ -344,7 +339,7 @@ class Bot:
         await waiting_message_search.delete()
 
     @staticmethod
-    async def process_spotify_link(event, user_id):
+    async def process_spotify_link(event):
         if not await Bot.process_bot_interaction(event):
             return
 
@@ -415,7 +410,7 @@ class Bot:
             return await X.send_screenshot(Bot.Client, event, x_link)
 
     @staticmethod
-    async def process_youtube_link(event, user_id):
+    async def process_youtube_link(event):
         if not await Bot.process_bot_interaction(event):
             return
 
@@ -512,9 +507,9 @@ class Bot:
             else:
                 await event.respond("Sorry, I can only process:\n-Text\n-Voice\n-Link")
         elif YoutubeDownloader.is_youtube_link(event.message.text):
-            await Bot.process_youtube_link(event, user_id)
+            await Bot.process_youtube_link(event)
         elif SpotifyDownloader.is_spotify_link(event.message.text):
-            await Bot.process_spotify_link(event, user_id)
+            await Bot.process_spotify_link(event)
         elif X.contains_x_or_twitter_link(event.message.text):
             await Bot.process_x_or_twitter_link(event)
         elif Insta.is_instagram_url(event.message.text):
