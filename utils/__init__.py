@@ -1,6 +1,7 @@
 from utils.broadcast import BroadcastManager
 from utils.database import db
 from spotipy.oauth2 import SpotifyClientCredentials
+from yt_dlp.utils import DownloadError
 from dotenv import load_dotenv
 from itertools import combinations
 from PIL import Image
@@ -15,10 +16,13 @@ from concurrent.futures import ThreadPoolExecutor
 import aiohttp
 from telethon import sync
 from telethon.tl.functions.messages import SendMediaRequest
-from telethon.tl.types import InputMediaUploadedDocument, DocumentAttributeAudio, InputMediaPhotoExternal, DocumentAttributeVideo
+from telethon.tl.types import (InputMediaUploadedDocument,
+                               DocumentAttributeAudio,
+                               InputMediaPhotoExternal,
+                               DocumentAttributeVideo)
 from FastTelethonhelper import fast_upload
 from threading import Thread
-import concurrent 
+import concurrent
 from functools import lru_cache, partial
 from .tweet_capture import TweetCapture
 from .helper import sanitize_query

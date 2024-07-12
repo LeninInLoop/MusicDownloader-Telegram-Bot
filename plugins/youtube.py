@@ -1,10 +1,10 @@
 from utils import YoutubeDL, re, lru_cache, hashlib, InputMediaPhotoExternal, db
 from utils import os, InputMediaUploadedDocument, DocumentAttributeVideo, fast_upload
-from utils import DocumentAttributeAudio
-from run import Button, BotState, Buttons
+from utils import DocumentAttributeAudio, DownloadError
+from run import Button, Buttons
 
 
-class YoutubeDownloader():
+class YoutubeDownloader:
 
     @classmethod
     def initialize(cls):
@@ -78,7 +78,7 @@ class YoutubeDownloader():
     async def send_youtube_info(client, event, youtube_link):
         url = youtube_link
         video_id = youtube_link.replace("https://www.youtube.com/watch?v=", "")
-        user_id = event.sender_id
+        video_id = youtube_link.replace("https://www.youtube.com/shorts/", "")
         formats = YoutubeDownloader._get_formats(url)
 
         # Download the video thumbnail
@@ -101,8 +101,8 @@ class YoutubeDownloader():
             filesize = f.get('filesize') if f.get('filesize') is not None else f.get('filesize_approx')
             if resolution and filesize and counter < 5:
                 filesize = f"{filesize / 1024 / 1024:.2f} MB"
-                button = [Button.inline(f"{extension} - {resolution} - {filesize}",
-                                        data=f"yt/dl/{video_id}/_{width}_{height}_{duration}_{extension}_video_{f['format_id']}_{filesize}")]
+                button_data = f"yt/dl/{video_id}/{width}_{height}_{duration}_{extension}_video_{f['format_id']}_{filesize}"
+                button = [Button.inline(f"{extension} - {resolution} - {filesize}", data=button_data)]
                 if not button in video_buttons:
                     video_buttons.append(button)
                     counter += 1
@@ -115,8 +115,8 @@ class YoutubeDownloader():
             filesize = f.get('filesize') if f.get('filesize') is not None else f.get('filesize_approx')
             if resolution and filesize and counter < 5:
                 filesize = f"{filesize / 1024 / 1024:.2f} MB"
-                button = [Button.inline(f"{extension} - {resolution} - {filesize}",
-                                        data=f"yt/dl/{video_id}/_{width}_{height}_{duration}_{extension}_audio_{f['format_id']}_{filesize}")]
+                button_data = f"yt/dl/{video_id}/{width}_{height}_{duration}_{extension}_audio_{f['format_id']}_{filesize}"
+                button = [Button.inline(f"{extension} - {resolution} - {filesize}", data=button_data)]
                 if not button in audio_buttons:
                     audio_buttons.append(button)
                     counter += 1
@@ -129,9 +129,8 @@ class YoutubeDownloader():
         thumbnail.ttl_seconds = 0
 
         # Send the thumbnail as a picture with format buttons
-        youtube_search = await client.send_file(event.chat_id, file=thumbnail, caption="Select a format to download:",
-                                                buttons=buttons)
-        await BotState.set_youtube_search(user_id, youtube_search)
+        await client.send_file(event.chat_id, file=thumbnail, caption="Select a format to download:",
+                               buttons=buttons)
 
     @staticmethod
     async def download_and_send_yt_file(client, event):
@@ -142,20 +141,20 @@ class YoutubeDownloader():
 
         data = event.data.decode('utf-8')
         parts = data.split('_')
-        if len(parts) == 8:
-            width = parts[1]
-            height = parts[2]
-            duration = parts[3]
-            extension = parts[4]
-            video_or_audio = parts[5]
-            format_id = parts[6]
-            filesize = parts[7].replace(" MB", "")
+        if len(parts) == 7:
+            width = parts[0].split("/")[-1]
+            height = parts[1]
+            duration = parts[2]
+            extension = parts[3]
+            video_or_audio = parts[4]
+            format_id = parts[5]
+            filesize = parts[6].replace(" MB", "")
             video_id = parts[0].split("/")[-2]
 
             if float(filesize) > YoutubeDownloader.MAXIMUM_DOWNLOAD_SIZE_MB:
                 return await event.answer(
-                    f"⚠️ The file size is more than {YoutubeDownloader.MAXIMUM_DOWNLOAD_SIZE_MB}MB.\nTo proceed with the download, please consider upgrading to a premium account. ",
-                    alert=True)
+                    f"⚠️ The file size is more than {YoutubeDownloader.MAXIMUM_DOWNLOAD_SIZE_MB}MB."
+                    , alert=True)
 
             await db.set_file_processing_flag(user_id, is_processing=True)
 
@@ -173,8 +172,12 @@ class YoutubeDownloader():
                 }
 
                 with YoutubeDL(ydl_opts) as ydl:
-                    ydl.extract_info(url)
-
+                    try:
+                        ydl.extract_info(url, download=True)
+                    except DownloadError as e:
+                        await db.set_file_processing_flag(user_id, is_processing=False)
+                        return await downloading_message.edit(f"Sorry Something went wrong:\nError:"
+                                                              f"  {str(e).split('Error')[-1]}")
                 await downloading_message.delete()
             else:
                 local_availability_message = await event.respond(
