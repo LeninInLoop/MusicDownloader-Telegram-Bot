@@ -77,17 +77,16 @@ class YoutubeDownloader:
     @staticmethod
     async def send_youtube_info(client, event, youtube_link):
         url = youtube_link
-        video_id = youtube_link.replace("https://www.youtube.com/watch?v=", "")
-        video_id = youtube_link.replace("https://www.youtube.com/shorts/", "")
+        video_id = (youtube_link.split("?si=")[0]
+                    .replace("https://www.youtube.com/watch?v=", "")
+                    .replace("https://www.youtube.com/shorts/", ""))
         formats = YoutubeDownloader._get_formats(url)
 
         # Download the video thumbnail
         with YoutubeDL({'quiet': True}) as ydl:
             info = ydl.extract_info(url, download=False)
             thumbnail_url = info['thumbnail']
-            duration = info.get('duration', 'Unknown')
-            width = info.get('width', 'Unknown')
-            height = info.get('height', 'Unknown')
+
 
         # Create buttons for each format
         video_formats = [f for f in formats if f.get('vcodec') != 'none' and f.get('acodec') != 'none']
@@ -101,7 +100,7 @@ class YoutubeDownloader:
             filesize = f.get('filesize') if f.get('filesize') is not None else f.get('filesize_approx')
             if resolution and filesize and counter < 5:
                 filesize = f"{filesize / 1024 / 1024:.2f} MB"
-                button_data = f"yt/dl/{video_id}/{width}_{height}_{duration}_{extension}_video_{f['format_id']}_{filesize}"
+                button_data = f"yt/dl/{video_id}/{extension}/{f['format_id']}/{filesize}"
                 button = [Button.inline(f"{extension} - {resolution} - {filesize}", data=button_data)]
                 if not button in video_buttons:
                     video_buttons.append(button)
@@ -114,8 +113,8 @@ class YoutubeDownloader:
             resolution = f.get('resolution')
             filesize = f.get('filesize') if f.get('filesize') is not None else f.get('filesize_approx')
             if resolution and filesize and counter < 5:
-                filesize = f"{filesize / 1024 / 1024:.2f} MB"
-                button_data = f"yt/dl/{video_id}/{width}_{height}_{duration}_{extension}_audio_{f['format_id']}_{filesize}"
+                filesize = f"{filesize / 1024 / 1024:.2f}MB"
+                button_data = f"yt/dl/{video_id}/{extension}/{f['format_id']}/{filesize}"
                 button = [Button.inline(f"{extension} - {resolution} - {filesize}", data=button_data)]
                 if not button in audio_buttons:
                     audio_buttons.append(button)
@@ -140,16 +139,12 @@ class YoutubeDownloader:
             return await event.respond("Sorry, There is already a file being processed for you.")
 
         data = event.data.decode('utf-8')
-        parts = data.split('_')
-        if len(parts) == 7:
-            width = parts[0].split("/")[-1]
-            height = parts[1]
-            duration = parts[2]
+        parts = data.split('/')
+        if len(parts) == 6:
             extension = parts[3]
-            video_or_audio = parts[4]
-            format_id = parts[5]
-            filesize = parts[6].replace(" MB", "")
-            video_id = parts[0].split("/")[-2]
+            format_id = parts[-2]
+            filesize = parts[-1].replace("MB", "")
+            video_id = parts[2]
 
             if float(filesize) > YoutubeDownloader.MAXIMUM_DOWNLOAD_SIZE_MB:
                 return await event.answer(
@@ -173,7 +168,10 @@ class YoutubeDownloader:
 
                 with YoutubeDL(ydl_opts) as ydl:
                     try:
-                        ydl.extract_info(url, download=True)
+                        info = ydl.extract_info(url, download=True)
+                        duration = info.get('duration', 'Unknown')
+                        width = info.get('width', 'Unknown')
+                        height = info.get('height', 'Unknown')
                     except DownloadError as e:
                         await db.set_file_processing_flag(user_id, is_processing=False)
                         return await downloading_message.edit(f"Sorry Something went wrong:\nError:"
@@ -182,6 +180,20 @@ class YoutubeDownloader:
             else:
                 local_availability_message = await event.respond(
                     "This file is available locally. Preparing it for you now...")
+
+                ydl_opts = {
+                    'format': format_id,
+                    'outtmpl': path,
+                    'quiet': True,
+                }
+                with YoutubeDL(ydl_opts) as ydl:
+                    try:
+                        info = ydl.extract_info(url, download=False)
+                        duration = info.get('duration', 'Unknown')
+                        width = info.get('width', 'Unknown')
+                        height = info.get('height', 'Unknown')
+                    except DownloadError as e:
+                        await db.set_file_processing_flag(user_id, is_processing=False)
 
             upload_message = await event.respond("Uploading ... Please hold on.")
 
@@ -197,7 +209,7 @@ class YoutubeDownloader:
                         progress_bar_function=None
                     )
 
-                    if (extension == "mp4" or extension == "webm") and video_or_audio == "video":
+                    if extension == "mp4" or extension == "webm":
 
                         uploaded_file = await client.upload_file(media)
 
@@ -217,13 +229,13 @@ class YoutubeDownloader:
                             attributes=[video_attributes],
                         )
 
-                    elif (extension == "m4a" or extension == "webm") and video_or_audio == "audio":
+                    elif extension == "m4a":
 
                         uploaded_file = await client.upload_file(media)
 
                         # Prepare the audio attributes
                         audio_attributes = DocumentAttributeAudio(
-                            duration=int(duration),  # Duration in seconds
+                            duration=int(duration),
                             title="Downloaded Audio",  # Replace with actual title
                             performer="@Spotify_YT_Downloader_BOT",  # Replace with actual performer
                             # Add other attributes as needed
