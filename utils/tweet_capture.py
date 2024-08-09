@@ -13,7 +13,6 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from webdriver_manager.chrome import ChromeDriverManager
 from selenium.common.exceptions import WebDriverException
 import queue
 
@@ -38,10 +37,9 @@ class TweetCapture:
     async def get_driver(cls):
         if cls.driver_pool.empty():
             chrome_options = cls.setup_chrome_options()
-            chrome_service = webdriver.chrome.service.Service(ChromeDriverManager().install())
             try:
-                driver = webdriver.Chrome(service=chrome_service, options=chrome_options)
-                driver.set_window_size(1920, 1080)
+                driver = webdriver.Chrome(options=chrome_options)
+                driver.set_window_size(1080, 1920)
             except Exception as e:
                 print(f"Failed to initialize Chrome driver: {str(e)}")
                 return None
