@@ -54,7 +54,7 @@ class X:
         screen_shot_message = await event.respond("Uploading the screenshot. Please stand by...")
 
         button = Button.inline("Download Media",
-                               data=f"X/dl/{tweet_url.replace("https://x.com/", "")}"
+                               data=f"X/dl/{tweet_url.replace('https://x.com/', '')}"
                                ) if has_media else None
         try:
             await client.send_file(
