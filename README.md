@@ -92,7 +92,7 @@ python3 main.py
 
 ## Dependencies
 
-- Python 3.8+
+- Python 3.10+
 - Telethon
 - Spotipy
 - Yt-dlp
