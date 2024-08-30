@@ -197,7 +197,7 @@ class SpotifyDownloader:
     @staticmethod
     async def download_and_send_spotify_info(event, is_query: bool = True) -> bool:
         user_id = event.sender_id
-
+        waiting_message = None
         if is_query:
             waiting_message = await event.respond('⏳')
             query_data = str(event.data)
@@ -361,7 +361,8 @@ class SpotifyDownloader:
         SpotifyInfoButtons = [
             [Button.inline("Download 30s Preview",
                            data=f"spotify/dl/30s_preview/{link_info['preview_url'].split('?cid')[0].replace('https://p.scdn.co/mp3-preview/', '')}")
-            if link_info['preview_url'] is not None else Button.inline("Download 30s Preview", data=b"unavailable_feature")],
+             if link_info['preview_url'] is not None else Button.inline("Download 30s Preview",
+                                                                        data=b"unavailable_feature")],
             [Button.inline("Download Track", data=f"spotify/dl/music/{link_info['track_id']}")],
             [Button.inline("Download Icon",
                            data=f"spotify/dl/icon/{link_info['image_url'].replace('https://i.scdn.co/image/', '')}")],
@@ -401,6 +402,7 @@ class SpotifyDownloader:
     @staticmethod
     async def send_local_file(event, file_info, spotify_link_info, is_playlist: bool = False) -> bool:
         user_id = event.sender_id
+        upload_status_message = None
 
         # Unpack file_info for clarity
         was_local = file_info['is_local']
@@ -502,7 +504,6 @@ class SpotifyDownloader:
                               audio_option: str = "piped") -> bool | tuple[bool, Any | None] | tuple[bool, bool]:
         user_id = event.sender_id
         command = f'python3 -m spotdl --format {music_quality["format"]} --audio {audio_option} --output "{SpotifyDownloader.download_directory}" --threads {15} "{spotify_link_info["track_url"]}"'
-
         try:
             # Start the subprocess
             process = await asyncio.create_subprocess_shell(
@@ -528,6 +529,8 @@ class SpotifyDownloader:
                 # Read a line from stdout
                 line = await process.stdout.readline()
                 line = line.decode().strip()
+
+                print(line)
 
                 if not quite:
                     if audio_option == "piped":
@@ -594,7 +597,6 @@ class SpotifyDownloader:
                 "nocheckcertificate": True,
                 "quiet": True,
                 "geo_bypass": True,
-                "nocheckcertificate": True,
                 'get_filesize': True  # Retrieve the file size without downloading
             }
 
@@ -614,7 +616,6 @@ class SpotifyDownloader:
                 "addmetadata": True,
                 "prefer_ffmpeg": False,
                 "geo_bypass": True,
-                "nocheckcertificate": True,
                 "postprocessors": [{'key': 'FFmpegExtractAudio', 'preferredcodec': music_quality['format'],
                                     'preferredquality': music_quality['quality']}]
             }
@@ -672,7 +673,8 @@ class SpotifyDownloader:
         if spotify_link_info['type'] == "track":
             return await SpotifyDownloader.download_track(event, spotify_link_info)
         elif spotify_link_info['type'] == "playlist":
-            return await SpotifyDownloader.download_playlist(event, spotify_link_info, number_of_downloads=query_data.split("/")[-1][:-1])
+            return await SpotifyDownloader.download_playlist(event, spotify_link_info,
+                                                             number_of_downloads=query_data.split("/")[-1][:-1])
 
     @staticmethod
     async def download_track(event, spotify_link_info, is_playlist: bool = False):
@@ -729,17 +731,17 @@ class SpotifyDownloader:
                 return False
 
         else:
-            result, initial_message = await SpotifyDownloader.download_spotdl(event, music_quality, spotify_link_info)
+            result, message = await SpotifyDownloader.download_spotdl(event, music_quality, spotify_link_info)
             if not result:
-                result, initial_message = await SpotifyDownloader.download_spotdl(event, music_quality,
-                                                                                  spotify_link_info, not is_playlist,
-                                                                                  initial_message,
-                                                                                  audio_option="soundcloud")
+                result, message = await SpotifyDownloader.download_spotdl(event, music_quality,
+                                                                          spotify_link_info, is_playlist,
+                                                                          message,
+                                                                          audio_option="soundcloud")
                 if not result:
                     result, _ = await SpotifyDownloader.download_spotdl(event, music_quality, spotify_link_info,
-                                                                        not is_playlist,
-                                                                        initial_message, audio_option="youtube")
-            if result and initial_message:
+                                                                        is_playlist,
+                                                                        message, audio_option="youtube")
+            if result and message:
                 return await SpotifyDownloader.send_local_file(event, file_info,
                                                                spotify_link_info, is_playlist) if result else False
             else:
@@ -794,9 +796,9 @@ class SpotifyDownloader:
         for batch in track_batches:
             # Download tracks in the current batch concurrently
             download_tasks.extend([SpotifyDownloader.download_track(event,
-                                    await SpotifyDownloader.extract_data_from_spotify_link(
-                                    event, track["track_id"]), is_playlist=True) for
-                                    track in batch])
+                                                                    await SpotifyDownloader.extract_data_from_spotify_link(
+                                                                        event, track["track_id"]), is_playlist=True) for
+                                   track in batch])
 
             # Wait for all downloads in the batch to complete before proceeding to the next batch
             await asyncio.gather(*download_tasks)
