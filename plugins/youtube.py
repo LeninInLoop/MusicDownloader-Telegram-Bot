@@ -87,7 +87,6 @@ class YoutubeDownloader:
             info = ydl.extract_info(url, download=False)
             thumbnail_url = info['thumbnail']
 
-
         # Create buttons for each format
         video_formats = [f for f in formats if f.get('vcodec') != 'none' and f.get('acodec') != 'none']
         audio_formats = [f for f in formats if f.get('acodec') != 'none' and f.get('vcodec') == 'none']
@@ -215,9 +214,9 @@ class YoutubeDownloader:
 
                         # Prepare the video attributes
                         video_attributes = DocumentAttributeVideo(
-                            duration=int(duration),
-                            w=int(width),
-                            h=int(height),
+                            duration=(int(duration) if duration != "Unknown" else None),
+                            w=(int(width) if width != "Unknown" else None),
+                            h=(int(height) if height != "Unknown" else None),
                             supports_streaming=True,
                             # Add other attributes as needed
                         )
@@ -235,7 +234,7 @@ class YoutubeDownloader:
 
                         # Prepare the audio attributes
                         audio_attributes = DocumentAttributeAudio(
-                            duration=int(duration),
+                            duration=(int(duration) if duration != "Unknown" else None),
                             title="Downloaded Audio",  # Replace with actual title
                             performer="@Spotify_YT_Downloader_BOT",  # Replace with actual performer
                             # Add other attributes as needed
