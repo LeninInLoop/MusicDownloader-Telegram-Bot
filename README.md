@@ -23,7 +23,34 @@ You can test this bot at:
 
 Follow these steps to set up the `MusicDownloader-Telegram-Bot` project on your system.
 
-### Step 1: Clone the Repository
+### Step 1: Install FFmpeg
+
+FFmpeg is required for audio processing. Here's how to install it on different operating systems:
+
+#### Ubuntu/Debian
+```zsh
+sudo apt install ffmpeg
+```
+
+#### macOS (using Homebrew)
+```zsh
+brew install ffmpeg
+```
+
+#### Windows
+
+Download the FFmpeg build from [Here](https://ffmpeg.org/download.html).
+Extract the downloaded file and add the bin folder to your system's PATH.
+
+To verify the installation, run:
+```zsh
+ffmpeg -version
+```
+
+If you see version information, FFmpeg is installed correctly.
+
+
+### Step 2: Clone the Repository
 
 Open a terminal and clone the `MusicDownloader-Telegram-Bot` repository from GitHub:
 
@@ -31,7 +58,7 @@ Open a terminal and clone the `MusicDownloader-Telegram-Bot` repository from Git
 git clone https://github.com/AdibNikjou/MusicDownloader-Telegram-Bot.git
 ```
 
-### Step 2: Install Python Dependencies
+### Step 3: Install Python Dependencies
 
 Navigate to the cloned repository's directory and install the required Python dependencies using `pip`:
 
@@ -41,7 +68,7 @@ pip install -r requirements.txt
 ```
 
 
-### Step 3: Set Up Your Environment Variables
+### Step 4: Set Up Your Environment Variables
 
 Create a `config.env` file in the root directory of the project and add the following environment variables:
 
@@ -52,7 +79,7 @@ Create a `config.env` file in the root directory of the project and add the foll
 - `API_HASH=your_telegram_api_hash`
 - `GENIUS_ACCESS_TOKEN=your_genius_access_token`
 
-### Step 4: Run the Bot
+### Step 5: Run the Bot
 
 With all dependencies installed and environment variables set, you can now run the bot:
 
