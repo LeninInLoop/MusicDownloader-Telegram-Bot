@@ -214,7 +214,7 @@ class YoutubeDownloader:
 
                         # Prepare the video attributes
                         video_attributes = DocumentAttributeVideo(
-                            duration=(int(duration) if duration != "Unknown" else 0),
+                            duration=int(duration),
                             w=(int(width) if width != "Unknown" else None),
                             h=(int(height) if height != "Unknown" else None),
                             supports_streaming=True,
@@ -234,7 +234,7 @@ class YoutubeDownloader:
 
                         # Prepare the audio attributes
                         audio_attributes = DocumentAttributeAudio(
-                            duration=(int(duration) if duration != "Unknown" else 0),
+                            duration=int(duration),
                             title="Downloaded Audio",  # Replace with actual title
                             performer="@Spotify_YT_Downloader_BOT",  # Replace with actual performer
                             # Add other attributes as needed
