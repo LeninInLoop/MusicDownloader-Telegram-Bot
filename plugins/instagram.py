@@ -26,10 +26,10 @@ class Insta:
 
     @staticmethod
     def extract_url(text) -> str | None:
-        pattern = r'(?:https?:\/\/)?(?:www\.)?(?:instagram\.com|instagr\.am)(?:\/(?:p|reel|tv|stories)\/(?:[^\s\/]+)|\/([\w-]+)(?:\/(?:[^\s\/]+))?)'
+        pattern = r'(https?:\/\/(?:www\.)?(?:ddinstagram\.com|instagram\.com|instagr\.am)\/(?:p|reel|tv|stories)\/[\w-]+\/?(?:\?[^\s]+)?(?:={1,2})?)'
         match = re.search(pattern, text)
         if match:
-            return match.group()
+            return match.group(0)
         return None
 
     @staticmethod
@@ -59,40 +59,46 @@ class Insta:
             return False
 
     @staticmethod
+    async def download_content(client, event, start_message, link) -> bool:
+        content_type = Insta.determine_content_type(link)
+        try:
+            if content_type == 'reel':
+                await Insta.download_reel(client, event, link)
+                await start_message.delete()
+                return True
+            elif content_type == 'post':
+                await Insta.download_post(client, event, link)
+                await start_message.delete()
+                return True
+            elif content_type == 'story':
+                await Insta.download_story(client, event, link)
+                await start_message.delete()
+                return True
+            else:
+                await event.reply(
+                    "Sorry, unable to find the requested content. Please ensure it's publicly available.")
+                await start_message.delete()
+                return True
+        except:
+            await event.reply("Sorry, unable to find the requested content. Please ensure it's publicly available.")
+            await start_message.delete()
+            return False
+
+    @staticmethod
     async def download(client, event) -> bool:
         link = Insta.extract_url(event.message.text)
 
         start_message = await event.respond("Processing Your insta link ....")
         try:
-            url = link.replace("instagram.com", "ddinstagram.com").replace("==", "%3D%3D")
-            await client.send_file(event.chat_id, url[:-1] if url.endswith("=") else url[:],
-                                   caption="Here's your Instagram content")
+            if "ddinstagram.com" in link:
+                raise Exception
+            link = link.replace("instagram.com", "ddinstagram.com")
+            await Insta.download_content(client, event, start_message, link)
+            await start_message.delete()
             return True
         except:
-            content_type = Insta.determine_content_type(link)
-            try:
-                if content_type == 'reel':
-                    await Insta.download_reel(client, event, link)
-                    await start_message.delete()
-                    return True
-                elif content_type == 'post':
-                    await Insta.download_post(client, event, link)
-                    await start_message.delete()
-                    return True
-                elif content_type == 'story':
-                    await Insta.download_story(client, event, link)
-                    await start_message.delete()
-                    return True
-                else:
-                    await event.reply(
-                        "Sorry, unable to find the requested content. Please ensure it's publicly available.")
-                    await start_message.delete()
-                    return True
-            except:
-                await event.reply("Sorry, unable to find the requested content. Please ensure it's publicly available.")
-                await start_message.delete()
-                return False
-    
+            await Insta.download_content(client, event, start_message, link)
+
     @staticmethod
     async def download_reel(client, event, link):
         try:
