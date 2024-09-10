@@ -168,9 +168,9 @@ class YoutubeDownloader:
                 with YoutubeDL(ydl_opts) as ydl:
                     try:
                         info = ydl.extract_info(url, download=True)
-                        duration = info.get('duration', 'Unknown')
-                        width = info.get('width', 'Unknown')
-                        height = info.get('height', 'Unknown')
+                        duration = info.get('duration', 0)
+                        width = info.get('width', 0)
+                        height = info.get('height', 0)
                     except DownloadError as e:
                         await db.set_file_processing_flag(user_id, is_processing=False)
                         return await downloading_message.edit(f"Sorry Something went wrong:\nError:"
@@ -189,8 +189,8 @@ class YoutubeDownloader:
                     try:
                         info = ydl.extract_info(url, download=False)
                         duration = info.get('duration', 0)
-                        width = info.get('width', 'Unknown')
-                        height = info.get('height', 'Unknown')
+                        width = info.get('width', 0)
+                        height = info.get('height', 0)
                     except DownloadError as e:
                         await db.set_file_processing_flag(user_id, is_processing=False)
 
@@ -208,15 +208,15 @@ class YoutubeDownloader:
                         progress_bar_function=None
                     )
 
-                    if extension == "mp4" or extension == "webm":
+                    if extension == "mp4":
 
                         uploaded_file = await client.upload_file(media)
 
                         # Prepare the video attributes
                         video_attributes = DocumentAttributeVideo(
                             duration=int(duration),
-                            w=(int(width) if width != "Unknown" else None),
-                            h=(int(height) if height != "Unknown" else None),
+                            w=int(width),
+                            h=int(height),
                             supports_streaming=True,
                             # Add other attributes as needed
                         )
@@ -224,11 +224,11 @@ class YoutubeDownloader:
                         media = InputMediaUploadedDocument(
                             file=uploaded_file,
                             thumb=None,
-                            mime_type='video/mp4' if extension == "mp4" else 'video/webm',
+                            mime_type='video/mp4',
                             attributes=[video_attributes],
                         )
 
-                    elif extension == "m4a":
+                    elif extension == "m4a" or extension == "webm":
 
                         uploaded_file = await client.upload_file(media)
 
