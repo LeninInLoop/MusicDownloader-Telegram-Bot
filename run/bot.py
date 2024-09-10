@@ -198,7 +198,7 @@ class Bot:
             return False
 
         channels_user_is_not_in = await is_user_in_channel(user_id)
-        if channels_user_is_not_in != []:
+        if channels_user_is_not_in != [] and (user_id not in BotState.ADMIN_USER_IDS):
             return await respond_based_on_channel_membership(event, None, None, channels_user_is_not_in)
 
         if await BotState.get_admin_broadcast(user_id) and await BotState.get_send_to_specified_flag(user_id):
@@ -334,7 +334,6 @@ class Bot:
         except Exception as Err:
             await event.respond(f"Sorry There Was an Error Processing Your Request: {str(Err)}")
 
-        await asyncio.sleep(1.5)
         await process_file_message.delete()
         await waiting_message_search.delete()
 
@@ -372,7 +371,6 @@ class Bot:
         except Exception as Err:
             await event.respond(f"Sorry There Was an Error Processing Your Request: {str(Err)}")
 
-        await asyncio.sleep(1.5)
         await waiting_message_search.delete()
 
     @staticmethod
