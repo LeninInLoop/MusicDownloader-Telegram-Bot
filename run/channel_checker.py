@@ -51,13 +51,13 @@ async def respond_based_on_channel_membership(event, message_if_in_channels: str
     channels_user_is_not_in = await is_user_in_channel(
         user_id) if channels_user_is_not_in is None else channels_user_is_not_in
 
-    if channels_user_is_not_in != []:
+    if channels_user_is_not_in != [] and (user_id not in BotState.ADMIN_USER_IDS):
         join_channel_buttons = [[join_channel_button(channel)] for channel in channels_user_is_not_in]
         join_channel_buttons.append(Buttons.continue_button)
         await BotMessageHandler.send_message(event,
                                              f"""Hey {sender_name}!👋 \n{BotMessageHandler.JOIN_CHANNEL_MESSAGE}""",
                                              buttons=join_channel_buttons)
-    elif message_if_in_channels is not None:
+    elif message_if_in_channels is not None or (user_id in BotState.ADMIN_USER_IDS):
         await BotMessageHandler.send_message(event, f"""{message_if_in_channels}""",
                                              buttons=buttons_if_in_channel)
 
