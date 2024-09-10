@@ -17,7 +17,7 @@ Or simply click the Instructions button below. 👇
     instruction_message = """
 🎧 Music Downloader 🎧
 
-1. Share Spotify song link 🔗
+1. Share Spotify/YouTube song link 🔗
 2. Wait for download confirmation 📣
 3. Receive song file 💾
 4. Or send voice message with song sample 
@@ -25,6 +25,13 @@ Or simply click the Instructions button below. 👇
 5. Ask for lyrics, artist info, etc. 📜👨‍🎤
 
 💡 Tip: Search by title, lyrics, or other details!
+
+📺 YouTube Downloader 📺
+
+1. Send YouTube video link 🔗
+2. Choose video quality (if prompted) 🎥
+3. Wait for download ⏳
+4. Receive video file 📤
 
 📸 Instagram Downloader 📸
 
