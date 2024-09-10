@@ -93,9 +93,7 @@ class Insta:
             if "ddinstagram.com" in link:
                 raise Exception
             link = link.replace("instagram.com", "ddinstagram.com")
-            await Insta.download_content(client, event, start_message, link)
-            await start_message.delete()
-            return True
+            return await Insta.download_content(client, event, start_message, link)
         except:
             await Insta.download_content(client, event, start_message, link)
 
