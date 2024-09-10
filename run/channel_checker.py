@@ -77,5 +77,6 @@ async def handle_continue_in_membership_message(event):
         user_already_in_db = await db.check_username_in_database(user_id)
         if not user_already_in_db:
             await db.create_user_settings(user_id)
+        await event.delete()
         await respond_based_on_channel_membership(event, f"""Hey {sender_name}!👋 \n{BotMessageHandler.start_message}""",
                                                   buttons=Buttons.main_menu_buttons)
