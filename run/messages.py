@@ -15,36 +15,32 @@ Or simply click the Instructions button below. 👇
 """
 
     instruction_message = """
-    🎧 **Music Downloader** 🎧
-    ——————————————————
-    **1.** Share the Spotify song link. 🔗
-    **2.** Wait for the download confirmation. 📣
-    **3.** I'll send you the song file when ready. 💾
-    **4.** You can also send a voice message with a song sample. 
-        I'll find the best match and send you the details. 🎤🔍📩
-    **5.** Get music lyrics, artist info, and more Just ask. 📜👨‍🎤
+🎧 Music Downloader 🎧
 
-    💡 **Tip**: Search by title, lyrics, or other details too!
+1. Share Spotify song link 🔗
+2. Wait for download confirmation 📣
+3. Receive song file 💾
+4. Or send voice message with song sample 
+   for best match and details 🎤🔍📩
+5. Ask for lyrics, artist info, etc. 📜👨‍🎤
 
-    📸 **Instagram Downloader** 📸
-    ——————————————————
-    **1.** Send the Instagram post, Reel, or IGTV link. 🔗
-    **2.** I'll start downloading the content. ⏳
-    **3.** I'll send you the file when it's ready. 📤
+💡 Tip: Search by title, lyrics, or other details!
 
-    🐦 **TweetCapture** 🐦
-    ——————————————————
-    **1.** Provide the tweet link. 🔗
-    **2.** I'll screenshot the tweet and start downloading. 📸
-    **3.** I'll send you the screenshot when it's ready. 🖼️
-    **4.** To download media content from the tweet,
-        click the "Download Media" button after
-        receiving the screenshot. 📥
+📸 Instagram Downloader 📸
 
-    ——————————————————
-    Use any service by following the instructions!
-    If you have any questions,
-     feel free to ask @adibnikjou.
+1. Send Instagram post/Reel/IGTV link 🔗
+2. Wait for download ⏳
+3. Receive file 📤
+
+🐦 TweetCapture 🐦
+
+1. Provide tweet link 🔗
+2. Wait for screenshot 📸
+3. Receive screenshot 🖼️
+4. For media content, use "Download Media" 
+   button after getting screenshot 📥
+
+Questions? Ask @adibnikjou
         """
 
     search_result_message = """🎵 The following are the top search results that correspond to your query:
