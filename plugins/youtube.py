@@ -136,8 +136,7 @@ class YoutubeDownloader:
                )
         except WebpageMediaEmptyError:
             await event.respond(
-                event.chat_id,
-               caption="Select a format to download:",
+               "Select a format to download:",
                buttons=buttons
                )
 
